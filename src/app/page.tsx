@@ -1,65 +1,86 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Film, Calendar, Users, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Hero */}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+        {/* Ambient glow */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-primary/3 blur-[100px]" />
+
+        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center animate-fade-in">
+          {/* Logo */}
+          <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-primary/20 bg-primary/5 px-5 py-2">
+            <Film className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium text-primary">CineBoard</span>
+          </div>
+
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+            Sua produção,{" "}
+            <span className="text-primary">organizada.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+          <p className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
+            Planeje a ordem do dia com inteligência artificial. Otimize dias de
+            gravação, elenco e locações automaticamente.
           </p>
+
+          <div className="mt-10 flex items-center justify-center gap-4">
+            <Link href="/register">
+              <Button size="lg" className="rounded-full px-8 font-semibold">
+                Começar agora
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button
+                variant="outline"
+                size="lg"
+                className="rounded-full px-8 font-semibold"
+              >
+                Entrar
+              </Button>
+            </Link>
+          </div>
+
+          {/* Feature cards */}
+          <div className="mt-20 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {[
+              {
+                icon: Calendar,
+                title: "Ordem do Dia",
+                desc: "Gerada por IA com otimização de custos",
+              },
+              {
+                icon: Users,
+                title: "Casting Inteligente",
+                desc: "Vincule atores e gerencie disponibilidade",
+              },
+              {
+                icon: BarChart3,
+                title: "Métricas de Produção",
+                desc: "Actor-days, custos e conflitos em tempo real",
+              },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className="group rounded-xl border border-border/50 bg-card/50 p-6 text-left backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/80"
+              >
+                <f.icon className="h-8 w-8 text-primary mb-3 transition-transform group-hover:scale-110" />
+                <h3 className="font-semibold">{f.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{f.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
+        © 2026 CineBoard. Todos os direitos reservados.
+      </footer>
     </div>
   );
 }
