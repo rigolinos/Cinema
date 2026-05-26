@@ -299,7 +299,11 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Erro no parsing do arquivo.");
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        const errorMsg = errorBody?.error || "Erro no parsing do arquivo.";
+        throw new Error(errorMsg);
+      }
 
       const parsedData = await res.json();
       const supabase = createClient();

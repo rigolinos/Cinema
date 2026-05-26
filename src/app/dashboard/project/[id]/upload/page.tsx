@@ -93,7 +93,8 @@ export default function UploadPage() {
         setProgress(100);
         setUploadState("done");
       } else {
-        setError("Erro no parsing do arquivo. Se for PDF, verifique se a chave do Gemini está configurada.");
+        const storeError = useCinemaStore.getState().error;
+        setError(storeError || "Erro ao processar o arquivo. Tente novamente ou entre em contato com o suporte.");
         setUploadState("error");
       }
     } catch (err: any) {

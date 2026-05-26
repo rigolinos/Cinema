@@ -317,7 +317,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. If it's a PDF and we have the Gemini Key, we can query the Gemini 2.5 Flash API!
+    // 2. If it's a PDF, we need the Gemini API Key
+    if (filename.endsWith(".pdf") && !hasGeminiKey) {
+      return NextResponse.json(
+        { error: "Chave da API Gemini não configurada no servidor. Entre em contato com o administrador." },
+        { status: 400 }
+      );
+    }
+
     if (filename.endsWith(".pdf") && hasGeminiKey) {
       // Encode arrayBuffer as base64
       const base64Data = Buffer.from(fileBuffer).toString("base64");
