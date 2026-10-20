@@ -191,7 +191,7 @@ export default function CastingPage() {
       </div>
 
       {/* Progress Bar */}
-      <Card className="border-border/50 bg-card/30 mb-6">
+      <Card className="border-border/50 bg-card mb-6">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
@@ -221,7 +221,7 @@ export default function CastingPage() {
               className={cn(
                 "border-border/50 transition-all",
                 char.actorName
-                  ? "bg-card/50"
+                  ? "bg-card"
                   : "bg-card/20 border-dashed"
               )}
             >

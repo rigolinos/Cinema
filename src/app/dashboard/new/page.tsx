@@ -44,7 +44,7 @@ export default function NewProjectPage() {
       </Link>
 
       <div className="max-w-lg">
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <Card className="border-border/50 bg-card">
           <CardHeader>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 mb-2">
               <Film className="h-5 w-5 text-primary" />
@@ -58,7 +58,7 @@ export default function NewProjectPage() {
             {storeError && (
               <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-foreground text-sm flex flex-col gap-1.5 animate-scale-in">
                 <p className="font-semibold flex items-center gap-2">
-                  <span>⚠️ Falha na Criação do Projeto</span>
+                  <span>Não deu para criar o projeto</span>
                 </p>
                 <p className="text-muted-foreground leading-relaxed text-xs">{storeError}</p>
               </div>

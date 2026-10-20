@@ -49,7 +49,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projetos</h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie suas produções cinematográficas
+            Seus vídeos e produções
           </p>
         </div>
         <Link href="/dashboard/new">
@@ -84,7 +84,7 @@ export default function DashboardPage() {
         ].map((stat) => (
           <Card
             key={stat.label}
-            className="border-border/50 bg-card/50 backdrop-blur-sm"
+            className="border-border/50 bg-card"
           >
             <CardContent className="flex items-center gap-4 p-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           {/* Project Cards */}
           {projects.map((project) => (
             <Link key={project.id} href={`/dashboard/project/${project.id}/upload`}>
-              <Card className="group min-h-[220px] cursor-pointer border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+              <Card className="group min-h-[220px] cursor-pointer border-border/50 bg-card transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
                 <CardHeader className="flex flex-row items-start justify-between pb-3">
                   <div className="space-y-1">
                     <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors">

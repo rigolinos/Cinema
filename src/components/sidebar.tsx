@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/logo";
 import {
-  Film,
   LayoutDashboard,
-  Settings,
   LogOut,
   ChevronLeft,
   Plus,
@@ -20,7 +19,7 @@ import { useRouter } from "next/navigation";
 
 const navItems = [
   {
-    title: "Dashboard",
+    title: "Projetos",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
@@ -47,13 +46,10 @@ export function Sidebar() {
     >
       {/* Header */}
       <div className="flex h-16 items-center gap-3 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Film className="h-5 w-5 text-primary" />
-        </div>
-        {!collapsed && (
-          <span className="text-lg font-bold tracking-tight">
-            CineBoard
-          </span>
+        {collapsed ? (
+          <span className="size-3 shrink-0 rounded-full bg-rec" aria-label="Gravaí" role="img" />
+        ) : (
+          <Logo className="text-xl" />
         )}
         <Button
           variant="ghost"
@@ -116,20 +112,6 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-sidebar-border p-3">
-        <Tooltip>
-          <TooltipTrigger
-            render={<Link href="/settings" />}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-              collapsed && "justify-center px-0"
-            )}
-          >
-            <Settings className="h-4 w-4 shrink-0" />
-            {!collapsed && "Configurações"}
-          </TooltipTrigger>
-          {collapsed && <TooltipContent side="right">Configurações</TooltipContent>}
-        </Tooltip>
-
         <Tooltip>
           <TooltipTrigger
             onClick={handleLogout}

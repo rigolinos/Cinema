@@ -181,7 +181,7 @@ export default function ExportPage() {
       </div>
 
       {/* Summary */}
-      <Card className="border-border/50 bg-card/30 mb-6">
+      <Card className="border-border/50 bg-card mb-6">
         <CardContent className="p-4">
           <div className="flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-2">
@@ -231,7 +231,7 @@ export default function ExportPage() {
                 "border-border/50 transition-all",
                 isExported
                   ? "bg-primary/5 border-primary/20"
-                  : "bg-card/30 hover:border-primary/20"
+                  : "bg-card hover:border-primary/20"
               )}
             >
               <CardHeader className="pb-3">

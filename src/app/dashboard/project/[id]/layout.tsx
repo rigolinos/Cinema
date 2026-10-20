@@ -41,7 +41,7 @@ export default function ProjectLayout({
 
       {/* Step Navigation */}
       <div className="mb-8">
-        <nav className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm p-1.5 overflow-x-auto">
+        <nav className="flex items-center gap-1 rounded-xl border border-border/50 bg-card p-1.5 overflow-x-auto">
           {steps.map((step, index) => {
             const isActive = pathname.endsWith(`/${step.href}`);
             const isCompleted = currentStepIndex > index;

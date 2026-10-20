@@ -1,17 +1,33 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-sans",
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
+  axes: ["wdth"],
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "CineBoard — Assistente de Diretor",
+  title: "Gravaí: da ideia ao vídeo gravado",
   description:
-    "Planeje sua ordem do dia de forma inteligente. Otimize dias de gravação, elenco e locações com IA.",
+    "Crie a ideia, escreva o roteiro, planeje cada plano e grave com um parceiro de set que explica cada passo.",
+  applicationName: "Gravaí",
+  appleWebApp: { capable: true, title: "Gravaí", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ECECE8",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -20,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} dark h-full antialiased`}>
+    <html lang="pt-BR" className={`${archivo.variable} ${plexMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <TooltipProvider>{children}</TooltipProvider>
       </body>

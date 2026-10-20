@@ -143,7 +143,7 @@ export default function BreakdownPage() {
           { label: "Personagens", value: uniqueCharacters, color: "text-chart-3" },
           { label: "Páginas", value: `${totalPages}/8`, color: "text-chart-4" },
         ].map((stat) => (
-          <Card key={stat.label} className="border-border/50 bg-card/30">
+          <Card key={stat.label} className="border-border/50 bg-card">
             <CardContent className="p-4">
               <p className={cn("text-2xl font-bold", stat.color)}>{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -173,7 +173,7 @@ export default function BreakdownPage() {
       </div>
 
       {/* Scene Table */}
-      <Card className="border-border/50 bg-card/30 overflow-hidden">
+      <Card className="border-border/50 bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

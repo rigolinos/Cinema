@@ -121,7 +121,7 @@ export default function UploadPage() {
               ? "border-primary bg-primary/5 scale-[1.02]"
               : uploadState === "error"
               ? "border-destructive/50 bg-destructive/5"
-              : "border-border/50 bg-card/30 hover:border-primary/40 hover:bg-card/50"
+              : "border-border/50 bg-card hover:border-primary/40 hover:bg-card"
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -183,7 +183,7 @@ export default function UploadPage() {
         </Card>
       ) : (
         /* Processing / Done State */
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <Card className="border-border/50 bg-card">
           <CardContent className="py-8">
             <div className="flex items-start gap-4">
               {/* File Icon */}
@@ -238,7 +238,7 @@ export default function UploadPage() {
                 {uploadState === "done" && (
                   <div className="mt-3">
                     <p className="text-sm text-green-500 font-medium">
-                      ✓ Roteiro analisado com sucesso
+                      Roteiro analisado
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {scenes.length} cenas detectadas · {characters.length} personagens · {locations.length} locações
