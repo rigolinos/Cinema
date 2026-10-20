@@ -76,6 +76,10 @@ export function parseJson(text: string): unknown {
   }
 }
 
+export function hasAiProvider(): boolean {
+  return Boolean(key("GEMINI_API_KEY") || key("GROQ_API_KEY"));
+}
+
 // Pede JSON ao primeiro fornecedor disponível; se ele falhar, tenta o próximo.
 export async function generateJson(req: AiRequest): Promise<unknown> {
   const providers: Provider[] = [];

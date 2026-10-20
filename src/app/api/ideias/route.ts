@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { AiError, generateJson } from "@/lib/ai";
+import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { IDEA_SYSTEM, ideaPrompt, normalizeIdeas, type Objective, type Platform, type Resource } from "@/lib/ideas";
 
 function fail(message: string, status: number) {
@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
   if (!profile?.niche || !video.objective || !video.platform || !video.duration_s) {
     return fail("Faltam respostas para sugerir ideias.", 400);
   }
+
+  // Sem chave configurada não se gasta a cota de ninguém.
+  if (!hasAiProvider()) return fail("As sugestões ainda não estão configuradas no servidor.", 503);
 
   const { data: allowed, error: quotaErr } = await supabase.rpc("consume_ai_call");
   if (quotaErr) return fail("Não foi possível falar com a IA agora.", 500);
