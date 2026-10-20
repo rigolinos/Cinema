@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeAiScript, parseFdx } from "@/lib/script";
 import { createClient } from "@/lib/supabase/server";
+import { geminiModel } from "@/lib/ai";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
   let response: Response;
   try {
     response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },

@@ -30,9 +30,14 @@ async function failFrom(res: Response, provider: string): Promise<never> {
   throw new AiError(`${provider} indisponível`, res.status === 429 ? "limit" : "unavailable");
 }
 
+// Modelo trocável sem mexer no código (GEMINI_MODEL na Vercel ou no .env.local).
+export function geminiModel(): string {
+  return key("GEMINI_MODEL") ?? "gemini-2.5-flash";
+}
+
 const gemini: Provider = async ({ system, prompt, temperature = 0.9 }) => {
   const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key("GEMINI_API_KEY")! },
