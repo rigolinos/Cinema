@@ -175,6 +175,37 @@ r = await as('authenticated', A, 'SELECT public.choose_idea($1)', [idea2]);
 const chosen = (await q('SELECT id FROM public.video_ideas WHERE video_id = $1 AND chosen', [vidA])).rows.map((x) => x.id);
 ok(!r.err && chosen.length === 1 && chosen[0] === idea2, 'trocar de ideia deixa só uma escolhida');
 
+console.log('Roteiro:');
+const blocos = JSON.stringify([
+  { kind: 'gancho', speech: 'Você erra isso.', on_screen: '3 ERROS' },
+  { kind: 'conteudo', label: 'Erro 1', speech: 'Primeiro erro.', action: 'Mostra o agachamento' },
+  { kind: 'chamada', speech: 'Segue para mais.' },
+]);
+r = await as('authenticated', A, 'SELECT id, position, kind, label FROM public.replace_script($1, $2::jsonb) ORDER BY position', [vidA, blocos]);
+ok(!r.err && r.rows.length === 3 && r.rows.map((x) => x.kind).join() === 'gancho,conteudo,chamada', 'dono grava o roteiro em blocos, na ordem' + (r.err ? ': ' + r.err : ''));
+ok(r.rows?.[1]?.label === 'Erro 1' && r.rows?.[0]?.label === null, 'rótulo opcional por bloco');
+const bloco1 = r.rows?.[0]?.id;
+r = await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo' }])]);
+const total = (await one('SELECT count(*)::int AS n FROM public.script_blocks WHERE video_id = $1', [vidA])).n;
+ok(!r.err && total === 1, 'um rascunho novo substitui o anterior inteiro');
+r = await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho' }, { kind: 'monologo' }])]);
+const depois = (await one('SELECT count(*)::int AS n FROM public.script_blocks WHERE video_id = $1', [vidA])).n;
+ok(r.err && depois === 1, 'bloco inválido cancela tudo e mantém o roteiro anterior');
+r = await as('authenticated', A, 'SELECT public.replace_script($1, $2::jsonb)', [vidA, '[]']);
+ok(r.err, 'roteiro vazio é recusado');
+r = await as('authenticated', B, 'SELECT public.replace_script($1, $2::jsonb)', [vidA, blocos]);
+ok(r.err, 'ninguém grava roteiro no vídeo de outra pessoa');
+r = await as('authenticated', B, 'SELECT id FROM public.script_blocks');
+ok(!r.err && r.rows.length === 0, 'ninguém lê o roteiro de outra pessoa');
+const atual = (await one('SELECT id FROM public.script_blocks WHERE video_id = $1', [vidA])).id;
+r = await as('authenticated', B, `UPDATE public.script_blocks SET speech = 'invadido' WHERE id = $1 RETURNING id`, [atual]);
+ok(!r.err && r.rows.length === 0, 'ninguém edita o roteiro de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.script_blocks SET speech = 'Editado à mão' WHERE id = $1 RETURNING speech`, [atual]);
+ok(r.rows?.[0]?.speech === 'Editado à mão', 'dono edita um bloco');
+r = await as('authenticated', A, `UPDATE public.script_blocks SET speech = repeat('a', 1501) WHERE id = $1`, [atual]);
+ok(r.err, 'fala com mais de 1500 caracteres é recusada');
+ok(bloco1 !== atual, 'blocos do rascunho antigo não ficam para trás');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {
