@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Gravaí",
     description: "Da ideia ao vídeo gravado: roteiro, planos e gravação com um parceiro de set.",
     lang: "pt-BR",
-    start_url: "/dashboard",
+    start_url: "/inicio",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
