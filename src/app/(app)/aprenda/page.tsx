@@ -1,5 +1,7 @@
+import { ANGLES, FRAMINGS, MOVEMENTS, SET_RULES, type Term } from "@/lib/planos";
+
 // Aprenda: os termos que aparecem no caminho, explicados em uma linha e com o porquê.
-// Planos, ângulos, luz e som entram junto com o passo Planos.
+// Enquadramentos, ângulos e movimentos vêm do mesmo vocabulário da tela de planos.
 const TERMS = [
   {
     term: "Gancho",
@@ -38,17 +40,17 @@ const TERMS = [
   },
 ];
 
-export default function AprendaPage() {
+function Section({ id, title, intro, terms }: { id: string; title: string; intro?: string; terms: { term: string; what: string; why: string }[] }) {
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="label-set text-muted-foreground">Aprenda</p>
-        <h1 className="font-display text-[32px]">O básico do set</h1>
-        <p className="leading-relaxed text-muted-foreground">Os termos que aparecem no caminho, sem complicação.</p>
-      </header>
-
+    <section id={id} aria-labelledby={`${id}-titulo`} className="flex scroll-mt-6 flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 id={`${id}-titulo`} className="label-set">
+          {title}
+        </h2>
+        {intro && <p className="text-sm leading-relaxed text-muted-foreground">{intro}</p>}
+      </div>
       <dl className="flex flex-col gap-3">
-        {TERMS.map((t) => (
+        {terms.map((t) => (
           <div key={t.term} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
             <dt className="text-lg font-bold">{t.term}</dt>
             <dd className="text-[15px] leading-relaxed">{t.what}</dd>
@@ -58,6 +60,40 @@ export default function AprendaPage() {
           </div>
         ))}
       </dl>
+    </section>
+  );
+}
+
+const asTerms = (terms: Record<string, Term>) => Object.values(terms).map((t) => ({ term: t.label, what: t.what, why: t.why }));
+
+const SECTIONS = [
+  { id: "basico", title: "O básico", terms: TERMS },
+  { id: "enquadramentos", title: "Enquadramentos", intro: "Quanto da pessoa ou do lugar aparece na tela.", terms: asTerms(FRAMINGS) },
+  { id: "angulos", title: "Ângulos", intro: "De onde a câmera olha.", terms: asTerms(ANGLES) },
+  { id: "movimentos", title: "Movimentos", intro: "O que a câmera faz enquanto grava.", terms: asTerms(MOVEMENTS) },
+  { id: "regras", title: "Regras do set", intro: "O que separa um vídeo amador de um vídeo bem feito, mesmo no celular.", terms: SET_RULES.map((t) => ({ term: t.label, what: t.what, why: t.why })) },
+];
+
+export default function AprendaPage() {
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <p className="label-set text-muted-foreground">Aprenda</p>
+        <h1 className="font-display text-[32px]">O básico do set</h1>
+        <p className="leading-relaxed text-muted-foreground">Os termos que aparecem no caminho, sem complicação.</p>
+      </header>
+
+      <nav aria-label="Assuntos" className="-mx-5 flex gap-2 overflow-x-auto px-5">
+        {SECTIONS.map((s) => (
+          <a key={s.id} href={`#${s.id}`} className="flex min-h-11 items-center rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap">
+            {s.title}
+          </a>
+        ))}
+      </nav>
+
+      {SECTIONS.map((s) => (
+        <Section key={s.id} {...s} />
+      ))}
     </div>
   );
 }

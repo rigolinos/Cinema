@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
+import { nextReadyStage } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { durationLabel } from "@/lib/ideas";
@@ -233,7 +234,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     if (!video) return;
     setBusy("seguir");
     if (video.stage === "roteiro") {
-      const { error } = await createClient().from("videos").update({ stage: "pessoas" }).eq("id", id);
+      const { error } = await createClient().from("videos").update({ stage: nextReadyStage("roteiro") }).eq("id", id);
       if (error) {
         setBusy(null);
         setError("Não deu para avançar. Tente de novo.");

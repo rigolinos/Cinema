@@ -206,6 +206,40 @@ r = await as('authenticated', A, `UPDATE public.script_blocks SET speech = repea
 ok(r.err, 'fala com mais de 1500 caracteres é recusada');
 ok(bloco1 !== atual, 'blocos do rascunho antigo não ficam para trás');
 
+console.log('Planos:');
+const blocosA = (await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb) ORDER BY position', [vidA, blocos])).rows.map((x) => x.id);
+const plano = (blockId, extra = {}) => ({ block_id: blockId, framing: 'close', angle: 'altura_olhos', movement: 'parado', description: 'Rosto', location: 'Sala', ...extra });
+r = await as('authenticated', A, 'SELECT id, position, orientation FROM public.replace_shots($1, $2::jsonb) ORDER BY position', [
+  vidA,
+  JSON.stringify([plano(blocosA[0]), plano(blocosA[1], { framing: 'aberto', location: 'Quarto' }), plano(blocosA[2], { orientation: 'horizontal' })]),
+]);
+ok(!r.err && r.rows.length === 3 && r.rows[0].orientation === 'vertical' && r.rows[2].orientation === 'horizontal', 'dono grava a decupagem' + (r.err ? ': ' + r.err : ''));
+const planos = r.rows.map((x) => x.id);
+r = await as('authenticated', A, 'SELECT public.replace_shots($1, $2::jsonb)', [vidA, JSON.stringify([plano(blocosA[0], { framing: 'super_close' })])]);
+ok(r.err && (await one('SELECT count(*)::int AS n FROM public.shots WHERE video_id = $1', [vidA])).n === 3, 'enquadramento inválido cancela tudo e mantém a decupagem anterior');
+
+const vidB = (await as('authenticated', B, `INSERT INTO public.videos (objective) VALUES ('crescer') RETURNING id`)).rows[0].id;
+const blocoB = (await as('authenticated', B, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidB, blocos])).rows[0].id;
+r = await as('authenticated', A, 'SELECT public.replace_shots($1, $2::jsonb)', [vidA, JSON.stringify([plano(blocoB)])]);
+ok(r.err, 'plano não pode apontar para bloco de outro vídeo');
+r = await as('authenticated', B, 'SELECT public.replace_shots($1, $2::jsonb)', [vidA, JSON.stringify([plano(blocosA[0])])]);
+ok(r.err, 'ninguém grava planos no vídeo de outra pessoa');
+r = await as('authenticated', B, 'SELECT id FROM public.shots');
+ok(!r.err && r.rows.length === 0, 'ninguém lê os planos de outra pessoa');
+r = await as('authenticated', B, `UPDATE public.shots SET recorded = true WHERE id = $1 RETURNING id`, [planos[0]]);
+ok(!r.err && r.rows.length === 0, 'ninguém marca plano de outra pessoa');
+
+r = await as('authenticated', A, 'SELECT public.set_shoot_order($1, $2)', [vidA, [planos[1], planos[0], planos[2]]]);
+const ordem = (await q('SELECT id FROM public.shots WHERE video_id = $1 ORDER BY shoot_order', [vidA])).rows.map((x) => x.id);
+ok(!r.err && JSON.stringify(ordem) === JSON.stringify([planos[1], planos[0], planos[2]]), 'grava a ordem de gravação' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, 'SELECT public.set_shoot_order($1, $2)', [vidA, [planos[0], planos[0], planos[1]]]);
+ok(r.err, 'ordem com plano repetido é recusada');
+r = await as('authenticated', B, 'SELECT public.set_shoot_order($1, $2)', [vidA, planos]);
+ok(r.err, 'ninguém mexe na ordem de outra pessoa');
+
+await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo roteiro' }])]);
+ok((await one('SELECT count(*)::int AS n FROM public.shots WHERE video_id = $1', [vidA])).n === 0, 'roteiro novo apaga os planos dos blocos antigos');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

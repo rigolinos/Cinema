@@ -14,6 +14,22 @@ export function stageIndex(stage: VideoStage): number {
   return i === -1 ? STAGES.length : i;
 }
 
+// Passos que já existem no app; os outros chegam nos próximos lotes e, até lá, são pulados.
+export const READY_STAGES: VideoStage[] = ["ideia", "roteiro", "planos"];
+
+// Próximo passo pronto depois de `stage` (ou "pronto" quando não há mais nenhum).
+export function nextReadyStage(stage: VideoStage): VideoStage {
+  return STAGES.slice(stageIndex(stage) + 1).find((s) => READY_STAGES.includes(s.id))?.id ?? "pronto";
+}
+
+// Até onde a pessoa pode ir: se parou num passo que ainda não existe, segue para o próximo pronto.
+export function reachableIndex(stage: VideoStage): number {
+  const i = stageIndex(stage);
+  if (i >= STAGES.length || READY_STAGES.includes(stage)) return i;
+  const next = STAGES.slice(i).findIndex((s) => READY_STAGES.includes(s.id));
+  return next === -1 ? i : i + next;
+}
+
 export function stageLabel(stage: VideoStage): string {
   const i = stageIndex(stage);
   return i >= STAGES.length ? "Pronto" : `Passo ${i + 1} de ${STAGES.length} · ${STAGES[i].label}`;

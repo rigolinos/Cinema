@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { Trail, stageLabel } from "@/components/gravai/trail";
+import { READY_STAGES, STAGES, Trail, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { FORMATS } from "@/lib/formats";
 import { durationLabel } from "@/lib/ideas";
@@ -14,6 +14,12 @@ import type { Video } from "@/types/database";
 function formatOfTheWeek() {
   const week = Math.floor((Date.now() - Date.UTC(2026, 0, 1)) / (7 * 24 * 60 * 60 * 1000));
   return FORMATS[((week % FORMATS.length) + FORMATS.length) % FORMATS.length];
+}
+
+// "Continuar" abre direto o passo em que a pessoa está, se ele já existe no app.
+function videoHref(v: Video): string {
+  const step = STAGES[reachableIndex(v.stage)]?.id;
+  return step && READY_STAGES.includes(step) ? `/video/${v.id}/${step}` : `/video/${v.id}`;
 }
 
 export default function InicioPage() {
@@ -71,7 +77,7 @@ export default function InicioPage() {
         {videos?.map((v) => (
           <Link
             key={v.id}
-            href={v.stage === "ideia" || v.stage === "roteiro" ? `/video/${v.id}/${v.stage}` : `/video/${v.id}`}
+            href={videoHref(v)}
             className="flex flex-col gap-3 rounded-2xl bg-card p-4"
           >
             <span className="flex items-baseline justify-between gap-3">
