@@ -237,6 +237,14 @@ ok(r.err, 'ordem com plano repetido é recusada');
 r = await as('authenticated', B, 'SELECT public.set_shoot_order($1, $2)', [vidA, planos]);
 ok(r.err, 'ninguém mexe na ordem de outra pessoa');
 
+console.log('Modo set:');
+r = await as('authenticated', A, `UPDATE public.shots SET recorded = true, takes = takes + 1, good_take = true WHERE id = $1 RETURNING takes, good_take, recorded`, [planos[0]]);
+ok(r.rows?.[0]?.takes === 1 && r.rows[0].good_take && r.rows[0].recorded, 'dono marca take gravado e take bom');
+r = await as('authenticated', A, `UPDATE public.shots SET takes = 100 WHERE id = $1`, [planos[0]]);
+ok(r.err, 'mais de 99 takes é recusado');
+r = await as('authenticated', B, `UPDATE public.shots SET good_take = false WHERE id = $1 RETURNING id`, [planos[0]]);
+ok(!r.err && r.rows.length === 0, 'ninguém mexe nos takes de outra pessoa');
+
 await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo roteiro' }])]);
 ok((await one('SELECT count(*)::int AS n FROM public.shots WHERE video_id = $1', [vidA])).n === 0, 'roteiro novo apaga os planos dos blocos antigos');
 
