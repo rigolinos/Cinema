@@ -16,10 +16,8 @@ const steps = [
 
 export default function ProjectLayout({
   children,
-  params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ id: string }>;
 }) {
   const pathname = usePathname();
   // Extract project id from the pathname since we can't await in client component
@@ -47,7 +45,6 @@ export default function ProjectLayout({
           {steps.map((step, index) => {
             const isActive = pathname.endsWith(`/${step.href}`);
             const isCompleted = currentStepIndex > index;
-            const isAccessible = true; // TODO: check based on project state
 
             return (
               <Link

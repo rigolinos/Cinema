@@ -4,11 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   TableProperties,
-  Edit3,
-  Save,
-  X,
-  Plus,
-  Trash2,
   Sun,
   Moon,
   Sunrise,
@@ -24,10 +19,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -37,19 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { IntExt, TimeOfDay, WeatherRequirement } from "@/types/database";
-
-interface SceneRow {
-  id: string;
-  number: string;
-  int_ext: IntExt;
-  location_name: string;
-  time_of_day: TimeOfDay;
-  characters: string[];
-  synopsis: string;
-  pages: number;
-  weather_requirement: WeatherRequirement;
-}
+import type { TimeOfDay, WeatherRequirement } from "@/types/database";
 
 const timeIcons: Record<TimeOfDay, React.ReactNode> = {
   DIA: <Sun className="h-3.5 w-3.5 text-amber-400" />,
@@ -77,120 +59,6 @@ const weatherLabels: Record<WeatherRequirement, string> = {
   wind: "Vento",
   fog: "Neblina",
 };
-
-// Mock data simulating AI-extracted scenes
-const mockScenes: SceneRow[] = [
-  {
-    id: "1",
-    number: "1",
-    int_ext: "EXT",
-    location_name: "PRAIA DE COPACABANA",
-    time_of_day: "AMANHECER",
-    characters: ["LUCAS", "MARINA"],
-    synopsis: "Lucas caminha sozinho pela praia. Marina aparece ao longe.",
-    pages: 3,
-    weather_requirement: "sun",
-  },
-  {
-    id: "2",
-    number: "2",
-    int_ext: "INT",
-    location_name: "APARTAMENTO DE LUCAS",
-    time_of_day: "DIA",
-    characters: ["LUCAS"],
-    synopsis: "Lucas acorda e se prepara. Flashbacks da noite anterior.",
-    pages: 2,
-    weather_requirement: "any",
-  },
-  {
-    id: "3",
-    number: "3",
-    int_ext: "INT",
-    location_name: "DELEGACIA",
-    time_of_day: "DIA",
-    characters: ["LUCAS", "DELEGADO SILVA", "GUARDA"],
-    synopsis: "Lucas é interrogado sobre o desaparecimento.",
-    pages: 5,
-    weather_requirement: "any",
-  },
-  {
-    id: "4",
-    number: "4",
-    int_ext: "EXT",
-    location_name: "RUA DO CENTRO",
-    time_of_day: "NOITE",
-    characters: ["LUCAS", "INFORMANTE"],
-    synopsis: "Lucas encontra o informante em um beco escuro.",
-    pages: 4,
-    weather_requirement: "rain",
-  },
-  {
-    id: "5",
-    number: "5",
-    int_ext: "INT",
-    location_name: "BAR DO ZÉ",
-    time_of_day: "NOITE",
-    characters: ["LUCAS", "MARINA", "ZÉ"],
-    synopsis: "Lucas e Marina se reencontram no bar. Tensão.",
-    pages: 6,
-    weather_requirement: "any",
-  },
-  {
-    id: "6",
-    number: "6",
-    int_ext: "EXT",
-    location_name: "PRAIA DE COPACABANA",
-    time_of_day: "ENTARDECER",
-    characters: ["MARINA"],
-    synopsis: "Marina reflete sozinha olhando o mar.",
-    pages: 2,
-    weather_requirement: "cloudy",
-  },
-  {
-    id: "7",
-    number: "7",
-    int_ext: "INT",
-    location_name: "DELEGACIA",
-    time_of_day: "DIA",
-    characters: ["DELEGADO SILVA", "GUARDA"],
-    synopsis: "Delegado descobre nova evidência.",
-    pages: 3,
-    weather_requirement: "any",
-  },
-  {
-    id: "8",
-    number: "8",
-    int_ext: "EXT",
-    location_name: "MORRO DA FAVELA",
-    time_of_day: "DIA",
-    characters: ["LUCAS", "INFORMANTE", "CAPANGAS"],
-    synopsis: "Perseguição pelas vielas do morro.",
-    pages: 8,
-    weather_requirement: "sun",
-  },
-  {
-    id: "9",
-    number: "9",
-    int_ext: "INT",
-    location_name: "HOSPITAL",
-    time_of_day: "NOITE",
-    characters: ["LUCAS", "MARINA", "MÉDICA"],
-    synopsis: "Lucas é levado ao hospital. Marina chega desesperada.",
-    pages: 4,
-    weather_requirement: "any",
-  },
-  {
-    id: "10",
-    number: "10",
-    int_ext: "INT/EXT",
-    location_name: "APARTAMENTO DE LUCAS",
-    time_of_day: "DIA",
-    characters: ["LUCAS", "MARINA"],
-    synopsis: "Desfecho. Lucas e Marina decidem o futuro juntos.",
-    pages: 5,
-    weather_requirement: "sun",
-  },
-];
 
 import { useCinemaStore } from "@/lib/store";
 

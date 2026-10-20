@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { optimizeSchedule } from "./optimizer";
+import type { ParsedScript } from "./script";
 import type {
   Project,
   Scene,
@@ -25,7 +26,6 @@ interface CinemaState {
   loading: boolean;
   error: string | null;
 
-  // Actions
   fetchProjects: () => Promise<void>;
   fetchProjectDetails: (projectId: string) => Promise<void>;
   createProject: (title: string, description?: string) => Promise<Project | null>;
@@ -40,31 +40,14 @@ interface CinemaState {
   reorderShootingDays: (projectId: string, dayIds: string[]) => Promise<void>;
 }
 
-// Fallback high-fidelity local state for demo mode
-const demoProjects: Project[] = [
-  {
-    id: "1",
-    org_id: "demo-org",
-    title: "O Último Farol",
-    description: "Um drama psicológico tenso à beira-mar.",
-    status: "planning",
-    max_hours_per_day: 12,
-    num_crews: 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    org_id: "demo-org",
-    title: "Sombras de São Paulo",
-    description: "Um filme noir nas noites chuvosas da metrópole.",
-    status: "draft",
-    max_hours_per_day: 12,
-    num_crews: 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+function message(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
+  return "Erro inesperado.";
+}
+
+const today = () => new Date().toISOString().split("T")[0];
+const inDays = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
 export const useCinemaStore = create<CinemaState>((set, get) => ({
   projects: [],
@@ -82,26 +65,23 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
   fetchProjects: async () => {
     set({ loading: true, error: null });
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        // Fallback for demo/unauthenticated mode
-        set({ projects: demoProjects, loading: false });
-        return;
-      }
-
-      // Query projects from Supabase
-      const { data, error } = await supabase
+      const { data, error } = await createClient()
         .from("projects")
-        .select("*")
+        .select("*, scenes(count), actors(count), shooting_days(count)")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
-      set({ projects: data as Project[], loading: false });
-    } catch (err: any) {
-      console.warn("Failed fetching from Supabase, entering demo mode:", err.message);
-      set({ projects: demoProjects, loading: false });
+      type Row = Project & Record<"scenes" | "actors" | "shooting_days", { count: number }[]>;
+      const projects = (data as Row[]).map(({ scenes, actors, shooting_days, ...p }) => ({
+        ...p,
+        counts: {
+          scenes: scenes?.[0]?.count ?? 0,
+          actors: actors?.[0]?.count ?? 0,
+          days: shooting_days?.[0]?.count ?? 0,
+        },
+      }));
+      set({ projects, loading: false });
+    } catch (err) {
+      set({ projects: [], loading: false, error: message(err) });
     }
   },
 
@@ -109,28 +89,8 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const project = get().projects.find((p) => p.id === projectId) || null;
-      set({ currentProject: project });
-
-      if (!session) {
-        // Unauthenticated demo details - filled automatically
-        // Add fake delay for realism
-        await new Promise((r) => setTimeout(r, 400));
-        set({ loading: false });
-        return;
-      }
-
-      // Fetch all dynamic elements concurrently from Supabase
-      const [
-        scenesRes,
-        charsRes,
-        actorsRes,
-        locationsRes,
-        settingsRes,
-        shootingDaysRes,
-      ] = await Promise.all([
+      const [projectRes, scenesRes, charsRes, actorsRes, locationsRes, settingsRes, daysRes] = await Promise.all([
+        supabase.from("projects").select("*").eq("id", projectId).maybeSingle(),
         supabase.from("scenes").select("*").eq("project_id", projectId).order("order_index"),
         supabase.from("characters").select("*").eq("project_id", projectId),
         supabase.from("actors").select("*").eq("project_id", projectId),
@@ -138,33 +98,33 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
         supabase.from("project_settings").select("*").eq("project_id", projectId).maybeSingle(),
         supabase.from("shooting_days").select("*").eq("project_id", projectId).order("day_number"),
       ]);
+      const failed = [projectRes, scenesRes, charsRes, actorsRes, locationsRes, settingsRes, daysRes].find((r) => r.error);
+      if (failed?.error) throw failed.error;
 
-      // Fetch castings for characters of this project
-      let castingsData: Casting[] = [];
-      if (charsRes.data && charsRes.data.length > 0) {
-        const charIds = charsRes.data.map((c) => c.id);
-        const castingsRes = await supabase
+      const characters = (charsRes.data ?? []) as Character[];
+      let castings: Casting[] = [];
+      if (characters.length > 0) {
+        const { data, error } = await supabase
           .from("castings")
           .select("*")
-          .in("character_id", charIds);
-        if (!castingsRes.error) {
-          castingsData = castingsRes.data as Casting[];
-        }
+          .in("character_id", characters.map((c) => c.id));
+        if (error) throw error;
+        castings = data as Casting[];
       }
 
       set({
-        scenes: (scenesRes.data || []) as Scene[],
-        characters: (charsRes.data || []) as Character[],
-        actors: (actorsRes.data || []) as Actor[],
-        locations: (locationsRes.data || []) as Location[],
-        settings: settingsRes.data as ProjectSettings | null,
-        shootingDays: (shootingDaysRes.data || []) as ShootingDay[],
-        castings: castingsData,
+        currentProject: (projectRes.data as Project | null) ?? null,
+        scenes: (scenesRes.data ?? []) as Scene[],
+        characters,
+        actors: (actorsRes.data ?? []) as Actor[],
+        locations: (locationsRes.data ?? []) as Location[],
+        settings: (settingsRes.data as ProjectSettings | null) ?? null,
+        shootingDays: (daysRes.data ?? []) as ShootingDay[],
+        castings,
         loading: false,
       });
-    } catch (err: any) {
-      console.error("Error fetching project details from Supabase:", err);
-      set({ loading: false, error: err.message });
+    } catch (err) {
+      set({ loading: false, error: message(err) });
     }
   },
 
@@ -172,117 +132,31 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!session) {
-        // Fallback for demo
-        const newProj: Project = {
-          id: `demo_${Date.now()}`,
-          org_id: "demo-org",
-          title,
-          description,
-          status: "draft",
-          max_hours_per_day: 12,
-          num_crews: 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          projects: [newProj, ...state.projects],
-          loading: false,
-        }));
-        return newProj;
-      }
+      // Organização da pessoa (o banco cria uma se ainda não houver).
+      const { data: orgId, error: orgErr } = await supabase.rpc("ensure_my_org");
+      if (orgErr) throw orgErr;
 
-      // 1. Get user org with self-healing fallback
-      let orgId = "";
-      const { data: memberData, error: memberErr } = await supabase
-        .from("organization_members")
-        .select("org_id")
-        .eq("user_id", session.user.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (memberErr || !memberData) {
-        console.log("Usuário logado sem organização. Criando organização e associação auto-recuperáveis...");
-        const userEmail = session.user.email || "User";
-        const orgName = `Produtora de ${userEmail.split("@")[0]}`;
-        const slug = `${userEmail.split("@")[0].toLowerCase()}-${Math.random().toString(36).substring(2, 6)}`;
-
-        // Insert organization
-        const { data: orgData, error: orgErr } = await supabase
-          .from("organizations")
-          .insert({ name: orgName, slug, plan: "free" })
-          .select()
-          .maybeSingle();
-
-        if (orgErr) {
-          console.error("Erro ao criar organização auto-recuperável:", orgErr);
-          throw new Error("Tabelas do banco de dados ausentes ou ilegíveis. Por favor, execute o arquivo 'supabase/schema.sql' no SQL Editor do seu Dashboard do Supabase para criar as tabelas!");
-        }
-
-        if (!orgData) {
-          throw new Error("Erro ao criar organização auto-recuperável: nenhuma linha retornada.");
-        }
-
-        // Link user to organization
-        const { error: linkErr } = await supabase
-          .from("organization_members")
-          .insert({ org_id: orgData.id, user_id: session.user.id, role: "owner" });
-
-        if (linkErr) {
-          console.error("Erro ao vincular membro auto-recuperável:", linkErr);
-          throw new Error("Não foi possível associar o seu usuário à organização criada: " + linkErr.message);
-        }
-
-        orgId = orgData.id;
-      } else {
-        orgId = memberData.org_id;
-      }
-
-      // 2. Insert project
-      const { data: projData, error: projErr } = await supabase
+      const { data: project, error: projErr } = await supabase
         .from("projects")
-        .insert({
-          org_id: orgId,
-          title,
-          description,
-          status: "draft",
-        })
+        .insert({ org_id: orgId, title, description, status: "draft" })
         .select()
         .single();
-
-      if (projErr) {
-        console.error("Erro ao inserir projeto:", projErr);
-        throw new Error("Erro de banco de dados ao criar projeto: " + projErr.message);
-      }
-
-      // 3. Create default project settings
-      const today = new Date();
-      const nextMonth = new Date();
-      nextMonth.setDate(today.getDate() + 30);
+      if (projErr) throw projErr;
 
       const { error: settingsErr } = await supabase.from("project_settings").insert({
-        project_id: projData.id,
-        production_start: today.toISOString().split("T")[0],
-        production_end: nextMonth.toISOString().split("T")[0],
+        project_id: project.id,
+        production_start: today(),
+        production_end: inDays(30),
         max_hours_per_day: 12,
         num_crews: 1,
       });
+      if (settingsErr) console.warn("Configuração padrão do projeto não foi criada:", settingsErr);
 
-      if (settingsErr) {
-        console.warn("Erro não crítico ao criar project_settings default:", settingsErr);
-      }
-
-      set((state) => ({
-        projects: [projData as Project, ...state.projects],
-        loading: false,
-      }));
-
-      return projData as Project;
-    } catch (err: any) {
-      console.error("Erro em createProject:", err);
-      set({ loading: false, error: err.message });
+      set((state) => ({ projects: [project as Project, ...state.projects], loading: false }));
+      return project as Project;
+    } catch (err) {
+      set({ loading: false, error: "Não foi possível criar o projeto: " + message(err) });
       return null;
     }
   },
@@ -292,175 +166,105 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
     try {
       const formData = new FormData();
       formData.append("file", file);
-
-      // Call route handler parsing API
-      const res = await fetch("/api/parse", {
-        method: "POST",
-        body: formData,
-      });
-
+      const res = await fetch("/api/parse", { method: "POST", body: formData });
       if (!res.ok) {
-        const errorBody = await res.json().catch(() => null);
-        const errorMsg = errorBody?.error || "Erro no parsing do arquivo.";
-        throw new Error(errorMsg);
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Não foi possível ler o arquivo.");
       }
+      const parsed = (await res.json()) as ParsedScript;
 
-      const parsedData = await res.json();
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!session) {
-        // Fallback for demo
-        set({
-          scenes: parsedData.scenes.map((s: any) => ({ ...s, project_id: projectId })),
-          characters: parsedData.characters.map((c: any) => ({ ...c, id: `char_${c.name}`, project_id: projectId })),
-          locations: parsedData.locations.map((l: any) => ({ ...l, id: `loc_${l.name}`, project_id: projectId })),
-          loading: false,
-        });
-        return true;
+      // Começa do zero: o roteiro novo substitui o anterior.
+      for (const table of ["shooting_days", "scenes", "characters", "locations"] as const) {
+        const { error } = await supabase.from(table).delete().eq("project_id", projectId);
+        if (error) throw error;
       }
-
-      // 1. Delete old data for this project in Supabase to start fresh
-      await Promise.all([
-        supabase.from("scenes").delete().eq("project_id", projectId),
-        supabase.from("characters").delete().eq("project_id", projectId),
-        supabase.from("locations").delete().eq("project_id", projectId),
-        supabase.from("shooting_days").delete().eq("project_id", projectId),
-      ]);
-
-      // 2. Insert new parsed Scenes
-      const scenesToInsert = parsedData.scenes.map((s: any) => ({
-        project_id: projectId,
-        number: s.number,
-        int_ext: s.int_ext,
-        location_name: s.location_name,
-        time_of_day: s.time_of_day,
-        synopsis: s.synopsis || "Cena extraída pelo parser.",
-        pages: s.pages || 8,
-        weather_requirement: s.weather_requirement || "any",
-        notes: s.notes || "",
-        order_index: s.order_index,
-      }));
 
       const { data: insertedScenes, error: scenesErr } = await supabase
         .from("scenes")
-        .insert(scenesToInsert)
+        .insert(
+          parsed.scenes.map((s) => ({
+            project_id: projectId,
+            number: s.number,
+            int_ext: s.int_ext,
+            location_name: s.location_name,
+            time_of_day: s.time_of_day,
+            synopsis: s.synopsis || "Sem resumo.",
+            pages: s.pages,
+            weather_requirement: s.weather_requirement,
+            notes: s.notes,
+            order_index: s.order_index,
+          })),
+        )
         .select();
-
       if (scenesErr) throw scenesErr;
 
-      // 3. Insert Characters and link scene IDs
-      const charactersToInsert = parsedData.characters.map((c: any) => {
-        // Map names to matching inserted scene IDs
-        const matchedSceneIds = (insertedScenes || [])
-          .filter((s) => {
-            const parsedScene = parsedData.scenes.find((ps: any) => ps.number === s.number);
-            return parsedScene?.characters?.includes(c.name);
-          })
-          .map((s) => s.id);
+      const sceneIdByNumber = new Map((insertedScenes ?? []).map((s) => [s.number as string, s.id as string]));
 
-        return {
-          project_id: projectId,
-          name: c.name,
-          scene_ids: matchedSceneIds,
-          size: c.size || "small",
-          total_scenes: countOccurrences(parsedData.scenes, c.name),
-        };
-      });
+      if (parsed.characters.length > 0) {
+        const { error } = await supabase.from("characters").insert(
+          parsed.characters.map((c) => {
+            const sceneIds = parsed.scenes
+              .filter((s) => s.characters.includes(c.name))
+              .map((s) => sceneIdByNumber.get(s.number))
+              .filter((id): id is string => Boolean(id));
+            return { project_id: projectId, name: c.name, scene_ids: sceneIds, size: c.size, total_scenes: sceneIds.length };
+          }),
+        );
+        if (error) throw error;
+      }
 
-      await supabase.from("characters").insert(charactersToInsert);
+      if (parsed.locations.length > 0) {
+        const { error } = await supabase.from("locations").insert(
+          parsed.locations.map((l) => ({
+            project_id: projectId,
+            name: l.name,
+            cost_per_day: 0,
+            is_covered: l.isCovered,
+            weather_risk: l.weatherRisk,
+            setup_time_hours: 2,
+          })),
+        );
+        if (error) throw error;
+      }
 
-      // 4. Insert Locations
-      const locationsToInsert = parsedData.locations.map((l: any) => ({
-        project_id: projectId,
-        name: l.name,
-        cost_per_day: 0,
-        is_covered: l.isCovered,
-        weather_risk: l.weatherRisk || "low",
-        setup_time_hours: 2,
-      }));
-
-      await supabase.from("locations").insert(locationsToInsert);
-
-      // 5. Update Project Status to planning
-      await supabase
-        .from("projects")
-        .update({ status: "planning" })
-        .eq("id", projectId);
-
-      // Reload project state
+      await supabase.from("projects").update({ status: "planning" }).eq("id", projectId);
       await get().fetchProjectDetails(projectId);
       return true;
-    } catch (err: any) {
-      set({ loading: false, error: err.message });
+    } catch (err) {
+      set({ loading: false, error: message(err) });
       return false;
     }
   },
 
   addActor: async (projectId: string, fullName: string, costPerDay: number) => {
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        // Fallback for demo
-        const newActor: Actor = {
-          id: `actor_${Date.now()}`,
-          project_id: projectId,
-          full_name: fullName,
-          cost_per_day: costPerDay,
-          blocked_dates: [],
-          max_consecutive_days: 6,
-        };
-        set((state) => ({
-          actors: [...state.actors, newActor],
-        }));
-        return newActor;
-      }
-
-      const { data, error } = await supabase
+      const { data, error } = await createClient()
         .from("actors")
-        .insert({
-          project_id: projectId,
-          full_name: fullName,
-          cost_per_day: costPerDay,
-        })
+        .insert({ project_id: projectId, full_name: fullName, cost_per_day: costPerDay })
         .select()
         .single();
-
       if (error) throw error;
-
-      set((state) => ({
-        actors: [...state.actors, data as Actor],
-      }));
+      set((state) => ({ actors: [...state.actors, data as Actor] }));
       return data as Actor;
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      set({ error: message(err) });
       return null;
     }
   },
 
   deleteActor: async (actorId: string) => {
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        set((state) => ({
-          actors: state.actors.filter((a) => a.id !== actorId),
-        }));
-        return true;
-      }
-
-      const { error } = await supabase.from("actors").delete().eq("id", actorId);
+      const { error } = await createClient().from("actors").delete().eq("id", actorId);
       if (error) throw error;
-
       set((state) => ({
         actors: state.actors.filter((a) => a.id !== actorId),
+        castings: state.castings.filter((c) => c.actor_id !== actorId),
       }));
       return true;
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      set({ error: message(err) });
       return false;
     }
   },
@@ -468,84 +272,39 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
   linkActor: async (characterId: string, actorId: string) => {
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        const newCasting: Casting = {
-          id: `casting_${Date.now()}`,
-          character_id: characterId,
-          actor_id: actorId,
-          confirmed: true,
-        };
-        set((state) => ({
-          castings: [...state.castings.filter((c) => c.character_id !== characterId), newCasting],
-        }));
-        return true;
-      }
-
-      // Remove old casting if exists
-      await supabase.from("castings").delete().eq("character_id", characterId);
-
+      const { error: delErr } = await supabase.from("castings").delete().eq("character_id", characterId);
+      if (delErr) throw delErr;
       const { data, error } = await supabase
         .from("castings")
-        .insert({
-          character_id: characterId,
-          actor_id: actorId,
-          confirmed: true,
-        })
+        .insert({ character_id: characterId, actor_id: actorId, confirmed: true })
         .select()
         .single();
-
       if (error) throw error;
-
       set((state) => ({
         castings: [...state.castings.filter((c) => c.character_id !== characterId), data as Casting],
       }));
       return true;
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      set({ error: message(err) });
       return false;
     }
   },
 
   unlinkActor: async (characterId: string) => {
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        set((state) => ({
-          castings: state.castings.filter((c) => c.character_id !== characterId),
-        }));
-        return true;
-      }
-
-      const { error } = await supabase.from("castings").delete().eq("character_id", characterId);
+      const { error } = await createClient().from("castings").delete().eq("character_id", characterId);
       if (error) throw error;
-
-      set((state) => ({
-        castings: state.castings.filter((c) => c.character_id !== characterId),
-      }));
+      set((state) => ({ castings: state.castings.filter((c) => c.character_id !== characterId) }));
       return true;
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      set({ error: message(err) });
       return false;
     }
   },
 
   updateLocation: async (location: Location) => {
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        set((state) => ({
-          locations: state.locations.map((l) => (l.id === location.id ? location : l)),
-        }));
-        return true;
-      }
-
-      const { error } = await supabase
+      const { error } = await createClient()
         .from("locations")
         .update({
           name: location.name,
@@ -556,44 +315,41 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
           setup_time_hours: location.setup_time_hours,
         })
         .eq("id", location.id);
-
       if (error) throw error;
-
-      set((state) => ({
-        locations: state.locations.map((l) => (l.id === location.id ? location : l)),
-      }));
+      set((state) => ({ locations: state.locations.map((l) => (l.id === location.id ? location : l)) }));
       return true;
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      set({ error: message(err) });
       return false;
     }
   },
 
   updateSettings: async (settings: Partial<ProjectSettings>) => {
+    const projectId = get().currentProject?.id;
+    if (!projectId) return false;
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        set((state) => ({
-          settings: state.settings ? { ...state.settings, ...settings } : null,
-        }));
-        return true;
-      }
-
-      const { data, error } = await supabase
+      const { data: existing, error: readErr } = await supabase
         .from("project_settings")
-        .update(settings)
-        .eq("project_id", get().currentProject?.id)
-        .select()
-        .single();
+        .select("id")
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (readErr) throw readErr;
 
+      const query = existing
+        ? supabase.from("project_settings").update(settings).eq("project_id", projectId)
+        : supabase.from("project_settings").insert({
+            project_id: projectId,
+            production_start: today(),
+            production_end: inDays(30),
+            ...settings,
+          });
+      const { data, error } = await query.select().single();
       if (error) throw error;
-
       set({ settings: data as ProjectSettings });
       return true;
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      set({ error: message(err) });
       return false;
     }
   },
@@ -602,103 +358,69 @@ export const useCinemaStore = create<CinemaState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const state = get();
-      
-      // Calculate optimized schedule
-      const generatedDays = optimizeSchedule({
+      const generated = optimizeSchedule({
         scenes: state.scenes,
         actors: state.actors,
         locations: state.locations,
         castings: state.castings,
         characters: state.characters,
-        settings: state.settings || {
+        settings: state.settings ?? {
           id: "default",
           project_id: projectId,
-          production_start: new Date().toISOString().split("T")[0],
-          production_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          production_start: today(),
+          production_end: inDays(30),
           max_hours_per_day: 12,
           num_crews: 1,
         },
       });
 
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const { error: delErr } = await supabase.from("shooting_days").delete().eq("project_id", projectId);
+      if (delErr) throw delErr;
 
-      if (!session) {
-        // Fallback for demo
-        set({ shootingDays: generatedDays, loading: false });
-        return;
+      let inserted: ShootingDay[] = [];
+      if (generated.length > 0) {
+        const { data, error } = await supabase
+          .from("shooting_days")
+          .insert(
+            generated.map((d) => ({
+              project_id: projectId,
+              day_number: d.day_number,
+              date: d.date,
+              location_id: d.location_id || null,
+              scene_ids: d.scene_ids,
+              actor_ids: d.actor_ids,
+              estimated_hours: d.estimated_hours,
+              cost_estimate: d.cost_estimate,
+              notes: d.notes,
+            })),
+          )
+          .select();
+        if (error) throw error;
+        inserted = ((data ?? []) as ShootingDay[]).sort((a, b) => a.day_number - b.day_number);
       }
 
-      // Save to Supabase (clear old days first)
-      await supabase.from("shooting_days").delete().eq("project_id", projectId);
-
-      const daysToInsert = generatedDays.map((d) => ({
-        project_id: projectId,
-        day_number: d.day_number,
-        date: d.date,
-        location_id: d.location_id || null,
-        scene_ids: d.scene_ids,
-        actor_ids: d.actor_ids,
-        estimated_hours: d.estimated_hours,
-        cost_estimate: d.cost_estimate,
-        notes: d.notes,
-      }));
-
-      const { data: insertedDays, error } = await supabase
-        .from("shooting_days")
-        .insert(daysToInsert)
-        .select();
-
-      if (error) throw error;
-
-      // Update Project Status to scheduled
-      await supabase
-        .from("projects")
-        .update({ status: "scheduled" })
-        .eq("id", projectId);
-
-      set({ shootingDays: (insertedDays || []) as ShootingDay[], loading: false });
-    } catch (err: any) {
-      set({ loading: false, error: err.message });
+      await supabase.from("projects").update({ status: "scheduled" }).eq("id", projectId);
+      set({ shootingDays: inserted, loading: false });
+    } catch (err) {
+      set({ loading: false, error: message(err) });
     }
   },
 
   reorderShootingDays: async (projectId: string, dayIds: string[]) => {
-    // Client-side reorder with updated day numbers and dates
-    const state = get();
-    const orderedDays = dayIds.map((id, index) => {
-      const originalDay = state.shootingDays.find((d) => d.id === id)!;
-      return {
-        ...originalDay,
-        day_number: index + 1,
-        // Optional: Re-calculate dates based on production starts
-      };
+    const previous = get().shootingDays;
+    const reordered = dayIds
+      .map((id) => previous.find((d) => d.id === id))
+      .filter((d): d is ShootingDay => Boolean(d))
+      .map((d, index) => ({ ...d, day_number: index + 1 }));
+    set({ shootingDays: reordered });
+
+    const { error } = await createClient().rpc("reorder_shooting_days", {
+      p_project_id: projectId,
+      p_day_ids: dayIds,
     });
-
-    set({ shootingDays: orderedDays });
-
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) return;
-
-    // Persist reordered day numbers to Supabase
-    try {
-      await Promise.all(
-        orderedDays.map((d) =>
-          supabase
-            .from("shooting_days")
-            .update({ day_number: d.day_number })
-            .eq("id", d.id)
-        )
-      );
-    } catch (err) {
-      console.error("Failed to save drag-and-drop order to database:", err);
+    if (error) {
+      set({ shootingDays: previous, error: "Não foi possível salvar a nova ordem: " + error.message });
     }
   },
 }));
-
-// Helper to count character name occurrences in FDX scenes
-function countOccurrences(scenes: any[], charName: string): number {
-  return scenes.filter((s) => s.characters?.includes(charName)).length;
-}

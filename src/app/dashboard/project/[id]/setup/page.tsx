@@ -4,15 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   MapPin,
-  Plus,
   ChevronRight,
-  DollarSign,
-  Clock,
   Calendar,
-  Trash2,
-  Shield,
   CloudRain,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +59,6 @@ export default function SetupPage() {
     fetchProjectDetails,
     updateLocation: updateLocationAction,
     updateSettings: updateSettingsAction,
-    loading,
   } = useCinemaStore();
 
   useEffect(() => {
@@ -80,14 +73,17 @@ export default function SetupPage() {
   const [maxHoursPerDay, setMaxHoursPerDay] = useState("12");
   const [numCrews, setNumCrews] = useState("1");
 
-  useEffect(() => {
+  // Quando a configuração chega do banco, o formulário passa a mostrá-la.
+  const [syncedSettings, setSyncedSettings] = useState(storeSettings);
+  if (storeSettings !== syncedSettings) {
+    setSyncedSettings(storeSettings);
     if (storeSettings) {
       setProductionStart(storeSettings.production_start || "");
       setProductionEnd(storeSettings.production_end || "");
       setMaxHoursPerDay(String(storeSettings.max_hours_per_day || 12));
       setNumCrews(String(storeSettings.num_crews || 1));
     }
-  }, [storeSettings]);
+  }
 
   const locations: LocationData[] = storeLocations.map((l) => ({
     id: l.id,

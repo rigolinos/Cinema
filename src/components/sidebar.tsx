@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Film,
   LayoutDashboard,
-  FolderOpen,
   Settings,
   LogOut,
   ChevronLeft,
