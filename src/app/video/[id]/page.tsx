@@ -3,15 +3,12 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronLeft, Lock } from "lucide-react";
-import { Trail, STAGES, stageIndex, stageLabel } from "@/components/gravai/trail";
+import { READY_STAGES as READY, Trail, STAGES, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { OBJECTIVES, PLATFORMS, durationLabel } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
-import type { Video, VideoStage } from "@/types/database";
-
-// Passos que já existem no app (os outros chegam nos próximos lotes).
-const READY: VideoStage[] = ["roteiro"];
+import type { Video } from "@/types/database";
 
 const NEXT_STEPS: Record<string, string> = {
   roteiro: "Escrever junto com você, bloco a bloco: gancho, contexto, conteúdo, virada e chamada final.",
@@ -88,7 +85,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
             </h2>
             {STAGES.slice(1).map((s, i) => {
               const index = i + 1;
-              const current = stageIndex(video.stage);
+              const current = reachableIndex(video.stage);
               const open = video.hook && READY.includes(s.id) && index <= current;
               if (open) {
                 return (
