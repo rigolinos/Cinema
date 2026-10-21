@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronLeft, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Check, ChevronLeft, Lock, Trash2 } from "lucide-react";
 import { READY_STAGES as READY, Trail, STAGES, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -21,6 +22,8 @@ const NEXT_STEPS: Record<string, string> = {
 export default function VideoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     createClient()
@@ -32,6 +35,14 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   }, [id]);
 
   const format = findFormat(video?.format_slug);
+
+  async function removeVideo() {
+    if (!window.confirm("Apagar este vídeo? A ideia, o roteiro, os planos e os links das pessoas somem. Isso não tem volta.")) return;
+    setDeleteError(null);
+    const { error } = await createClient().from("videos").delete().eq("id", id);
+    if (error) setDeleteError("Não deu para apagar o vídeo. Tente de novo.");
+    else router.push("/inicio");
+  }
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-5 pb-16 pt-3">
@@ -138,6 +149,16 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
               );
             })}
           </section>
+
+          <button type="button" onClick={removeVideo} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold text-destructive">
+            <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            Apagar este vídeo
+          </button>
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
         </>
       )}
     </div>

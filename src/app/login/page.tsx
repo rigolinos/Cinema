@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/auth-errors";
+
+// Aviso para quem volta de um link de e-mail vencido (?aviso=link).
+function LinkNotice() {
+  const aviso = useSearchParams().get("aviso");
+  if (aviso !== "link") return null;
+  return <p className="mb-4 rounded-lg bg-muted p-3 text-sm leading-relaxed">Esse link expirou ou já foi usado. Entre com sua senha ou peça um link novo.</p>;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -30,7 +38,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(authErrorMessage(error));
       setLoading(false);
     } else {
       router.push("/inicio");
@@ -49,10 +57,13 @@ export default function LoginPage() {
 
         <Card className="border-0">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">Bem-vindo de volta</CardTitle>
+            <CardTitle className="text-xl">Que bom te ver de novo</CardTitle>
             <CardDescription>Entre na sua conta para continuar</CardDescription>
           </CardHeader>
           <CardContent>
+            <Suspense fallback={null}>
+              <LinkNotice />
+            </Suspense>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
@@ -77,6 +88,9 @@ export default function LoginPage() {
                   required
                   className="bg-background/50"
                 />
+                <Link href="/esqueci" className="inline-flex min-h-11 items-center text-sm font-semibold underline">
+                  Esqueci minha senha
+                </Link>
               </div>
 
               {error && (
@@ -87,7 +101,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full font-semibold"
+                className="h-12 w-full rounded-full text-base font-bold"
                 disabled={loading}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { authCallbackUrl, authErrorMessage } from "@/lib/auth-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleRegister(e: React.FormEvent) {
@@ -25,10 +27,11 @@ export default function RegisterPage() {
     setError(null);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: authCallbackUrl(window.location.origin, "/inicio"),
         data: {
           full_name: name,
           org_name: `Estúdio de ${name.trim().split(/\s+/)[0] || "você"}`,
@@ -37,12 +40,39 @@ export default function RegisterPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(authErrorMessage(error));
+      setLoading(false);
+    } else if (!data.session) {
+      // Confirmação de e-mail ligada: a conta só entra depois do link.
+      setSentTo(email);
       setLoading(false);
     } else {
       router.push("/inicio");
       router.refresh();
     }
+  }
+
+  if (sentTo) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="flex w-full max-w-md flex-col gap-6 text-center animate-scale-in">
+          <Link href="/" aria-label="Início">
+            <Logo className="text-4xl" />
+          </Link>
+          <div className="flex flex-col gap-3 rounded-2xl bg-card p-6">
+            <h1 className="text-xl font-bold">Confirme seu e-mail</h1>
+            <p className="leading-relaxed text-muted-foreground">
+              Mandamos um link para <strong className="text-foreground">{sentTo}</strong>. Abra no celular, toque no link e você
+              já entra no Gravaí.
+            </p>
+            <p className="text-sm text-muted-foreground">Não chegou? Olhe a caixa de spam ou promoções.</p>
+          </div>
+          <Link href="/login" className="text-sm font-semibold underline">
+            Já confirmei, quero entrar
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -107,7 +137,7 @@ export default function RegisterPage() {
 
               <Button
                 type="submit"
-                className="w-full font-semibold"
+                className="h-12 w-full rounded-full text-base font-bold"
                 disabled={loading}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
