@@ -15,7 +15,7 @@ export function stageIndex(stage: VideoStage): number {
 }
 
 // Passos que já existem no app; os outros chegam nos próximos lotes e, até lá, são pulados.
-export const READY_STAGES: VideoStage[] = ["ideia", "roteiro", "planos", "gravar"];
+export const READY_STAGES: VideoStage[] = ["ideia", "roteiro", "pessoas", "planos", "gravar"];
 
 // Próximo passo pronto depois de `stage` (ou "pronto" quando não há mais nenhum).
 export function nextReadyStage(stage: VideoStage): VideoStage {

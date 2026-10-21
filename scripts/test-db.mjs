@@ -245,6 +245,79 @@ ok(r.err, 'mais de 99 takes é recusado');
 r = await as('authenticated', B, `UPDATE public.shots SET good_take = false WHERE id = $1 RETURNING id`, [planos[0]]);
 ok(!r.err && r.rows.length === 0, 'ninguém mexe nos takes de outra pessoa');
 
+console.log('Pessoas e link sem login:');
+const pessoa = async (uid, name, role) =>
+  as('authenticated', uid, `INSERT INTO public.video_people (video_id, name, role) VALUES ($1, $2, $3) RETURNING id, share_token`, [vidA, name, role]);
+const eu = (await pessoa(A, 'Ana', 'eu')).rows[0];
+r = await pessoa(A, 'Ana de novo', 'eu');
+ok(r.err, 'só existe um "eu" por vídeo');
+const ator = (await pessoa(A, 'Bruno', 'ator')).rows[0];
+const filma = (await pessoa(A, 'Carla', 'filma')).rows[0];
+ok(ator?.share_token && filma?.share_token, 'dono adiciona ator e quem filma, cada um com seu código');
+r = await pessoa(B, 'Intruso', 'ator');
+ok(r.err, 'ninguém adiciona pessoa no vídeo de outra pessoa');
+r = await as('authenticated', B, 'SELECT id FROM public.video_people');
+ok(!r.err && r.rows.length === 0, 'ninguém vê as pessoas do vídeo de outra pessoa');
+r = await as('anon', null, 'SELECT id FROM public.video_people');
+ok(r.err || r.rows.length === 0, 'visitante não lê a tabela de pessoas');
+
+await as('authenticated', A, `UPDATE public.script_blocks SET person_id = $1 WHERE id = $2`, [ator.id, blocosA[1]]);
+await as('authenticated', A, `UPDATE public.script_blocks SET person_id = $1 WHERE id = $2`, [eu.id, blocosA[0]]);
+r = await as('authenticated', B, 'SELECT id FROM public.video_people WHERE video_id = $1', [vidB]);
+const pessoaB = (await as('authenticated', B, `INSERT INTO public.video_people (video_id, name, role) VALUES ($1, 'Outro', 'ator') RETURNING id`, [vidB])).rows[0];
+r = await as('authenticated', A, `UPDATE public.script_blocks SET person_id = $1 WHERE id = $2`, [pessoaB.id, blocosA[2]]);
+ok(r.err, 'bloco não pode apontar para pessoa de outro vídeo');
+
+r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [ator.share_token]);
+const parteAtor = r.rows?.[0]?.p;
+ok(parteAtor?.person?.name === 'Bruno' && parteAtor.blocks.length === 1 && parteAtor.blocks[0].mine && parteAtor.shots.length === 0, 'o ator vê só o bloco dele, sem os planos' + (r.err ? ': ' + r.err : ''));
+r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [filma.share_token]);
+const parteFilma = r.rows?.[0]?.p;
+ok(parteFilma?.blocks.length === 3 && parteFilma.shots.length === 3, 'quem filma vê o roteiro e os planos');
+ok(!JSON.stringify(parteFilma).includes(A) && !JSON.stringify(parteFilma).includes('share_token'), 'o link não expõe ids de conta nem códigos');
+r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [eu.share_token]);
+ok(r.rows?.[0]?.p === null, 'o código do "eu" não abre nada');
+r = await as('anon', null, 'SELECT public.shared_part(gen_random_uuid()) AS p');
+ok(r.rows?.[0]?.p === null, 'código inventado não abre nada');
+
+r = await as('anon', null, 'SELECT public.confirm_presence($1) AS ok', [ator.share_token]);
+ok(r.rows?.[0]?.ok === true, 'a pessoa confirma presença pelo link');
+r = await as('authenticated', A, `UPDATE public.video_people SET confirmed_at = now() WHERE id = $1`, [filma.id]);
+ok(r.err, 'o dono não confirma no lugar da pessoa');
+r = await as('authenticated', A, `UPDATE public.video_people SET share_token = gen_random_uuid() WHERE id = $1`, [filma.id]);
+ok(r.err, 'o dono não troca o código à mão');
+
+r = await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno Souza', 'imagem-v1') AS ok`, [ator.share_token]);
+ok(r.err, 'sem o nome de quem convidou, o termo não pode ser aceito');
+ok(parteAtor.creator === null, 'o link avisa que falta o nome de quem convidou');
+await as('authenticated', A, `UPDATE public.creator_profiles SET display_name = 'Ana Lima'`);
+r = await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno Souza', 'imagem-v1') AS ok`, [ator.share_token]);
+ok(r.rows?.[0]?.ok === true, 'a pessoa aceita o uso de imagem pelo link');
+ok((await one('SELECT creator_name FROM public.image_consents WHERE person_id = $1', [ator.id]))?.creator_name === 'Ana Lima', 'o aceite guarda o nome de quem recebeu a autorização');
+await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno Souza', 'imagem-v1')`, [ator.share_token]);
+ok((await one('SELECT count(*)::int AS n FROM public.image_consents WHERE person_id = $1', [ator.id])).n === 1, 'aceitar de novo não duplica');
+r = await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno', 'qualquer')`, [ator.share_token]);
+ok(r.err, 'versão de termo inválida é recusada');
+r = await as('authenticated', A, 'SELECT accepted_name, video_title FROM public.image_consents');
+ok(r.rows?.length === 1 && r.rows[0].accepted_name === 'Bruno Souza', 'o dono vê o aceite');
+r = await as('authenticated', B, 'SELECT id FROM public.image_consents');
+ok(!r.err && r.rows.length === 0, 'ninguém vê os aceites de outra pessoa');
+r = await as('anon', null, 'SELECT id FROM public.image_consents');
+ok(r.err || r.rows.length === 0, 'visitante não lê os aceites');
+r = await as('authenticated', A, `INSERT INTO public.image_consents (owner_id, video_title, accepted_name, text_version) VALUES ($1, 'x', 'Falso Nome', 'imagem-v1')`, [A]);
+ok(r.err, 'o dono não cria aceite falso');
+r = await as('authenticated', A, 'DELETE FROM public.image_consents RETURNING id');
+ok(!r.err && r.rows.length === 0, 'aceite não é apagado');
+
+await as('authenticated', A, `UPDATE public.video_people SET share_enabled = false WHERE id = $1`, [filma.id]);
+r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [filma.share_token]);
+ok(r.rows?.[0]?.p === null, 'link desligado não abre mais');
+r = await as('anon', null, 'SELECT public.confirm_presence($1) AS ok', [filma.share_token]);
+ok(r.rows?.[0]?.ok === false, 'link desligado não confirma presença');
+
+await as('authenticated', A, 'DELETE FROM public.video_people WHERE id = $1', [ator.id]);
+ok((await one('SELECT count(*)::int AS n FROM public.image_consents WHERE accepted_name = $1', ['Bruno Souza'])).n === 1, 'tirar a pessoa do vídeo mantém o aceite');
+
 await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo roteiro' }])]);
 ok((await one('SELECT count(*)::int AS n FROM public.shots WHERE video_id = $1', [vidA])).n === 0, 'roteiro novo apaga os planos dos blocos antigos');
 
