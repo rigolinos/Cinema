@@ -9,6 +9,7 @@ import { READY_STAGES, STAGES, Trail, reachableIndex, stageLabel } from "@/compo
 import { createClient } from "@/lib/supabase/client";
 import { FORMATS } from "@/lib/formats";
 import { durationLabel } from "@/lib/ideas";
+import { daysUntilNext, periodLabel, periodStart } from "@/lib/quinzena";
 import type { Video } from "@/types/database";
 
 // O formato muda toda semana (semanas contadas desde 01/01/2026).
@@ -62,6 +63,17 @@ export default function InicioPage() {
           <span className="text-sm opacity-75">Da ideia à gravação em 5 passos</span>
         </span>
         <ArrowRight className="size-6" strokeWidth={1.75} aria-hidden="true" />
+      </Link>
+
+      <Link href="/ideias" className="flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-foreground px-5 py-4">
+        <span className="flex flex-col gap-1">
+          <span className="font-bold">Ideias da quinzena para você</span>
+          {/* A data só aparece depois de carregar no aparelho: a página é montada no build. */}
+          <span className="min-h-5 font-mono text-sm text-muted-foreground">
+            {videos !== null && `${periodLabel(periodStart())} · ${daysUntilNext() === 1 ? "novas amanhã" : `novas em ${daysUntilNext()} dias`}`}
+          </span>
+        </span>
+        <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
       </Link>
 
       <section className="flex flex-col gap-2.5" aria-labelledby="andamento">
