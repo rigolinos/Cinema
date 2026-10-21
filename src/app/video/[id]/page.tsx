@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, ChevronLeft, Lock, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, Lock, Share2, Trash2 } from "lucide-react";
 import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -163,6 +163,13 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
               </button>
             )}
           </section>
+
+          {video.hook && (
+            <Link href={`/video/${video.id}/exportar`} className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-semibold">
+              <Share2 className="size-5" strokeWidth={1.75} aria-hidden="true" />
+              Exportar o vídeo
+            </Link>
+          )}
 
           <button type="button" onClick={removeVideo} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold text-destructive">
             <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
