@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Film, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
-  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function RegisterPage() {
       options: {
         data: {
           full_name: name,
-          org_name: orgName,
+          org_name: `Estúdio de ${name.trim().split(/\s+/)[0] || "você"}`,
         },
       },
     });
@@ -47,22 +47,17 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      {/* Ambient glow */}
-      <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
-
-      <div className="relative z-10 w-full max-w-md animate-scale-in">
-        {/* Logo */}
+      <div className="w-full max-w-md animate-scale-in">
         <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <Film className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">CineBoard</span>
+          <Link href="/" aria-label="Início">
+            <Logo className="text-4xl" />
           </Link>
         </div>
 
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+        <Card className="border-0">
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Criar conta</CardTitle>
-            <CardDescription>Registre sua produtora e comece a planejar</CardDescription>
+            <CardDescription>É grátis. Seu primeiro vídeo começa agora.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
@@ -74,18 +69,6 @@ export default function RegisterPage() {
                   placeholder="Nome completo"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
-                  className="bg-background/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="orgName">Nome da produtora</Label>
-                <Input
-                  id="orgName"
-                  type="text"
-                  placeholder="Ex: Globo Filmes"
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
                   required
                   className="bg-background/50"
                 />

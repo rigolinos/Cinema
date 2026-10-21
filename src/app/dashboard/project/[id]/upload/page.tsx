@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Upload,
   FileText,
   Film,
   X,
-  Loader2,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
@@ -32,75 +31,53 @@ export default function UploadPage() {
   const projectId = pathname.split("/")[3];
 
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setUploadState("dragging");
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setUploadState("idle");
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      processFile(droppedFile);
-    }
-  }, []);
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      processFile(selectedFile);
-    }
-  }, []);
-
   async function processFile(f: File) {
-    const validTypes = [
-      "application/pdf",
-      "text/xml",
-      "application/xml",
-      ".fdx",
-    ];
-    const isValid =
-      validTypes.some((t) => f.type.includes(t)) ||
-      f.name.endsWith(".fdx") ||
-      f.name.endsWith(".pdf");
-
-    if (!isValid) {
+    const name = f.name.toLowerCase();
+    if (!name.endsWith(".fdx") && !name.endsWith(".pdf")) {
       setError("Formato inválido. Aceitos: PDF ou Final Draft (.fdx)");
+      setUploadState("error");
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      setError("O arquivo passa de 10 MB.");
       setUploadState("error");
       return;
     }
 
     setFile(f);
     setError(null);
-    setUploadState("uploading");
-
-    // Simple visual upload simulation for the first half
-    for (let i = 0; i <= 60; i += 20) {
-      await new Promise((r) => setTimeout(r, 100));
-      setProgress(i);
-    }
-
-    // Call store action for real parse and store update
+    setProgress(0);
     setUploadState("parsing");
-    try {
-      const success = await uploadScript(projectId, f);
-      if (success) {
-        setProgress(100);
-        setUploadState("done");
-      } else {
-        const storeError = useCinemaStore.getState().error;
-        setError(storeError || "Erro ao processar o arquivo. Tente novamente ou entre em contato com o suporte.");
-        setUploadState("error");
-      }
-    } catch (err: any) {
-      setError(err?.message || "Erro inesperado ao processar roteiro.");
+
+    const success = await uploadScript(projectId, f);
+    if (success) {
+      setProgress(100);
+      setUploadState("done");
+    } else {
+      setError(useCinemaStore.getState().error || "Não foi possível processar o arquivo. Tente novamente.");
       setUploadState("error");
     }
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setUploadState("dragging");
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setUploadState("idle");
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) processFile(droppedFile);
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) processFile(selectedFile);
   }
 
   function handleContinue() {
@@ -144,7 +121,7 @@ export default function UploadPage() {
               ? "border-primary bg-primary/5 scale-[1.02]"
               : uploadState === "error"
               ? "border-destructive/50 bg-destructive/5"
-              : "border-border/50 bg-card/30 hover:border-primary/40 hover:bg-card/50"
+              : "border-border/50 bg-card hover:border-primary/40 hover:bg-card"
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -206,7 +183,7 @@ export default function UploadPage() {
         </Card>
       ) : (
         /* Processing / Done State */
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <Card className="border-border/50 bg-card">
           <CardContent className="py-8">
             <div className="flex items-start gap-4">
               {/* File Icon */}
@@ -252,7 +229,7 @@ export default function UploadPage() {
                     <p className="text-xs text-muted-foreground mt-2">
                       {uploadState === "uploading"
                         ? `Enviando... ${progress}%`
-                        : "🤖 IA analisando o roteiro..."}
+                        : "Lendo o roteiro…"}
                     </p>
                   </div>
                 )}
@@ -261,7 +238,7 @@ export default function UploadPage() {
                 {uploadState === "done" && (
                   <div className="mt-3">
                     <p className="text-sm text-green-500 font-medium">
-                      ✓ Roteiro analisado com sucesso
+                      Roteiro analisado
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {scenes.length} cenas detectadas · {characters.length} personagens · {locations.length} locações

@@ -6,7 +6,6 @@ import {
   Calendar,
   Film,
   Users,
-  MapPin,
   Clock,
   DollarSign,
   Sun,
@@ -15,7 +14,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   GripVertical,
-  CloudRain,
   Sparkles,
   ArrowUp,
   ArrowDown,
@@ -188,7 +186,7 @@ export default function SchedulePage() {
       </div>
 
       {mappedSchedule.length === 0 ? (
-        <Card className="border-border/50 bg-card/30 border-dashed py-16">
+        <Card className="border-border/50 bg-card border-dashed py-16">
           <CardContent className="flex flex-col items-center justify-center text-center">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <Sparkles className="h-6 w-6 text-primary" />
@@ -227,7 +225,7 @@ export default function SchedulePage() {
               { label: "Custo Total", value: `R$ ${(totalCost / 1000).toFixed(0)}k`, icon: DollarSign, color: "text-chart-4" },
               { label: "Alertas", value: totalAlerts, icon: AlertTriangle, color: totalAlerts > 0 ? "text-warning" : "text-chart-3" },
             ].map((stat) => (
-              <Card key={stat.label} className="border-border/50 bg-card/30">
+              <Card key={stat.label} className="border-border/50 bg-card">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <stat.icon className={cn("h-4 w-4", stat.color)} />
@@ -252,7 +250,7 @@ export default function SchedulePage() {
               >
                 <Card
                   className={cn(
-                    "border-border/50 bg-card/30 transition-all hover:border-primary/20",
+                    "border-border/50 bg-card transition-all hover:border-primary/20",
                     day.alerts.length > 0 && "border-l-2 border-l-warning"
                   )}
                 >

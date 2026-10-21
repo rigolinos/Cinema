@@ -14,7 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,12 +38,6 @@ interface CharacterData {
   actorName: string | null;
   actorId: string | null;
   confirmed: boolean;
-}
-
-interface ActorData {
-  id: string;
-  fullName: string;
-  costPerDay: number;
 }
 
 const sizeLabels = {
@@ -128,7 +122,7 @@ export default function CastingPage() {
     setShowDialog(true);
   }
 
-  async function linkActor(actorId: string, actorName: string) {
+  async function linkActor(actorId: string) {
     if (!selectedChar) return;
     await linkActorAction(selectedChar.id, actorId);
     setShowDialog(false);
@@ -197,7 +191,7 @@ export default function CastingPage() {
       </div>
 
       {/* Progress Bar */}
-      <Card className="border-border/50 bg-card/30 mb-6">
+      <Card className="border-border/50 bg-card mb-6">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
@@ -227,7 +221,7 @@ export default function CastingPage() {
               className={cn(
                 "border-border/50 transition-all",
                 char.actorName
-                  ? "bg-card/50"
+                  ? "bg-card"
                   : "bg-card/20 border-dashed"
               )}
             >
@@ -356,7 +350,7 @@ export default function CastingPage() {
                   <button
                     key={actor.id}
                     disabled={isAssigned}
-                    onClick={() => linkActor(actor.id, actor.fullName)}
+                    onClick={() => linkActor(actor.id)}
                     className={cn(
                       "flex w-full items-center justify-between rounded-lg border border-border/50 p-3 text-left transition-all",
                       isAssigned

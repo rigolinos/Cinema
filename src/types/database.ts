@@ -29,11 +29,7 @@ export interface Project {
   title: string;
   description?: string;
   status: ProjectStatus;
-  script_file_url?: string;
-  production_start?: string;
-  production_end?: string;
-  max_hours_per_day: number;
-  num_crews: number;
+  counts?: { scenes: number; actors: number; days: number }; // só na lista de projetos
   created_at: string;
   updated_at: string;
 }

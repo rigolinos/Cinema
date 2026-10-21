@@ -9,194 +9,130 @@ export interface SchedulingInput {
   settings: ProjectSettings;
 }
 
-export function optimizeSchedule({
-  scenes,
-  actors,
-  locations,
-  castings,
-  characters,
-  settings,
-}: SchedulingInput): ShootingDay[] {
+const TIME_ORDER = { AMANHECER: 0, DIA: 1, ENTARDECER: 2, NOITE: 3 } as const;
+
+// Personagens de cada cena, pela ligação guardada em characters.scene_ids.
+export function charactersByScene(characters: Character[]): Map<string, Character[]> {
+  const map = new Map<string, Character[]>();
+  for (const c of characters) {
+    for (const sceneId of c.scene_ids ?? []) {
+      const list = map.get(sceneId) ?? [];
+      list.push(c);
+      map.set(sceneId, list);
+    }
+  }
+  return map;
+}
+
+// Horas estimadas: 1 página (8/8) leva cerca de 1,5 h; externa pesa mais; cada personagem soma um pouco.
+export function sceneHours(scene: Scene, characterCount: number): number {
+  return (scene.pages / 8) * 1.5 + (scene.int_ext === "EXT" ? 1.5 : 1) + characterCount * 0.2;
+}
+
+// Próxima data de gravação, pulando domingo.
+export function nextShootingDate(date: Date): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + 1);
+  if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  return next;
+}
+
+const formatDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export function optimizeSchedule({ scenes, actors, locations, castings, characters, settings }: SchedulingInput): ShootingDay[] {
   if (scenes.length === 0) return [];
 
-  // 1. Create mapping helpers
-  const characterToActorMap = new Map<string, Actor>();
-  const actorMap = new Map<string, Actor>(actors.map((a) => [a.id, a]));
-  const characterMap = new Map<string, Character>(characters.map((c) => [c.id, c]));
+  const actorById = new Map(actors.map((a) => [a.id, a]));
+  const actorByCharacter = new Map<string, Actor>();
+  for (const c of castings) {
+    const actor = actorById.get(c.actor_id);
+    if (actor) actorByCharacter.set(c.character_id, actor);
+  }
+  const sceneCharacters = charactersByScene(characters);
+  const locationByName = new Map(locations.map((l) => [l.name.toUpperCase(), l]));
 
-  castings.forEach((c) => {
-    const char = characterMap.get(c.character_id);
-    const actor = actorMap.get(c.actor_id);
-    if (char && actor) {
-      characterToActorMap.set(char.name.toUpperCase(), actor);
-    }
-  });
-
-  const locationMap = new Map<string, Location>(
-    locations.map((l) => [l.name.toUpperCase(), l])
+  // Agrupa por locação; as locações com mais páginas vêm primeiro.
+  const groups = new Map<string, Scene[]>();
+  for (const s of scenes) {
+    const key = s.location_name.toUpperCase();
+    groups.set(key, [...(groups.get(key) ?? []), s]);
+  }
+  const sortedGroups = [...groups].sort(
+    (a, b) => b[1].reduce((sum, s) => sum + s.pages, 0) - a[1].reduce((sum, s) => sum + s.pages, 0),
   );
 
-  // 2. Estimate hours and pages for each scene
-  // 1 page = 8 eighths. We assume 1 eighth of a page takes approx 0.5 hours to shoot, plus setup.
-  const getSceneComplexity = (s: Scene) => {
-    const actorCount = s.dependencies?.length || 0; // characters count
-    const isExt = s.int_ext === "EXT";
-    return (s.pages / 8) * 1.5 + (isExt ? 1.5 : 1) + actorCount * 0.2;
-  };
-
-  // Group scenes by Location Name
-  const locationGroups = new Map<string, Scene[]>();
-  scenes.forEach((s) => {
-    const locName = s.location_name.toUpperCase();
-    if (!locationGroups.has(locName)) {
-      locationGroups.set(locName, []);
-    }
-    locationGroups.get(locName)!.push(s);
-  });
-
-  // Sort locations by volume (total pages) descending to prioritize large locations
-  const sortedLocations = Array.from(locationGroups.entries()).sort((a, b) => {
-    const pagesA = a[1].reduce((sum, s) => sum + s.pages, 0);
-    const pagesB = b[1].reduce((sum, s) => sum + s.pages, 0);
-    return pagesB - pagesA;
-  });
-
-  const shootingDays: ShootingDay[] = [];
-  let currentDayNumber = 1;
-  
-  // Date tracking starting from production start date
-  const currentDate = new Date(settings.production_start + "T12:00:00");
+  const days: ShootingDay[] = [];
+  let date = new Date(settings.production_start + "T12:00:00");
+  if (date.getDay() === 0) date = nextShootingDate(date);
   const maxHours = settings.max_hours_per_day || 12;
 
-  // Function to format date to YYYY-MM-DD
-  const formatDate = (d: Date) => d.toISOString().split("T")[0];
+  for (const [locName, locScenes] of sortedGroups) {
+    const location = locationByName.get(locName);
+    const setupTime = location?.setup_time_hours ?? 2;
 
-  // Helper to advance date by 1 day (skipping Sundays as a production standard)
-  const nextProductionDate = (d: Date) => {
-    const next = new Date(d);
-    next.setDate(next.getDate() + 1);
-    if (next.getDay() === 0) { // 0 is Sunday
-      next.setDate(next.getDate() + 1);
-    }
-    return next;
-  };
+    // Mesma luz junta; dentro dela, cenas menores primeiro.
+    const ordered = [...locScenes].sort((a, b) =>
+      a.time_of_day === b.time_of_day ? a.pages - b.pages : TIME_ORDER[a.time_of_day] - TIME_ORDER[b.time_of_day],
+    );
 
-  // 3. Heuristic Scheduling Loop
-  for (const [locName, locScenes] of sortedLocations) {
-    const location = locationMap.get(locName);
-    const setupTime = location?.setup_time_hours || 2;
-    
-    // Sort scenes within location to optimize actor blocks
-    // First by light requirement (DIA vs NOITE) to keep shooting blocks continuous
-    // Then by size (smaller pages first for quick wins)
-    const sortedScenes = [...locScenes].sort((a, b) => {
-      if (a.time_of_day === b.time_of_day) {
-        return a.pages - b.pages;
-      }
-      const order = { AMANHECER: 0, DIA: 1, ENTARDECER: 2, NOITE: 3 };
-      return order[a.time_of_day] - order[b.time_of_day];
-    });
+    let dayScenes: Scene[] = [];
+    let dayHours = setupTime;
 
-    let currentDayScenes: Scene[] = [];
-    let currentDayHours = setupTime; // Start day with location setup
+    const closeDay = () => {
+      if (dayScenes.length === 0) return;
 
-    const packScenesIntoDays = () => {
-      if (currentDayScenes.length > 0) {
-        // Collect actors present in current day's scenes
-        const dayActors = new Set<string>();
-        currentDayScenes.forEach((s) => {
-          // Check characters in the scene
-          // Find actor for each character
-          scenes.forEach((originalScene) => {
-            if (originalScene.id === s.id) {
-              // Extract characters from this scene using simple text parsing or database characters
-              // Since characters are mapped to scene_ids, we can find actors casting
-            }
-          });
-
-          // In FDX parsing, characters are list of strings in the scene
-          // Let's check which actors correspond to these characters
-          const sceneChars = (s as any).characters || [];
-          sceneChars.forEach((charName: string) => {
-            const actor = characterToActorMap.get(charName.toUpperCase());
-            if (actor) {
-              dayActors.add(actor.full_name);
-            } else {
-              dayActors.add(charName.toUpperCase() + " (Sem Cast)");
-            }
-          });
-        });
-
-        const dayActorNames = Array.from(dayActors);
-        const dayActorIds = dayActorNames
-          .map((name) => actors.find((a) => a.full_name === name)?.id)
-          .filter(Boolean) as string[];
-
-        // Calculate Cost Estimates
-        const locCost = location?.cost_per_day || 0;
-        const actorsCost = dayActorIds.reduce((sum, id) => {
-          const actor = actorMap.get(id);
-          return sum + (actor?.cost_per_day || 0);
-        }, 0);
-
-        const totalCostEstimate = locCost + actorsCost;
-
-        // Verify warnings/alerts
-        const alerts: string[] = [];
-        if (!location?.is_covered && location?.weather_risk === "high") {
-          alerts.push("⚠ Locação ao ar livre — risco climático ALTO");
+      const actorIds = new Set<string>();
+      for (const s of dayScenes) {
+        for (const c of sceneCharacters.get(s.id) ?? []) {
+          const actor = actorByCharacter.get(c.id);
+          if (actor) actorIds.add(actor.id);
         }
-        
-        currentDayScenes.forEach((s) => {
-          if (s.weather_requirement === "sun" && !location?.is_covered) {
-            alerts.push(`☀ Cena ${s.number} requer sol (locação aberta)`);
-          } else if (s.weather_requirement === "rain" && !location?.is_covered) {
-            alerts.push(`🌧 Cena ${s.number} requer chuva — preparar efeitos artificiais`);
-          }
-        });
-
-        if (currentDayHours > maxHours) {
-          alerts.push(`⏰ Dia longo: ${currentDayHours.toFixed(1)}h estimadas (limite ${maxHours}h)`);
-        }
-
-        // Add Shooting Day
-        shootingDays.push({
-          id: `day_${currentDayNumber}`,
-          project_id: settings.project_id,
-          day_number: currentDayNumber,
-          date: formatDate(currentDate),
-          location_id: location?.id || "",
-          scene_ids: currentDayScenes.map((s) => s.id),
-          actor_ids: dayActorIds,
-          estimated_hours: Number(currentDayHours.toFixed(1)),
-          cost_estimate: totalCostEstimate,
-          notes: alerts.join("\n"),
-        });
-
-        // Advance to next day
-        currentDayNumber++;
-        currentDate.setDate(currentDate.getDate() + 1);
-        if (currentDate.getDay() === 0) currentDate.setDate(currentDate.getDate() + 1); // Skip Sunday
       }
+      const actorsCost = [...actorIds].reduce((sum, id) => sum + (actorById.get(id)?.cost_per_day ?? 0), 0);
+
+      const alerts: string[] = [];
+      const open = location ? !location.is_covered : dayScenes.some((s) => s.int_ext !== "INT");
+      if (open && location?.weather_risk === "high") alerts.push("Locação ao ar livre: risco de clima alto");
+      for (const s of dayScenes) {
+        if (s.weather_requirement === "sun" && open) alerts.push(`Cena ${s.number} precisa de sol`);
+        if (s.weather_requirement === "rain" && open) alerts.push(`Cena ${s.number} pede chuva: preparar efeito`);
+      }
+      const uncast = new Set<string>();
+      for (const s of dayScenes) {
+        for (const c of sceneCharacters.get(s.id) ?? []) if (!actorByCharacter.has(c.id)) uncast.add(c.name);
+      }
+      if (uncast.size > 0) alerts.push(`Sem ator: ${[...uncast].join(", ")}`);
+      if (dayHours > maxHours) alerts.push(`Dia longo: ${dayHours.toFixed(1)} h (limite ${maxHours} h)`);
+
+      days.push({
+        id: `day_${days.length + 1}`,
+        project_id: settings.project_id,
+        day_number: days.length + 1,
+        date: formatDate(date),
+        location_id: location?.id ?? "",
+        scene_ids: dayScenes.map((s) => s.id),
+        actor_ids: [...actorIds],
+        estimated_hours: Number(dayHours.toFixed(1)),
+        cost_estimate: (location?.cost_per_day ?? 0) + actorsCost,
+        notes: alerts.join("\n"),
+      });
+      date = nextShootingDate(date);
     };
 
-    for (const scene of sortedScenes) {
-      const complexity = getSceneComplexity(scene);
-      
-      // If adding this scene exceeds the max hours per day, pack current scenes and start a new day
-      if (currentDayScenes.length > 0 && currentDayHours + complexity > maxHours) {
-        packScenesIntoDays();
-        currentDayScenes = [scene];
-        currentDayHours = setupTime + complexity;
+    for (const scene of ordered) {
+      const hours = sceneHours(scene, sceneCharacters.get(scene.id)?.length ?? 0);
+      if (dayScenes.length > 0 && dayHours + hours > maxHours) {
+        closeDay();
+        dayScenes = [scene];
+        dayHours = setupTime + hours;
       } else {
-        currentDayScenes.push(scene);
-        currentDayHours += complexity;
+        dayScenes.push(scene);
+        dayHours += hours;
       }
     }
-
-    // Pack remaining scenes for the location
-    packScenesIntoDays();
+    closeDay();
   }
 
-  return shootingDays;
+  return days;
 }

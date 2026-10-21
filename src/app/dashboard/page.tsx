@@ -49,7 +49,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projetos</h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie suas produções cinematográficas
+            Seus vídeos e produções
           </p>
         </div>
         <Link href="/dashboard/new">
@@ -71,20 +71,20 @@ export default function DashboardPage() {
           },
           {
             label: "Cenas Totais",
-            value: projects.length > 0 ? 47 : 0, // Mock stats totals
+            value: projects.reduce((sum, p) => sum + (p.counts?.scenes ?? 0), 0),
             icon: Film,
             color: "text-chart-2",
           },
           {
             label: "Dias de Gravação",
-            value: projects.length > 0 ? 22 : 0,
+            value: projects.reduce((sum, p) => sum + (p.counts?.days ?? 0), 0),
             icon: Calendar,
             color: "text-chart-3",
           },
         ].map((stat) => (
           <Card
             key={stat.label}
-            className="border-border/50 bg-card/50 backdrop-blur-sm"
+            className="border-border/50 bg-card"
           >
             <CardContent className="flex items-center gap-4 p-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           {/* Project Cards */}
           {projects.map((project) => (
             <Link key={project.id} href={`/dashboard/project/${project.id}/upload`}>
-              <Card className="group min-h-[220px] cursor-pointer border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+              <Card className="group min-h-[220px] cursor-pointer border-border/50 bg-card transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
                 <CardHeader className="flex flex-row items-start justify-between pb-3">
                   <div className="space-y-1">
                     <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors">
@@ -154,21 +154,21 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-center gap-1 text-muted-foreground">
                         <Film className="h-3.5 w-3.5" />
                       </div>
-                      <p className="mt-1 text-lg font-semibold">{project.id === "1" ? 47 : 0}</p>
+                      <p className="mt-1 text-lg font-semibold">{project.counts?.scenes ?? 0}</p>
                       <p className="text-[10px] text-muted-foreground">Cenas</p>
                     </div>
                     <div>
                       <div className="flex items-center justify-center gap-1 text-muted-foreground">
                         <Users className="h-3.5 w-3.5" />
                       </div>
-                      <p className="mt-1 text-lg font-semibold">{project.id === "1" ? 8 : 0}</p>
+                      <p className="mt-1 text-lg font-semibold">{project.counts?.actors ?? 0}</p>
                       <p className="text-[10px] text-muted-foreground">Atores</p>
                     </div>
                     <div>
                       <div className="flex items-center justify-center gap-1 text-muted-foreground">
                         <Calendar className="h-3.5 w-3.5" />
                       </div>
-                      <p className="mt-1 text-lg font-semibold">{project.id === "1" ? 22 : 0}</p>
+                      <p className="mt-1 text-lg font-semibold">{project.counts?.days ?? 0}</p>
                       <p className="text-[10px] text-muted-foreground">Dias</p>
                     </div>
                   </div>

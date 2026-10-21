@@ -1,85 +1,72 @@
 import Link from "next/link";
-import { Film, Calendar, Users, BarChart3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
+
+const steps = [
+  { n: "01", title: "Ideia", desc: "Você conta o nicho e o objetivo. Saem ideias com o gancho dos 3 primeiros segundos." },
+  { n: "02", title: "Roteiro", desc: "Escrito junto com você, na estrutura certa para Reels, TikTok ou YouTube." },
+  { n: "03", title: "Pessoas", desc: "Quem aparece e quem filma, cada um com um link só com a parte dele." },
+  { n: "04", title: "Planos", desc: "Cada cena vira as tomadas que você precisa, com o porquê de cada ângulo." },
+  { n: "05", title: "Gravar", desc: "No celular: lista de planos, teleprompter e nada esquecido no dia." },
+];
 
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Hero */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-        {/* Ambient glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-primary/3 blur-[100px]" />
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
+        <Logo className="text-2xl" />
+        <Link
+          href="/login"
+          className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-foreground px-5 text-sm font-semibold"
+        >
+          Entrar
+        </Link>
+      </header>
 
-        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center animate-fade-in">
-          {/* Logo */}
-          <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-primary/20 bg-primary/5 px-5 py-2">
-            <Film className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium text-primary">CineBoard</span>
-          </div>
-
-          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            Sua produção,{" "}
-            <span className="text-primary">organizada.</span>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5">
+        <section className="border-b-2 border-foreground pb-12 pt-10 sm:pt-16">
+          <p className="label-set text-muted-foreground">Seu parceiro de set</p>
+          <h1 className="font-display mt-4 text-5xl sm:text-7xl">
+            Da ideia ao
+            <br />
+            vídeo gravado.
           </h1>
-
-          <p className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
-            Planeje a ordem do dia com inteligência artificial. Otimize dias de
-            gravação, elenco e locações automaticamente.
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            O Gravaí conversa com você e faz junto o trabalho de uma equipe: roteirista, diretor e produtor. Explica
+            cada passo, sem jargão solto.
           </p>
-
-          <div className="mt-10 flex items-center justify-center gap-4">
-            <Link href="/register">
-              <Button size="lg" className="rounded-full px-8 font-semibold">
-                Começar agora
-              </Button>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/register"
+              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-bold text-primary-foreground"
+            >
+              <span className="size-2.5 rounded-full bg-rec" aria-hidden="true" />
+              Bora gravar
             </Link>
-            <Link href="/login">
-              <Button
-                variant="outline"
-                size="lg"
-                className="rounded-full px-8 font-semibold"
-              >
-                Entrar
-              </Button>
+            <Link
+              href="/login"
+              className="inline-flex min-h-13 items-center justify-center rounded-full border-[1.5px] border-foreground px-8 text-base font-semibold"
+            >
+              Já tenho conta
             </Link>
           </div>
+        </section>
 
-          {/* Feature cards */}
-          <div className="mt-20 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              {
-                icon: Calendar,
-                title: "Ordem do Dia",
-                desc: "Gerada por IA com otimização de custos",
-              },
-              {
-                icon: Users,
-                title: "Casting Inteligente",
-                desc: "Vincule atores e gerencie disponibilidade",
-              },
-              {
-                icon: BarChart3,
-                title: "Métricas de Produção",
-                desc: "Actor-days, custos e conflitos em tempo real",
-              },
-            ].map((f) => (
-              <div
-                key={f.title}
-                className="group rounded-xl border border-border/50 bg-card/50 p-6 text-left backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/80"
-              >
-                <f.icon className="h-8 w-8 text-primary mb-3 transition-transform group-hover:scale-110" />
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{f.desc}</p>
-              </div>
+        <section className="py-12">
+          <p className="label-set text-muted-foreground">Como funciona</p>
+          <ol className="mt-6 grid gap-3 sm:grid-cols-5">
+            {steps.map((s) => (
+              <li key={s.n} className="flex flex-col gap-2 rounded-xl bg-card p-5">
+                <span className="label-set text-muted-foreground">{s.n}</span>
+                <span className="text-lg font-bold">{s.title}</span>
+                <span className="text-sm leading-relaxed text-muted-foreground">{s.desc}</span>
+              </li>
             ))}
-          </div>
-        </div>
-      </div>
+          </ol>
+        </section>
+      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-6 text-center text-xs text-muted-foreground">
-        © 2026 CineBoard. Todos os direitos reservados.
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
+        © 2026 Gravaí
       </footer>
     </div>
   );

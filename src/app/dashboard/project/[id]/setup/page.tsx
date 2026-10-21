@@ -4,15 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   MapPin,
-  Plus,
   ChevronRight,
-  DollarSign,
-  Clock,
   Calendar,
-  Trash2,
-  Shield,
   CloudRain,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +59,6 @@ export default function SetupPage() {
     fetchProjectDetails,
     updateLocation: updateLocationAction,
     updateSettings: updateSettingsAction,
-    loading,
   } = useCinemaStore();
 
   useEffect(() => {
@@ -80,14 +73,17 @@ export default function SetupPage() {
   const [maxHoursPerDay, setMaxHoursPerDay] = useState("12");
   const [numCrews, setNumCrews] = useState("1");
 
-  useEffect(() => {
+  // Quando a configuração chega do banco, o formulário passa a mostrá-la.
+  const [syncedSettings, setSyncedSettings] = useState(storeSettings);
+  if (storeSettings !== syncedSettings) {
+    setSyncedSettings(storeSettings);
     if (storeSettings) {
       setProductionStart(storeSettings.production_start || "");
       setProductionEnd(storeSettings.production_end || "");
       setMaxHoursPerDay(String(storeSettings.max_hours_per_day || 12));
       setNumCrews(String(storeSettings.num_crews || 1));
     }
-  }, [storeSettings]);
+  }
 
   const locations: LocationData[] = storeLocations.map((l) => ({
     id: l.id,
@@ -148,7 +144,7 @@ export default function SetupPage() {
       </div>
 
       <Tabs defaultValue="locations" className="space-y-6">
-        <TabsList className="bg-card/30 border border-border/50">
+        <TabsList className="bg-card border border-border/50">
           <TabsTrigger value="locations" className="gap-2">
             <MapPin className="h-4 w-4" />
             Locações
@@ -163,25 +159,25 @@ export default function SetupPage() {
         <TabsContent value="locations">
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <Card className="border-border/50 bg-card/30">
+            <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
                 <p className="text-2xl font-bold text-primary">{locations.length}</p>
                 <p className="text-xs text-muted-foreground">Locações</p>
               </CardContent>
             </Card>
-            <Card className="border-border/50 bg-card/30">
+            <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
                 <p className="text-2xl font-bold text-chart-3">{coveredCount}</p>
                 <p className="text-xs text-muted-foreground">Cobertas</p>
               </CardContent>
             </Card>
-            <Card className="border-border/50 bg-card/30">
+            <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
                 <p className="text-2xl font-bold text-destructive">{highRiskCount}</p>
                 <p className="text-xs text-muted-foreground">Risco Alto</p>
               </CardContent>
             </Card>
-            <Card className="border-border/50 bg-card/30">
+            <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
                 <p className="text-2xl font-bold text-chart-4">
                   R$ {(totalDailyCost / 1000).toFixed(0)}k
@@ -196,7 +192,7 @@ export default function SetupPage() {
             {locations.map((loc) => (
               <Card
                 key={loc.id}
-                className="border-border/50 bg-card/30 hover:border-primary/20 transition-all cursor-pointer"
+                className="border-border/50 bg-card hover:border-primary/20 transition-all cursor-pointer"
                 onClick={() => openEditDialog(loc)}
               >
                 <CardContent className="p-4">
@@ -251,7 +247,7 @@ export default function SetupPage() {
 
         {/* Production Tab */}
         <TabsContent value="production">
-          <Card className="border-border/50 bg-card/30">
+          <Card className="border-border/50 bg-card">
             <CardHeader>
               <CardTitle className="text-base">Período de Filmagem</CardTitle>
             </CardHeader>
