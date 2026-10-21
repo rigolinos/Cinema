@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase/server";
 import { ANGLES, FRAMINGS, MOVEMENTS, type Angle, type Framing, type Movement } from "@/lib/planos";
@@ -130,8 +131,15 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
         </>
       )}
 
-      <footer className="pt-4 text-center text-xs text-muted-foreground">
-        Feito com o Gravaí · este link é só seu, não compartilhe
+      <footer className="flex flex-col gap-2 pt-4 text-center text-xs leading-relaxed text-muted-foreground">
+        <p>
+          Seus dados aqui: só o seu nome, a confirmação e, se você autorizar, o registro da autorização de imagem. Usamos para
+          organizar a gravação e mais nada.{" "}
+          <Link href="/privacidade" className="font-semibold underline">
+            Política de Privacidade
+          </Link>
+        </p>
+        <p>Feito com o Gravaí · este link é só seu, não compartilhe</p>
       </footer>
     </div>
   );

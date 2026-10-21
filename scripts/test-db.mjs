@@ -381,6 +381,44 @@ ok(r.err || r.rows.length === 0, 'a marca de usada só muda pelo app');
 r = await as('anon', null, 'SELECT public.start_video_from_idea($1, $2, $3, $4, $5)', [q1, 'crescer', 'reels', 30, ['sozinho']]);
 ok(r.err, 'visitante não começa vídeo');
 
+console.log('LGPD:');
+const D = 'dddddddd-0000-0000-0000-000000000004';
+await q(`INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES ($1, 'd@teste.dev', '{"org_name":"Estúdio D","legal":{"termos":"v1","privacidade":"v1","outro":"v9"}}')`, [D]);
+r = await as('authenticated', D, 'SELECT document, version FROM public.legal_acceptances ORDER BY document');
+ok(JSON.stringify(r.rows) === JSON.stringify([{ document: 'privacidade', version: 'v1' }, { document: 'termos', version: 'v1' }]), 'o cadastro registra o aceite dos Termos e da Política');
+r = await as('authenticated', A, 'SELECT id FROM public.legal_acceptances');
+ok(!r.err && r.rows.length === 0, 'ninguém vê os aceites de outra pessoa');
+r = await as('authenticated', D, `INSERT INTO public.legal_acceptances (document, version) VALUES ('termos', 'v2') RETURNING id`);
+ok(r.rows?.length === 1, 'a pessoa aceita uma versão nova');
+r = await as('authenticated', D, `INSERT INTO public.legal_acceptances (user_id, document, version) VALUES ($1, 'termos', 'v3')`, [A]);
+ok(r.err, 'ninguém registra aceite no nome de outra pessoa');
+r = await as('authenticated', D, `UPDATE public.legal_acceptances SET version = 'v9' RETURNING id`);
+ok(r.err || r.rows.length === 0, 'aceite não é alterado');
+r = await as('authenticated', D, `DELETE FROM public.legal_acceptances RETURNING id`);
+ok(!r.err && r.rows.length === 0, 'aceite não é apagado pela pessoa');
+
+// D monta um vídeo completo e depois exclui a conta.
+await as('authenticated', D, `INSERT INTO public.creator_profiles (niche) VALUES ('teste')`);
+const vidD = (await as('authenticated', D, `INSERT INTO public.videos (objective, platform, duration_s, resources) VALUES ('crescer', 'reels', 30, '{sozinho}') RETURNING id`)).rows[0].id;
+const blocoD = (await as('authenticated', D, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidD, JSON.stringify([{ kind: 'gancho', speech: 'Oi' }])])).rows[0].id;
+await as('authenticated', D, 'SELECT public.replace_shots($1, $2::jsonb)', [vidD, JSON.stringify([{ block_id: blocoD, framing: 'close', angle: 'altura_olhos', movement: 'parado' }])]);
+await as('authenticated', D, `INSERT INTO public.creator_ideas (period_start, position, title, hook) VALUES (current_date, 0, 'Ideia D', 'Gancho D')`);
+const orgD = (await one('SELECT org_id FROM public.organization_members WHERE user_id = $1', [D])).org_id;
+await q(`INSERT INTO public.organization_members (org_id, user_id, role) VALUES ($1, $2, 'member')`, [orgA, D]);
+
+r = await as('anon', null, 'SELECT public.delete_my_account()');
+ok(r.err, 'visitante não exclui conta');
+r = await as('authenticated', D, 'SELECT public.delete_my_account()');
+ok(!r.err, 'a pessoa exclui a própria conta' + (r.err ? ': ' + r.err : ''));
+const restos = await one(`SELECT
+  (SELECT count(*) FROM auth.users WHERE id = $1) + (SELECT count(*) FROM public.videos WHERE owner_id = $1)
+  + (SELECT count(*) FROM public.script_blocks WHERE video_id = $2) + (SELECT count(*) FROM public.shots WHERE video_id = $2)
+  + (SELECT count(*) FROM public.creator_profiles WHERE user_id = $1) + (SELECT count(*) FROM public.creator_ideas WHERE owner_id = $1)
+  + (SELECT count(*) FROM public.legal_acceptances WHERE user_id = $1) + (SELECT count(*) FROM public.organization_members WHERE user_id = $1) AS n`, [D, vidD]);
+ok(Number(restos.n) === 0, 'nada da pessoa fica para trás');
+ok((await one('SELECT count(*)::int AS n FROM public.organizations WHERE id = $1', [orgD])).n === 0, 'a produtora em que ela era a única integrante some');
+ok((await one('SELECT count(*)::int AS n FROM public.organizations WHERE id = $1', [orgA])).n === 1, 'a produtora com outras pessoas continua');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

@@ -41,7 +41,7 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect unauthenticated users to login (except for auth pages, root, the e-mail
   // link callback, "esqueci minha senha" and the per-person share links /p/<token>)
-  const publicPaths = ['/login', '/register', '/esqueci', '/auth/', '/p/']
+  const publicPaths = ['/login', '/register', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade', '/excluir-conta']
   if (
     !user &&
     !publicPaths.some((p) => request.nextUrl.pathname.startsWith(p)) &&

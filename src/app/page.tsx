@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { COMPANY } from "@/lib/legal";
 
 const steps = [
   { n: "01", title: "Ideia", desc: "Você conta o nicho e o objetivo. Saem ideias com o gancho dos 3 primeiros segundos." },
@@ -65,8 +66,19 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © 2026 Gravaí
+      <footer className="flex flex-col items-center gap-2 border-t border-border py-6 text-center text-xs text-muted-foreground">
+        <nav aria-label="Documentos" className="flex flex-wrap justify-center gap-x-4">
+          <Link href="/termos" className="inline-flex min-h-11 items-center underline">
+            Termos de Uso
+          </Link>
+          <Link href="/privacidade" className="inline-flex min-h-11 items-center underline">
+            Política de Privacidade
+          </Link>
+          <Link href="/excluir-conta" className="inline-flex min-h-11 items-center underline">
+            Excluir conta
+          </Link>
+        </nav>
+        <p>© 2026 Gravaí · CNPJ {COMPANY.cnpj}</p>
       </footer>
     </div>
   );
