@@ -343,6 +343,19 @@ ok(r.err, 'ninguém do app escreve no radar');
 r = await as('authenticated', A, `SELECT public.admin_add_radar(current_date, 'Falso', 'Trend inventada aqui', 'Qualquer coisa assim')`);
 ok(r.err, 'só a equipe (terminal) usa admin_add_radar');
 
+console.log('Apagar vídeo:');
+r = await as('authenticated', B, 'DELETE FROM public.videos WHERE id = $1 RETURNING id', [vidA]);
+ok(!r.err && r.rows.length === 0, 'ninguém apaga o vídeo de outra pessoa');
+const consentsAntes = (await one('SELECT count(*)::int AS n FROM public.image_consents')).n;
+r = await as('authenticated', A, 'DELETE FROM public.videos WHERE id = $1 RETURNING id', [vidA]);
+ok(!r.err && r.rows.length === 1, 'dono apaga o próprio vídeo' + (r.err ? ': ' + r.err : ''));
+const sobras = await one(`SELECT
+  (SELECT count(*) FROM public.video_ideas WHERE video_id = $1) + (SELECT count(*) FROM public.script_blocks WHERE video_id = $1)
+  + (SELECT count(*) FROM public.shots WHERE video_id = $1) + (SELECT count(*) FROM public.video_people WHERE video_id = $1)
+  + (SELECT count(*) FROM public.video_posts WHERE video_id = $1) AS n`, [vidA]);
+ok(Number(sobras.n) === 0, 'ideias, roteiro, planos, pessoas e publicação vão junto');
+ok((await one('SELECT count(*)::int AS n FROM public.image_consents')).n === consentsAntes && consentsAntes > 0, 'as autorizações de imagem ficam guardadas');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

@@ -39,13 +39,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Redirect unauthenticated users to login (except for auth pages, root and the
-  // per-person share links /p/<token>, which open without an account)
+  // Redirect unauthenticated users to login (except for auth pages, root, the e-mail
+  // link callback, "esqueci minha senha" and the per-person share links /p/<token>)
+  const publicPaths = ['/login', '/register', '/esqueci', '/auth/', '/p/']
   if (
     !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/register') &&
-    !request.nextUrl.pathname.startsWith('/p/') &&
+    !publicPaths.some((p) => request.nextUrl.pathname.startsWith(p)) &&
     request.nextUrl.pathname !== '/'
   ) {
     const url = request.nextUrl.clone()
