@@ -2,12 +2,16 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Lock } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, Lock } from "lucide-react";
 import { Trail, STAGES, stageIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { OBJECTIVES, PLATFORMS, durationLabel } from "@/lib/ideas";
-import type { Video } from "@/types/database";
+import { cn } from "@/lib/utils";
+import type { Video, VideoStage } from "@/types/database";
+
+// Passos que já existem no app (os outros chegam nos próximos lotes).
+const READY: VideoStage[] = ["roteiro"];
 
 const NEXT_STEPS: Record<string, string> = {
   roteiro: "Escrever junto com você, bloco a bloco: gancho, contexto, conteúdo, virada e chamada final.",
@@ -78,20 +82,51 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
             </section>
           )}
 
-          <section className="flex flex-col gap-2.5" aria-labelledby="proximos">
-            <h2 id="proximos" className="label-set text-muted-foreground">
-              Próximos passos
+          <section className="flex flex-col gap-2.5" aria-labelledby="passos">
+            <h2 id="passos" className="label-set text-muted-foreground">
+              Passos
             </h2>
-            {STAGES.slice(Math.max(1, stageIndex(video.stage))).map((s) => (
-              <div key={s.id} className="flex items-start gap-3 rounded-2xl border border-border p-4">
-                <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
-                <div className="flex flex-col gap-1">
-                  <p className="font-bold">{s.label}</p>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{NEXT_STEPS[s.id]}</p>
-                  <p className="label-set text-muted-foreground">Chega numa próxima atualização</p>
+            {STAGES.slice(1).map((s, i) => {
+              const index = i + 1;
+              const current = stageIndex(video.stage);
+              const open = video.hook && READY.includes(s.id) && index <= current;
+              if (open) {
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/video/${video.id}/${s.id}`}
+                    className={cn(
+                      "flex items-center justify-between gap-3 rounded-2xl p-4",
+                      index === current ? "bg-primary text-primary-foreground" : "bg-card",
+                    )}
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="font-bold">{s.label}</span>
+                      <span className={cn("text-sm leading-relaxed", index === current ? "opacity-75" : "text-muted-foreground")}>
+                        {index < current ? "Feito. Toque para rever ou mudar." : NEXT_STEPS[s.id]}
+                      </span>
+                    </span>
+                    {index < current ? (
+                      <Check className="size-5 shrink-0" strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                    )}
+                  </Link>
+                );
+              }
+              return (
+                <div key={s.id} className="flex items-start gap-3 rounded-2xl border border-border p-4">
+                  <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+                  <div className="flex flex-col gap-1">
+                    <p className="font-bold">{s.label}</p>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{NEXT_STEPS[s.id]}</p>
+                    <p className="label-set text-muted-foreground">
+                      {READY.includes(s.id) ? "Depois do passo anterior" : "Chega numa próxima atualização"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </section>
         </>
       )}

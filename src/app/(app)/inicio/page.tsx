@@ -71,7 +71,7 @@ export default function InicioPage() {
         {videos?.map((v) => (
           <Link
             key={v.id}
-            href={v.stage === "ideia" ? `/video/${v.id}/ideia` : `/video/${v.id}`}
+            href={v.stage === "ideia" || v.stage === "roteiro" ? `/video/${v.id}/${v.stage}` : `/video/${v.id}`}
             className="flex flex-col gap-3 rounded-2xl bg-card p-4"
           >
             <span className="flex items-baseline justify-between gap-3">
