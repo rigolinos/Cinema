@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { radarSince } from "@/lib/radar";
 import { IDEA_SYSTEM, ideaPrompt, normalizeIdeas, type Objective, type Platform, type Resource } from "@/lib/ideas";
 
 function fail(message: string, status: number) {
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
     supabase.from("creator_profiles").select("niche").maybeSingle(),
     supabase.from("video_ideas").select("title, round").eq("video_id", videoId).order("round", { ascending: false }),
   ]);
+  const { data: radar } = await supabase.from("trend_radar").select("title, what").gte("week_start", radarSince()).limit(5);
 
   if (!video) return fail("Vídeo não encontrado.", 404);
   if (!profile?.niche || !video.objective || !video.platform || !video.duration_s) {
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
           resources: (video.resources ?? []) as Resource[],
           request: ask || undefined,
           previousTitles: (previous ?? []).slice(0, 15).map((p) => p.title),
+          trends: (radar ?? []) as { title: string; what: string }[],
         }),
       }),
     );

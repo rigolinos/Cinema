@@ -21,6 +21,7 @@ export interface Video {
   duration_s: number | null;
   resources: ('sozinho' | 'com_alguem' | 'em_casa' | 'na_rua')[];
   stage: VideoStage;
+  published_at?: string | null;
   created_at: string;
   updated_at: string;
 }

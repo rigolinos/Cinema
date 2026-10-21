@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { RadarCard, useRadar } from "@/components/gravai/radar";
 import { READY_STAGES, STAGES, Trail, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { FORMATS } from "@/lib/formats";
@@ -26,6 +27,7 @@ export default function InicioPage() {
   const [videos, setVideos] = useState<Video[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const week = formatOfTheWeek();
+  const radar = useRadar();
 
   useEffect(() => {
     createClient()
@@ -64,7 +66,7 @@ export default function InicioPage() {
 
       <section className="flex flex-col gap-2.5" aria-labelledby="andamento">
         <h2 id="andamento" className="label-set text-muted-foreground">
-          Em andamento
+          Seus vídeos
         </h2>
         {error && <p className="text-sm text-destructive">{error}</p>}
         {videos === null && <p className="text-sm text-muted-foreground">Carregando…</p>}
@@ -93,11 +95,15 @@ export default function InicioPage() {
         ))}
       </section>
 
-      <Link href={`/ideias#${week.slug}`} className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-foreground p-4">
-        <span className="label-set text-muted-foreground">Formato da semana</span>
-        <span className="text-lg font-bold">{week.name}</span>
-        <span className="text-sm leading-relaxed text-muted-foreground">{week.summary}</span>
-      </Link>
+      {radar?.[0] ? (
+        <RadarCard item={radar[0]} />
+      ) : (
+        <Link href={`/ideias#${week.slug}`} className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-foreground p-4">
+          <span className="label-set text-muted-foreground">Formato da semana</span>
+          <span className="text-lg font-bold">{week.name}</span>
+          <span className="text-sm leading-relaxed text-muted-foreground">{week.summary}</span>
+        </Link>
+      )}
     </div>
   );
 }

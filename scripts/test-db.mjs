@@ -321,6 +321,28 @@ ok((await one('SELECT count(*)::int AS n FROM public.image_consents WHERE accept
 await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo roteiro' }])]);
 ok((await one('SELECT count(*)::int AS n FROM public.shots WHERE video_id = $1', [vidA])).n === 0, 'roteiro novo apaga os planos dos blocos antigos');
 
+console.log('Publicar e radar:');
+r = await as('authenticated', A, `INSERT INTO public.video_posts (video_id, caption, hashtags) VALUES ($1, 'Legenda', '{"#treino"}') RETURNING video_id`, [vidA]);
+ok(!r.err, 'dono guarda a publicação' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `UPDATE public.video_posts SET title = repeat('x', 101) WHERE video_id = $1`, [vidA]);
+ok(r.err, 'título com mais de 100 caracteres é recusado');
+r = await as('authenticated', B, 'SELECT video_id FROM public.video_posts');
+ok(!r.err && r.rows.length === 0, 'ninguém vê a publicação de outra pessoa');
+r = await as('authenticated', B, `INSERT INTO public.video_posts (video_id) VALUES ($1)`, [vidA]);
+ok(r.err, 'ninguém escreve a publicação de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.videos SET published_at = now() WHERE id = $1 RETURNING published_at`, [vidA]);
+ok(r.rows?.[0]?.published_at, 'dono marca o vídeo como publicado');
+
+await q(`SELECT public.admin_add_radar(current_date, 'POV de segunda', 'Vídeos POV sobre a segunda-feira.', 'Mostre a sua segunda no seu nicho.', 'pov')`);
+r = await as('authenticated', B, 'SELECT title FROM public.trend_radar');
+ok(r.rows?.length === 1, 'quem está logado lê o radar');
+r = await as('anon', null, 'SELECT title FROM public.trend_radar');
+ok(r.err || r.rows.length === 0, 'visitante não lê o radar');
+r = await as('authenticated', A, `INSERT INTO public.trend_radar (week_start, title, what, how_to_adapt) VALUES (current_date, 'Falso', 'Trend inventada aqui', 'Qualquer coisa assim')`);
+ok(r.err, 'ninguém do app escreve no radar');
+r = await as('authenticated', A, `SELECT public.admin_add_radar(current_date, 'Falso', 'Trend inventada aqui', 'Qualquer coisa assim')`);
+ok(r.err, 'só a equipe (terminal) usa admin_add_radar');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {
