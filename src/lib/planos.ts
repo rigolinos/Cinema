@@ -111,28 +111,41 @@ const list = (terms: Record<string, Term>) =>
     .map(([k, t]) => `${k} (${t.label}: ${t.what})`)
     .join("; ");
 
+// Quantos planos cabem no vídeo: mais ou menos um a cada 3,5 segundos, entre 4 e 24.
+export function maxShots(durationS: number | null): number {
+  return Math.min(24, Math.max(4, Math.round((durationS ?? 30) / 3.5)));
+}
+
+// Gravando sozinho: o celular fica apoiado, não há quem ande com a câmera.
+export function isSolo(resources: Resource[]): boolean {
+  return resources.includes("sozinho") && !resources.includes("com_alguem");
+}
+
 export function shotsPrompt(
   blocks: (Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action"> & { id: string })[],
-  ctx: { title: string; platform: Platform | null; resources: Resource[] },
+  ctx: { title: string; platform: Platform | null; resources: Resource[]; durationS: number | null },
 ): string {
   const roteiro = blocks
     .map((b, i) => `${i + 1}. [${b.label || BLOCK_KINDS[b.kind].label}] FALA: ${b.speech} | TELA: ${b.on_screen} | CENA: ${b.action}`)
     .join("\n");
+  const limit = maxShots(ctx.durationS);
   return `Vídeo: ${ctx.title}
 Plataforma: ${ctx.platform ? PLATFORMS[ctx.platform] : "não informada"} (orientação padrão: ${defaultOrientation(ctx.platform)})
+Duração: cerca de ${ctx.durationS ?? 30} segundos
 Recursos: ${ctx.resources.map((r) => RESOURCES[r]).join(", ") || "não informado"}
 
 Roteiro:
 ${roteiro}
 
-Para cada bloco, crie de 1 a 3 planos. Use só estes valores:
+Crie os planos de cada bloco: blocos curtos ficam com 1 plano, os mais longos com 2. No total, NO MÁXIMO ${limit} planos.
+${isSolo(ctx.resources) ? 'A pessoa grava SOZINHA, com o celular apoiado: nada de "acompanhando"; prefira câmera parada. Movimentos só em detalhes que ela mesma filma com o celular na mão.\n' : ""}Use só estes valores:
 framing: ${list(FRAMINGS)}
 angle: ${list(ANGLES)}
 movement: ${list(MOVEMENTS)}
 orientation: vertical ou horizontal
 O gancho começa num plano que prende (close ou detalhe, de preferência).
 "location" é o lugar (ex.: "Sala", "Cozinha", "Rua"); use o mesmo nome quando for o mesmo lugar.
-"wardrobe" é a roupa ou o visual, se importar; senão deixe vazio.
+"wardrobe": deixe vazio em todos os planos, a não ser que a roupa mude durante o vídeo; se mudar, preencha em todos.
 "why" explica em uma frase por que esse plano, para quem está aprendendo.
 Responda só com JSON:
 {"shots":[{"block":1,"framing":"close","angle":"altura_olhos","movement":"parado","orientation":"vertical","description":"o que aparece no plano","location":"","wardrobe":"","why":""}]}`;
@@ -147,25 +160,39 @@ function pick<T extends string>(value: unknown, allowed: Record<T, Term>, fallba
   return (Object.keys(allowed) as T[]).includes(v as T) ? (v as T) : fallback;
 }
 
-// Confere a decupagem da IA: só blocos que existem, valores válidos, no máximo 4 planos por bloco.
-export function normalizeShots(raw: unknown, blockIds: string[], orientation: Orientation): Omit<Shot, "position">[] {
+// Roupa: com um visual só (ou nenhum), o campo fica vazio em todos, para não inventar troca de cenário.
+// Com mais de um, quem ficou em branco herda a roupa do plano anterior.
+export function normalizeWardrobe<T extends { wardrobe: string }>(shots: T[]): T[] {
+  const looks = new Set(shots.map((s) => s.wardrobe.trim().toLowerCase()).filter(Boolean));
+  if (looks.size <= 1) return shots.map((s) => ({ ...s, wardrobe: "" }));
+  let last = shots.find((s) => s.wardrobe.trim())?.wardrobe.trim() ?? "";
+  return shots.map((s) => {
+    if (s.wardrobe.trim()) last = s.wardrobe.trim();
+    return { ...s, wardrobe: last };
+  });
+}
+
+// Confere a decupagem da IA: só blocos que existem, valores válidos, no máximo `max` planos
+// (todo bloco garante pelo menos um), e nada de câmera andando para quem grava sozinho.
+export function normalizeShots(
+  raw: unknown,
+  blockIds: string[],
+  opts: { orientation: Orientation; max: number; solo: boolean },
+): Omit<Shot, "position">[] {
   const items = (raw as { shots?: unknown })?.shots;
   if (!Array.isArray(items)) return [];
-  const perBlock = new Map<string, number>();
-  const shots: Omit<Shot, "position">[] = [];
+  const all: Omit<Shot, "position">[] = [];
   for (const item of items) {
     const s = (item ?? {}) as Record<string, unknown>;
     const block = blockIds[Math.round(Number(s.block)) - 1];
     if (!block) continue;
-    const count = perBlock.get(block) ?? 0;
-    if (count >= 4) continue;
-    perBlock.set(block, count + 1);
-    shots.push({
+    const movement = pick<Movement>(s.movement, MOVEMENTS, "parado");
+    all.push({
       block_id: block,
       framing: pick(s.framing, FRAMINGS, "medio"),
       angle: pick(s.angle, ANGLES, "altura_olhos"),
-      movement: pick(s.movement, MOVEMENTS, "parado"),
-      orientation: s.orientation === "horizontal" || s.orientation === "vertical" ? s.orientation : orientation,
+      movement: opts.solo && movement === "acompanhando" ? "parado" : movement,
+      orientation: s.orientation === "horizontal" || s.orientation === "vertical" ? s.orientation : opts.orientation,
       description: clip(s.description, 300),
       location: clip(s.location, 80),
       wardrobe: clip(s.wardrobe, 80),
@@ -173,5 +200,19 @@ export function normalizeShots(raw: unknown, blockIds: string[], orientation: Or
     });
   }
   // A ordem do roteiro manda: planos agrupados pelo bloco, na ordem dos blocos.
-  return shots.sort((a, b) => blockIds.indexOf(a.block_id) - blockIds.indexOf(b.block_id)).slice(0, 60);
+  const ordered = all.sort((a, b) => blockIds.indexOf(a.block_id) - blockIds.indexOf(b.block_id));
+
+  // Primeiro o primeiro plano de cada bloco; depois os outros, na ordem, até o limite.
+  const keep = new Set<number>();
+  const seenBlock = new Set<string>();
+  ordered.forEach((s, i) => {
+    if (!seenBlock.has(s.block_id) && keep.size < opts.max) {
+      seenBlock.add(s.block_id);
+      keep.add(i);
+    }
+  });
+  ordered.forEach((_, i) => {
+    if (keep.size < opts.max) keep.add(i);
+  });
+  return normalizeWardrobe(ordered.filter((_, i) => keep.has(i)));
 }

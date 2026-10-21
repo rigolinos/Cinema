@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
-import { SHOTS_SYSTEM, defaultOrientation, normalizeShots, shotsPrompt } from "@/lib/planos";
+import { SHOTS_SYSTEM, defaultOrientation, isSolo, maxShots, normalizeShots, shotsPrompt } from "@/lib/planos";
 import type { ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
@@ -9,7 +9,7 @@ function fail(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-// Decupa o roteiro inteiro: cada bloco vira de 1 a 3 planos. Substitui a decupagem anterior.
+// Decupa o roteiro inteiro: cada bloco vira 1 ou 2 planos, dentro do limite da duração. Substitui a decupagem anterior.
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
     shots = normalizeShots(
       await generateJson({
         system: SHOTS_SYSTEM,
-        prompt: shotsPrompt(script, { title: v.title ?? "Vídeo", platform: v.platform, resources: v.resources ?? [] }),
+        prompt: shotsPrompt(script, { title: v.title ?? "Vídeo", platform: v.platform, resources: v.resources ?? [], durationS: v.duration_s }),
         temperature: 0.6,
       }),
       script.map((b) => b.id),
-      defaultOrientation(v.platform),
+      { orientation: defaultOrientation(v.platform), max: maxShots(v.duration_s), solo: isSolo(v.resources ?? []) },
     );
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {
