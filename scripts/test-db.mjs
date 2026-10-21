@@ -356,6 +356,31 @@ const sobras = await one(`SELECT
 ok(Number(sobras.n) === 0, 'ideias, roteiro, planos, pessoas e publicação vão junto');
 ok((await one('SELECT count(*)::int AS n FROM public.image_consents')).n === consentsAntes && consentsAntes > 0, 'as autorizações de imagem ficam guardadas');
 
+console.log('Ideias da quinzena:');
+const ideiaQ = async (uid, pos) =>
+  as('authenticated', uid, `INSERT INTO public.creator_ideas (period_start, position, title, format_slug, hook, why) VALUES ('2026-10-19', $1, $2, 'pov', 'Gancho', 'Porque sim') RETURNING id`, [pos, `Ideia ${pos}`]);
+r = await ideiaQ(A, 0);
+const q1 = r.rows?.[0]?.id;
+ok(q1, 'criador guarda as ideias da quinzena' + (r.err ? ': ' + r.err : ''));
+r = await ideiaQ(A, 0);
+ok(r.err, 'a mesma posição não se repete na quinzena');
+r = await as('authenticated', B, 'SELECT id FROM public.creator_ideas');
+ok(!r.err && r.rows.length === 0, 'ninguém vê as ideias de outra pessoa');
+r = await as('authenticated', B, 'SELECT public.start_video_from_idea($1, $2, $3, $4, $5)', [q1, 'crescer', 'reels', 30, ['sozinho']]);
+ok(r.err, 'ninguém começa vídeo com a ideia de outra pessoa');
+r = await as('authenticated', A, 'SELECT public.start_video_from_idea($1, $2, $3, $4, $5) AS id', [q1, 'crescer', 'reels', 30, ['sozinho', 'em_casa']]);
+const vidQ = r.rows?.[0]?.id;
+ok(vidQ, 'dono começa um vídeo a partir da ideia' + (r.err ? ': ' + r.err : ''));
+const vq = await one('SELECT owner_id, title, hook, format_slug, stage, platform, duration_s FROM public.videos WHERE id = $1', [vidQ]);
+ok(vq?.owner_id === A && vq.title === 'Ideia 0' && vq.hook === 'Gancho' && vq.format_slug === 'pov' && vq.stage === 'roteiro' && vq.platform === 'reels', 'o vídeo nasce com a ideia, já no roteiro');
+ok((await one('SELECT video_id FROM public.creator_ideas WHERE id = $1', [q1]))?.video_id === vidQ, 'a ideia fica marcada como usada');
+r = await as('authenticated', A, 'SELECT public.start_video_from_idea($1, $2, $3, $4, $5)', [q1, 'crescer', 'orkut', 30, ['sozinho']]);
+ok(r.err, 'plataforma inválida é recusada');
+r = await as('authenticated', A, `UPDATE public.creator_ideas SET video_id = NULL WHERE id = $1 RETURNING id`, [q1]);
+ok(r.err || r.rows.length === 0, 'a marca de usada só muda pelo app');
+r = await as('anon', null, 'SELECT public.start_video_from_idea($1, $2, $3, $4, $5)', [q1, 'crescer', 'reels', 30, ['sozinho']]);
+ok(r.err, 'visitante não começa vídeo');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

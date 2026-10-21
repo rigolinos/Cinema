@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { createClient } from "@/lib/supabase/client";
@@ -81,6 +81,7 @@ function Mine({ text, onClick }: { text: string; onClick?: () => void }) {
 export default function IdeiaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [loaded, setLoaded] = useState(false);
   const [answers, setAnswers] = useState<Answers>({ niche: null, objective: null, platform: null, durationS: null, resources: [] });
@@ -148,9 +149,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     if (loaded && !question && ideas.length === 0 && !autoAsked.current) {
       autoAsked.current = true;
-      requestIdeas();
+      // Vindo de "Usar este formato", a primeira rodada já usa o formato escolhido.
+      const chosen = findFormat(searchParams.get("formato"));
+      requestIdeas(chosen ? `Quero ideias no formato “${chosen.name}”.` : undefined);
     }
-  }, [loaded, question, ideas.length, requestIdeas]);
+  }, [loaded, question, ideas.length, requestIdeas, searchParams]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });

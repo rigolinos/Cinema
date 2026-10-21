@@ -13,6 +13,9 @@ export default function NovoVideoPage() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    // Vindo de "Usar este formato" (?formato=slug), a conversa da ideia já sugere nesse formato.
+    const formato = new URLSearchParams(window.location.search).get("formato");
+    const suffix = formato && /^[a-z0-9-]{1,60}$/.test(formato) ? `?formato=${formato}` : "";
     createClient()
       .from("videos")
       .insert({})
@@ -20,7 +23,7 @@ export default function NovoVideoPage() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) setError("Não foi possível criar o vídeo. Confira sua conexão e tente de novo.");
-        else router.replace(`/video/${data.id}/ideia`);
+        else router.replace(`/video/${data.id}/ideia${suffix}`);
       });
   }, [router]);
 

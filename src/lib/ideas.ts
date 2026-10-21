@@ -100,7 +100,7 @@ function clip(value: unknown, max: number): string {
 }
 
 // Confere a resposta da IA: só ideias completas, formato conhecido, no máximo 5.
-export function normalizeIdeas(raw: unknown): Idea[] {
+export function normalizeIdeas(raw: unknown, max = 5): Idea[] {
   const list = (raw as { ideas?: unknown })?.ideas;
   if (!Array.isArray(list)) return [];
   return list
@@ -115,5 +115,5 @@ export function normalizeIdeas(raw: unknown): Idea[] {
       };
     })
     .filter((i) => i.title && i.hook)
-    .slice(0, 5);
+    .slice(0, max);
 }
