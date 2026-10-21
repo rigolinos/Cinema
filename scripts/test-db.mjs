@@ -419,6 +419,27 @@ ok(Number(restos.n) === 0, 'nada da pessoa fica para trás');
 ok((await one('SELECT count(*)::int AS n FROM public.organizations WHERE id = $1', [orgD])).n === 0, 'a produtora em que ela era a única integrante some');
 ok((await one('SELECT count(*)::int AS n FROM public.organizations WHERE id = $1', [orgA])).n === 1, 'a produtora com outras pessoas continua');
 
+console.log('Meus vídeos:');
+const novoVazio = async (uid, minutos) =>
+  (await as('authenticated', uid, `INSERT INTO public.videos (created_at) VALUES (now() - make_interval(mins => $1)) RETURNING id`, [minutos])).rows[0].id;
+const vazioVelho = await novoVazio(B, 180);
+const vazioNovo = await novoVazio(B, 5);
+const comResposta = (await as('authenticated', B, `INSERT INTO public.videos (objective, created_at) VALUES ('crescer', now() - interval '3 hours') RETURNING id`)).rows[0].id;
+const comIdeia = await novoVazio(B, 180);
+await as('authenticated', B, `INSERT INTO public.video_ideas (video_id, title, hook) VALUES ($1, 'Ideia', 'Gancho')`, [comIdeia]);
+const vazioDeA = await novoVazio(A, 180);
+r = await as('authenticated', B, 'SELECT public.delete_empty_drafts(60) AS n');
+ok(r.rows?.[0]?.n === 1, 'limpa só o rascunho vazio antigo' + (r.err ? ': ' + r.err : ''));
+const sobrou = (await q('SELECT id FROM public.videos WHERE id = ANY($1)', [[vazioVelho, vazioNovo, comResposta, comIdeia, vazioDeA]])).rows.map((x) => x.id);
+ok(!sobrou.includes(vazioVelho) && sobrou.includes(vazioNovo) && sobrou.includes(comResposta) && sobrou.includes(comIdeia), 'o recém-criado, o respondido e o com ideia ficam');
+ok(sobrou.includes(vazioDeA), 'não mexe nos vídeos de outra pessoa');
+r = await as('anon', null, 'SELECT public.delete_empty_drafts(60)');
+ok(r.err, 'visitante não limpa nada');
+r = await as('authenticated', B, `UPDATE public.videos SET archived_at = now() WHERE id = $1 RETURNING archived_at`, [comResposta]);
+ok(r.rows?.[0]?.archived_at, 'dono arquiva um vídeo');
+r = await as('authenticated', A, `UPDATE public.videos SET archived_at = now() WHERE id = $1 RETURNING id`, [comIdeia]);
+ok(!r.err && r.rows.length === 0, 'ninguém arquiva o vídeo de outra pessoa');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

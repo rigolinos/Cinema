@@ -5,12 +5,10 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { RadarCard, useRadar } from "@/components/gravai/radar";
-import { READY_STAGES, STAGES, Trail, reachableIndex, stageLabel } from "@/components/gravai/trail";
+import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, periodStart } from "@/lib/quinzena";
-import type { Video } from "@/types/database";
 
 // O formato muda toda semana (semanas contadas desde 01/01/2026).
 function formatOfTheWeek() {
@@ -18,28 +16,32 @@ function formatOfTheWeek() {
   return FORMATS[((week % FORMATS.length) + FORMATS.length) % FORMATS.length];
 }
 
-// "Continuar" abre direto o passo em que a pessoa está, se ele já existe no app.
-function videoHref(v: Video): string {
-  const step = STAGES[reachableIndex(v.stage)]?.id;
-  return step && READY_STAGES.includes(step) ? `/video/${v.id}/${step}` : `/video/${v.id}`;
-}
+const SHOW = 5;
 
 export default function InicioPage() {
-  const [videos, setVideos] = useState<Video[] | null>(null);
+  const [videos, setVideos] = useState<VideoRow[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const week = formatOfTheWeek();
   const radar = useRadar();
 
   useEffect(() => {
-    createClient()
-      .from("videos")
-      .select("*")
-      .order("updated_at", { ascending: false })
-      .limit(20)
-      .then(({ data, error }) => {
-        if (error) setError("Não foi possível carregar seus vídeos.");
-        setVideos((data ?? []) as Video[]);
-      });
+    const db = createClient();
+    // Rascunhos vazios com mais de 1 hora somem antes de listar (vídeo aberto e abandonado sem resposta).
+    db.rpc("delete_empty_drafts", { p_keep_minutes: 60 }).then(() =>
+      db
+        .from("videos")
+        .select("*", { count: "exact" })
+        .is("archived_at", null)
+        .neq("stage", "pronto")
+        .order("updated_at", { ascending: false })
+        .limit(SHOW)
+        .then(({ data, error, count }) => {
+          if (error) setError("Não foi possível carregar seus vídeos.");
+          setVideos((data ?? []) as VideoRow[]);
+          setTotal(count ?? 0);
+        }),
+    );
   }, []);
 
   return (
@@ -77,34 +79,36 @@ export default function InicioPage() {
       </Link>
 
       <section className="flex flex-col gap-2.5" aria-labelledby="andamento">
-        <h2 id="andamento" className="label-set text-muted-foreground">
-          Seus vídeos
-        </h2>
+        <div className="flex items-baseline justify-between">
+          <h2 id="andamento" className="label-set text-muted-foreground">
+            Em andamento
+          </h2>
+          <Link href="/videos" className="flex min-h-11 items-center text-sm font-semibold underline">
+            Meus vídeos
+          </Link>
+        </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         {videos === null && <p className="text-sm text-muted-foreground">Carregando…</p>}
         {videos?.length === 0 && (
           <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed text-muted-foreground">
-            Nenhum vídeo ainda. Toque em <strong className="text-foreground">Novo vídeo</strong> e o Gravaí te ajuda a achar a
-            primeira ideia.
+            Nada em andamento. Toque em <strong className="text-foreground">Novo vídeo</strong> ou escolha uma das ideias da quinzena.
           </p>
         )}
         {videos?.map((v) => (
-          <Link
+          <VideoCard
             key={v.id}
-            href={videoHref(v)}
-            className="flex flex-col gap-3 rounded-2xl bg-card p-4"
-          >
-            <span className="flex items-baseline justify-between gap-3">
-              <span className="text-[17px] font-bold leading-snug">{v.title || "Vídeo sem ideia ainda"}</span>
-              {v.duration_s && <span className="font-mono text-sm text-muted-foreground">{durationLabel(v.duration_s)}</span>}
-            </span>
-            <Trail stage={v.stage} />
-            <span className="flex items-center justify-between">
-              <span className="label-set text-muted-foreground">{stageLabel(v.stage)}</span>
-              <span className="text-sm font-semibold">Continuar</span>
-            </span>
-          </Link>
+            video={v}
+            onChange={(next) => {
+              setVideos((list) => (list ?? []).flatMap((x) => (x.id !== v.id ? [x] : next && !next.archived_at ? [next] : [])));
+              if (!next || next.archived_at) setTotal((t) => t - 1);
+            }}
+          />
         ))}
+        {total > SHOW && (
+          <Link href="/videos" className="flex min-h-11 items-center justify-center text-sm font-semibold underline">
+            Ver todos ({total} em andamento)
+          </Link>
+        )}
       </section>
 
       {radar?.[0] ? (
