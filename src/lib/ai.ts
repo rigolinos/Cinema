@@ -53,12 +53,17 @@ const gemini: Provider = async ({ system, prompt, temperature = 0.9 }) => {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 };
 
+// O Groq aposenta modelos com frequência: o nome fica numa variável (GROQ_MODEL).
+export function groqModel(): string {
+  return key("GROQ_MODEL") ?? "openai/gpt-oss-120b";
+}
+
 const groq: Provider = async ({ system, prompt, temperature = 0.9 }) => {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key("GROQ_API_KEY")}` },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: groqModel(),
       temperature,
       response_format: { type: "json_object" },
       messages: [
