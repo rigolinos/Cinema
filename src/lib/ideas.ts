@@ -35,6 +35,7 @@ export interface IdeaBrief {
   resources: Resource[];
   request?: string; // "outras", "mais engraçado" ou o que a pessoa escreveu
   previousTitles?: string[]; // para não repetir
+  trends?: { title: string; what: string }[]; // radar da semana, escolhido pela equipe
 }
 
 export interface Idea {
@@ -86,7 +87,7 @@ export function ideaPrompt(b: IdeaBrief): string {
 Objetivo do vídeo: ${OBJECTIVES[b.objective]}
 Onde vai postar: ${PLATFORMS[b.platform]}, com cerca de ${durationLabel(b.durationS)}
 Recursos: ${b.resources.map((r) => RESOURCES[r]).join(", ") || "não informado"}
-${b.previousTitles?.length ? `Ideias que a pessoa já viu (não repita): ${b.previousTitles.join(" | ")}\n` : ""}${b.request ? `Pedido da pessoa: ${b.request}\n` : ""}
+${b.previousTitles?.length ? `Ideias que a pessoa já viu (não repita): ${b.previousTitles.join(" | ")}\n` : ""}${b.request ? `Pedido da pessoa: ${b.request}\n` : ""}${b.trends?.length ? `Trends desta semana (use no máximo uma, e só se combinar com o nicho): ${b.trends.map((t) => `${t.title}: ${t.what}`).join(" | ")}\n` : ""}
 Formatos que você pode usar (use o slug):
 ${formats}
 

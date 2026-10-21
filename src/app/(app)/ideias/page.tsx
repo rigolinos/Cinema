@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FORMATS } from "@/lib/formats";
+import { RadarSection } from "@/components/gravai/radar";
 
 // Biblioteca de formatos: estruturas que funcionam em quase todo nicho.
 export default function IdeiasPage() {
@@ -13,6 +14,8 @@ export default function IdeiasPage() {
           Escolha um que combine com você e troque só o assunto.
         </p>
       </header>
+
+      <RadarSection />
 
       <ul className="flex flex-col gap-3">
         {FORMATS.map((f) => (

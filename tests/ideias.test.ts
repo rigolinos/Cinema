@@ -28,6 +28,10 @@ describe("ideaPrompt", () => {
 
     const junto = ideaPrompt({ niche: "humor", objective: "divertir", platform: "reels", durationS: 30, resources: ["com_alguem"] });
     expect(junto).toContain("- dialogo:");
+    expect(junto).not.toContain("Trends desta semana");
+
+    const comRadar = ideaPrompt({ niche: "humor", objective: "divertir", platform: "reels", durationS: 30, resources: ["sozinho"], trends: [{ title: "POV de segunda", what: "Vídeos sobre a segunda-feira." }] });
+    expect(comRadar).toContain("Trends desta semana (use no máximo uma, e só se combinar com o nicho): POV de segunda: Vídeos sobre a segunda-feira.");
   });
 });
 

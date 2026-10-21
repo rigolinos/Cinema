@@ -79,6 +79,19 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
             </section>
           )}
 
+          {video.stage === "pronto" && (
+            <Link href={`/video/${video.id}/publicar`} className="flex items-center justify-between gap-3 rounded-2xl bg-primary p-4 text-primary-foreground">
+              <span className="flex flex-col gap-1">
+                <span className="flex items-center gap-2 font-bold">
+                  <span className="size-2.5 rounded-full bg-rec" aria-hidden="true" />
+                  {video.published_at ? "Publicado" : "Publicar"}
+                </span>
+                <span className="text-sm opacity-75">Legenda, hashtags{video.platform === "youtube" || video.platform === "shorts" ? ", título" : ""} e capa prontos para copiar</span>
+              </span>
+              <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          )}
+
           <section className="flex flex-col gap-2.5" aria-labelledby="passos">
             <h2 id="passos" className="label-set text-muted-foreground">
               Passos
