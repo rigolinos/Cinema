@@ -1,4 +1,39 @@
-// Types for the Director's Assistant application
+// Tipos do banco. Gravaí (criador): CreatorProfile, Video, VideoIdea.
+// Modo produção (filmes): o restante.
+
+export type VideoStage = 'ideia' | 'roteiro' | 'pessoas' | 'planos' | 'gravar' | 'pronto';
+
+export interface CreatorProfile {
+  user_id: string;
+  display_name: string | null;
+  niche: string | null;
+  platforms: string[];
+}
+
+export interface Video {
+  id: string;
+  owner_id: string;
+  title: string | null;
+  format_slug: string | null;
+  hook: string | null;
+  objective: 'crescer' | 'vender' | 'divertir' | 'ensinar' | null;
+  platform: 'reels' | 'tiktok' | 'shorts' | 'youtube' | null;
+  duration_s: number | null;
+  resources: ('sozinho' | 'com_alguem' | 'em_casa' | 'na_rua')[];
+  stage: VideoStage;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VideoIdea {
+  id: string;
+  round: number;
+  title: string;
+  format_slug: string | null;
+  hook: string;
+  why: string | null;
+  chosen: boolean;
+}
 
 export type UserRole = 'owner' | 'admin' | 'member';
 export type ProjectStatus = 'draft' | 'planning' | 'scheduled' | 'in_production' | 'wrapped';

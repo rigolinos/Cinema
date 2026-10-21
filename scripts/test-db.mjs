@@ -129,6 +129,66 @@ ok(r.err, 'recusa lista incompleta');
 r = await as('authenticated', B, 'SELECT public.reorder_shooting_days($1, $2)', [projA, [d1, d2, d3]]);
 ok(r.err, 'quem não é membro não reordena');
 
+console.log('Perfil do criador:');
+r = await as('authenticated', A, `INSERT INTO public.creator_profiles (niche, platforms) VALUES ('treino em casa', '{reels,tiktok}') RETURNING user_id`);
+ok(r.rows?.[0]?.user_id === A, 'criador cria o próprio perfil');
+r = await as('authenticated', B, `INSERT INTO public.creator_profiles (user_id, niche) VALUES ($1, 'invasão')`, [A]);
+ok(r.err, 'ninguém cria perfil no nome de outra pessoa');
+r = await as('authenticated', B, 'SELECT * FROM public.creator_profiles');
+ok(!r.err && r.rows.length === 0, 'ninguém lê o perfil de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.creator_profiles SET platforms = '{orkut}'`);
+ok(r.err, 'plataforma fora da lista é recusada');
+
+console.log('Vídeos e ideias:');
+r = await as('authenticated', A, `INSERT INTO public.videos (objective, platform, duration_s, resources) VALUES ('crescer', 'reels', 30, '{sozinho,em_casa}') RETURNING id, stage`);
+const vidA = r.rows?.[0]?.id;
+ok(vidA && r.rows[0].stage === 'ideia', 'vídeo nasce na etapa ideia');
+r = await as('authenticated', B, 'SELECT id FROM public.videos');
+ok(!r.err && r.rows.length === 0, 'ninguém vê o vídeo de outra pessoa');
+r = await as('authenticated', B, `UPDATE public.videos SET title = 'invadido' WHERE id = $1 RETURNING id`, [vidA]);
+ok(!r.err && r.rows.length === 0, 'ninguém edita o vídeo de outra pessoa');
+r = await as('authenticated', B, `INSERT INTO public.videos (owner_id) VALUES ($1)`, [A]);
+ok(r.err, 'ninguém cria vídeo no nome de outra pessoa');
+
+const idea = async (uid, title, extra = '') =>
+  as('authenticated', uid, `INSERT INTO public.video_ideas (video_id, title, hook, format_slug ${extra ? ', chosen' : ''}) VALUES ($1, $2, 'Gancho', 'tres-erros' ${extra ? ', ' + extra : ''}) RETURNING id`, [vidA, title]);
+r = await idea(A, 'Ideia 1');
+const idea1 = r.rows?.[0]?.id;
+const idea2 = (await idea(A, 'Ideia 2')).rows?.[0]?.id;
+ok(idea1 && idea2, 'dono guarda ideias no vídeo');
+r = await idea(B, 'Intrusa');
+ok(r.err, 'ninguém guarda ideia no vídeo de outra pessoa');
+r = await idea(A, 'Já escolhida', 'true');
+ok(r.err, 'ideia não nasce escolhida (só pelo choose_idea)');
+r = await as('authenticated', B, 'SELECT id FROM public.video_ideas');
+ok(!r.err && r.rows.length === 0, 'ninguém vê as ideias de outra pessoa');
+r = await as('anon', null, 'SELECT id FROM public.video_ideas');
+ok(!r.err && r.rows.length === 0, 'visitante não vê ideias');
+
+r = await as('authenticated', B, 'SELECT public.choose_idea($1)', [idea1]);
+ok(r.err, 'ninguém escolhe ideia do vídeo de outra pessoa');
+r = await as('authenticated', A, 'SELECT public.choose_idea($1)', [idea1]);
+ok(!r.err, 'dono escolhe uma ideia' + (r.err ? ': ' + r.err : ''));
+let v = await one('SELECT title, hook, format_slug, stage FROM public.videos WHERE id = $1', [vidA]);
+ok(v.title === 'Ideia 1' && v.hook === 'Gancho' && v.format_slug === 'tres-erros' && v.stage === 'roteiro', 'o vídeo recebe a ideia e avança para o roteiro');
+r = await as('authenticated', A, 'SELECT public.choose_idea($1)', [idea2]);
+const chosen = (await q('SELECT id FROM public.video_ideas WHERE video_id = $1 AND chosen', [vidA])).rows.map((x) => x.id);
+ok(!r.err && chosen.length === 1 && chosen[0] === idea2, 'trocar de ideia deixa só uma escolhida');
+
+console.log('Cota da IA:');
+let liberadas = 0;
+for (let i = 0; i < 42; i++) {
+  r = await as('authenticated', A, 'SELECT public.consume_ai_call() AS ok');
+  if (r.rows?.[0]?.ok) liberadas++;
+}
+ok(liberadas === 40, `libera 40 chamadas por dia (liberou ${liberadas})`);
+r = await as('authenticated', B, 'SELECT public.consume_ai_call() AS ok');
+ok(r.rows?.[0]?.ok === true, 'a cota é por pessoa');
+r = await as('authenticated', A, `INSERT INTO public.ai_usage (user_id, day, calls) VALUES ($1, current_date + 1, 0)`, [A]);
+ok(r.err, 'ninguém mexe na própria cota direto');
+r = await as('anon', null, 'SELECT public.consume_ai_call()');
+ok(r.err, 'visitante não usa a IA');
+
 console.log('Superfície:');
 const noRls = (await q(`SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity`)).rows.map((x) => x.relname);

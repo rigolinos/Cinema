@@ -46,11 +46,9 @@ export function Sidebar() {
     >
       {/* Header */}
       <div className="flex h-16 items-center gap-3 px-4">
-        {collapsed ? (
-          <span className="size-3 shrink-0 rounded-full bg-rec" aria-label="Gravaí" role="img" />
-        ) : (
-          <Logo className="text-xl" />
-        )}
+        <Link href="/inicio" aria-label="Voltar ao Gravaí">
+          {collapsed ? <span className="block size-3 shrink-0 rounded-full bg-rec" /> : <Logo className="text-xl" />}
+        </Link>
         <Button
           variant="ghost"
           size="icon"
