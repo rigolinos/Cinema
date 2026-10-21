@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth-errors";
+import { LEGAL_VERSIONS } from "@/lib/legal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
   const router = useRouter();
 
   async function handleRegister(e: React.FormEvent) {
@@ -35,6 +37,8 @@ export default function RegisterPage() {
         data: {
           full_name: name,
           org_name: `Estúdio de ${name.trim().split(/\s+/)[0] || "você"}`,
+          // Versões aceitas: o banco registra o aceite junto com a criação da conta.
+          legal: LEGAL_VERSIONS,
         },
       },
     });
@@ -129,6 +133,27 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed">
+                <input
+                  type="checkbox"
+                  required
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                  className="mt-0.5 size-5 shrink-0 accent-foreground"
+                />
+                <span>
+                  Li e aceito os{" "}
+                  <Link href="/termos" target="_blank" className="font-semibold underline">
+                    Termos de Uso
+                  </Link>{" "}
+                  e a{" "}
+                  <Link href="/privacidade" target="_blank" className="font-semibold underline">
+                    Política de Privacidade
+                  </Link>
+                  .
+                </span>
+              </label>
+
               {error && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
                   {error}
@@ -138,7 +163,7 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 className="h-12 w-full rounded-full text-base font-bold"
-                disabled={loading}
+                disabled={loading || !accepted}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Criar conta

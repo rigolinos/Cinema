@@ -7,6 +7,7 @@ import { Clapperboard, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, type Platform } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
+import { PrivacySection } from "@/components/gravai/privacy-section";
 
 const field =
   "min-h-12 w-full rounded-xl border border-input bg-card px-4 text-base outline-none focus:border-foreground";
@@ -124,6 +125,8 @@ export default function PerfilPage() {
           <span className="text-sm text-muted-foreground">Filmes e curtas: decupagem, elenco e ordem do dia</span>
         </span>
       </Link>
+
+      <PrivacySection />
 
       <button type="button" onClick={logout} className="flex min-h-12 items-center gap-2 self-start font-semibold text-muted-foreground">
         <LogOut className="size-5" strokeWidth={1.75} aria-hidden="true" />
