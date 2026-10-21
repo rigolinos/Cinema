@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { ANGLES, FRAMINGS, MOVEMENTS, defaultOrientation, normalizeShots, setupChanges, shootingOrder, shotsPrompt } from "@/lib/planos";
+import {
+  ANGLES,
+  FRAMINGS,
+  MOVEMENTS,
+  defaultOrientation,
+  isSolo,
+  maxShots,
+  normalizeShots,
+  normalizeWardrobe,
+  setupChanges,
+  shootingOrder,
+  shotsPrompt,
+} from "@/lib/planos";
 
 const s = (position: number, location: string, wardrobe = "") => ({ position, location, wardrobe });
 
@@ -16,25 +28,41 @@ describe("shootingOrder", () => {
   });
 });
 
+describe("quantos planos", () => {
+  it("um a cada 3,5 segundos, entre 4 e 24", () => {
+    expect(maxShots(15)).toBe(4);
+    expect(maxShots(30)).toBe(9);
+    expect(maxShots(60)).toBe(17);
+    expect(maxShots(180)).toBe(24);
+    expect(maxShots(null)).toBe(9);
+  });
+
+  it("sozinho é sozinho sem ninguém junto", () => {
+    expect(isSolo(["sozinho", "em_casa"])).toBe(true);
+    expect(isSolo(["sozinho", "com_alguem"])).toBe(false);
+    expect(isSolo(["em_casa"])).toBe(false);
+  });
+});
+
 describe("normalizeShots", () => {
   const blocks = ["b1", "b2"];
+  const opts = { orientation: "vertical" as const, max: 24, solo: false };
 
-  it("só aceita blocos que existem e valores do vocabulário, no máximo 4 por bloco", () => {
+  it("só aceita blocos que existem e valores do vocabulário", () => {
     const shots = normalizeShots(
       {
         shots: [
           { block: 2, framing: "aberto", angle: "lateral", movement: "parado", description: "Corpo inteiro", location: " Sala ", why: "Mostra o joelho" },
           { block: 1, framing: "CLOSE", angle: "drone", movement: "voando", orientation: "diagonal" },
           { block: 3, framing: "close" },
-          ...Array.from({ length: 6 }, () => ({ block: 1, framing: "detalhe" })),
         ],
       },
       blocks,
-      "vertical",
+      opts,
     );
-    expect(shots.filter((x) => x.block_id === "b1")).toHaveLength(4);
+    expect(shots).toHaveLength(2);
     expect(shots[0]).toMatchObject({ block_id: "b1", framing: "close", angle: "altura_olhos", movement: "parado", orientation: "vertical" });
-    expect(shots[shots.length - 1]).toEqual({
+    expect(shots[1]).toEqual({
       block_id: "b2",
       framing: "aberto",
       angle: "lateral",
@@ -45,7 +73,32 @@ describe("normalizeShots", () => {
       wardrobe: "",
       why: "Mostra o joelho",
     });
-    expect(normalizeShots({ shots: "nada" }, blocks, "vertical")).toEqual([]);
+    expect(normalizeShots({ shots: "nada" }, blocks, opts)).toEqual([]);
+  });
+
+  it("respeita o limite de planos e garante pelo menos um por bloco", () => {
+    const many = { shots: [...Array.from({ length: 6 }, () => ({ block: 1, framing: "detalhe" })), { block: 2, framing: "close" }] };
+    const shots = normalizeShots(many, blocks, { ...opts, max: 3 });
+    expect(shots).toHaveLength(3);
+    expect(shots.filter((x) => x.block_id === "b2")).toHaveLength(1);
+  });
+
+  it("quem grava sozinho não recebe câmera acompanhando", () => {
+    const raw = { shots: [{ block: 1, movement: "acompanhando" }, { block: 2, movement: "aproximando" }] };
+    expect(normalizeShots(raw, blocks, { ...opts, solo: true }).map((x) => x.movement)).toEqual(["parado", "aproximando"]);
+    expect(normalizeShots(raw, blocks, opts)[0].movement).toBe("acompanhando");
+  });
+});
+
+describe("normalizeWardrobe", () => {
+  const w = (wardrobe: string) => ({ wardrobe });
+
+  it("um visual só (ou nenhum) não vira troca de cenário", () => {
+    expect(normalizeWardrobe([w("Camisa casual"), w(""), w("camisa casual "), w("")]).map((x) => x.wardrobe)).toEqual(["", "", "", ""]);
+  });
+
+  it("com troca de roupa, quem ficou em branco herda a do plano anterior", () => {
+    expect(normalizeWardrobe([w(""), w("Regata"), w(""), w("Casaco"), w("")]).map((x) => x.wardrobe)).toEqual(["Regata", "Regata", "Regata", "Casaco", "Casaco"]);
   });
 });
 
@@ -65,13 +118,13 @@ describe("vocabulário e prompt", () => {
     expect(defaultOrientation(null)).toBe("vertical");
   });
 
-  it("o prompt leva o roteiro numerado e os valores aceitos", () => {
-    const p = shotsPrompt(
-      [{ id: "b1", kind: "gancho", label: null, speech: "Você erra isso.", on_screen: "", action: "" }],
-      { title: "3 erros", platform: "reels", resources: ["sozinho"] },
-    );
-    expect(p).toContain("1. [Gancho] FALA: Você erra isso.");
-    expect(p).toContain("por_cima_ombro");
-    expect(p).toContain("orientação padrão: vertical");
+  it("o prompt leva o roteiro, o limite de planos e a regra de quem grava sozinho", () => {
+    const blocks = [{ id: "b1", kind: "gancho" as const, label: null, speech: "Você erra isso.", on_screen: "", action: "" }];
+    const solo = shotsPrompt(blocks, { title: "3 erros", platform: "reels", resources: ["sozinho"], durationS: 30 });
+    expect(solo).toContain("1. [Gancho] FALA: Você erra isso.");
+    expect(solo).toContain("NO MÁXIMO 9 planos");
+    expect(solo).toContain("grava SOZINHA");
+    expect(solo).toContain("por_cima_ombro");
+    expect(shotsPrompt(blocks, { title: "x", platform: "reels", resources: ["com_alguem"], durationS: 60 })).not.toContain("SOZINHA");
   });
 });

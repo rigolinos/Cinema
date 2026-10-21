@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, ChevronLeft, Lock, Trash2 } from "lucide-react";
-import { READY_STAGES as READY, Trail, STAGES, reachableIndex, stageLabel } from "@/components/gravai/trail";
+import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { OBJECTIVES, PLATFORMS, durationLabel } from "@/lib/ideas";
@@ -35,6 +35,15 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   }, [id]);
 
   const format = findFormat(video?.format_slug);
+
+  // Ninguém para chamar: segue direto para os planos (dá para voltar em Pessoas depois).
+  async function skipPeople() {
+    if (!video) return;
+    const stage = nextReadyStage("pessoas");
+    const { error } = await createClient().from("videos").update({ stage }).eq("id", id);
+    if (error) setDeleteError("Não deu para pular. Tente de novo.");
+    else router.push(`/video/${id}/${stage}`);
+  }
 
   async function removeVideo() {
     if (!window.confirm("Apagar este vídeo? A ideia, o roteiro, os planos e os links das pessoas somem. Isso não tem volta.")) return;
@@ -148,6 +157,11 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
                 </div>
               );
             })}
+            {video.stage === "pessoas" && (
+              <button type="button" onClick={skipPeople} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
+                Vou gravar sozinho, pular para os planos
+              </button>
+            )}
           </section>
 
           <button type="button" onClick={removeVideo} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold text-destructive">
