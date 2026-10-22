@@ -7,6 +7,7 @@ import { Clapperboard, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, type Platform } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
+import { InstallItem } from "@/components/gravai/instalar";
 import { MemorySection } from "@/components/gravai/memoria";
 import { PrivacySection } from "@/components/gravai/privacy-section";
 
@@ -128,6 +129,8 @@ export default function PerfilPage() {
       </Link>
 
       <MemorySection />
+
+      <InstallItem />
 
       <PrivacySection />
 
