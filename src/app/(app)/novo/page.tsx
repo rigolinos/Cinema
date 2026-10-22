@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { findFormat } from "@/lib/formats";
 import { isEmptyDraft } from "@/lib/meus-videos";
+import { logSignal } from "@/lib/sinais";
 
 // Abre o primeiro passo (Ideia) num vídeo novo, ou no rascunho vazio que já existir.
 export default function NovoVideoPage() {
@@ -17,6 +19,8 @@ export default function NovoVideoPage() {
     // Vindo de "Usar este formato" (?formato=slug), a conversa da ideia já sugere nesse formato.
     const formato = new URLSearchParams(window.location.search).get("formato");
     const suffix = formato && /^[a-z0-9-]{1,60}$/.test(formato) ? `?formato=${formato}` : "";
+    const chosen = findFormat(formato);
+    if (chosen) logSignal("formato_usado", { format: chosen.name });
     (async () => {
       const db = createClient();
       // Já existe um rascunho vazio (aberto e abandonado)? Usa ele em vez de criar outro.

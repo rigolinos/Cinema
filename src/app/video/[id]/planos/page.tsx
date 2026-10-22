@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
+import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import {
   ANGLES,
@@ -13,6 +14,7 @@ import {
   defaultOrientation,
   setupChanges,
   shootingOrder,
+  shotTerms,
   type Angle,
   type Framing,
   type Movement,
@@ -192,8 +194,12 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
 
   async function remove(shot: SavedShot) {
     const { error } = await createClient().from("shots").delete().eq("id", shot.id);
-    if (error) setError("Não deu para apagar o plano.");
-    else setShots((list) => list.filter((s) => s.id !== shot.id));
+    if (error) {
+      setError("Não deu para apagar o plano.");
+      return;
+    }
+    setShots((list) => list.filter((s) => s.id !== shot.id));
+    logSignal("plano_apagado", { plano: `(${shotTerms(shot)})` }, id);
   }
 
   async function add(block: Block) {
@@ -213,8 +219,12 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
       })
       .select()
       .single();
-    if (error) setError("Não deu para adicionar o plano.");
-    else setShots((list) => [...list, data as SavedShot]);
+    if (error) {
+      setError("Não deu para adicionar o plano.");
+      return;
+    }
+    setShots((list) => [...list, data as SavedShot]);
+    logSignal("plano_adicionado", { plano: `no bloco ${block.label}` }, id);
   }
 
   async function finish() {

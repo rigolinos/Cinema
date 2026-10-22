@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { SHOTS_SYSTEM, defaultOrientation, isSolo, maxShots, normalizeShots, shotsPrompt } from "@/lib/planos";
 import type { ScriptBlock } from "@/lib/roteiro";
+import { withMemory } from "@/lib/memoria";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
@@ -19,9 +20,10 @@ export async function POST(request: NextRequest) {
   const videoId = typeof body?.videoId === "string" ? body.videoId : "";
   if (!videoId) return fail("Vídeo não informado.", 400);
 
-  const [{ data: video }, { data: blocks }] = await Promise.all([
+  const [{ data: video }, { data: blocks }, { data: memory }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
     supabase.from("script_blocks").select("*").eq("video_id", videoId).order("position"),
+    supabase.from("creator_memory").select("items").maybeSingle(),
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
   const v = video as Video;
@@ -38,7 +40,10 @@ export async function POST(request: NextRequest) {
     shots = normalizeShots(
       await generateJson({
         system: SHOTS_SYSTEM,
-        prompt: shotsPrompt(script, { title: v.title ?? "Vídeo", platform: v.platform, resources: v.resources ?? [], durationS: v.duration_s }),
+        prompt: withMemory(
+          shotsPrompt(script, { title: v.title ?? "Vídeo", platform: v.platform, resources: v.resources ?? [], durationS: v.duration_s }),
+          memory?.items,
+        ),
         temperature: 0.6,
       }),
       script.map((b) => b.id),

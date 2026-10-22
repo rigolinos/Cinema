@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { IDEA_SYSTEM, normalizeIdeas } from "@/lib/ideas";
+import { withMemory } from "@/lib/memoria";
 import { IDEAS_PER_PERIOD, fortnightPrompt, periodStart } from "@/lib/quinzena";
 import { radarSince } from "@/lib/radar";
 
@@ -32,9 +33,10 @@ export async function POST() {
   if (quotaErr) return fail("Não foi possível falar com a IA agora.", 500);
   if (!allowed) return fail("Você usou todas as chamadas da IA de hoje. Amanhã tem mais.", 429);
 
-  const [{ data: recent }, { data: radar }] = await Promise.all([
+  const [{ data: recent }, { data: radar }, { data: memory }] = await Promise.all([
     supabase.from("creator_ideas").select("title").lt("period_start", period).order("period_start", { ascending: false }).limit(12),
     supabase.from("trend_radar").select("title, what").gte("week_start", radarSince()).limit(5),
+    supabase.from("creator_memory").select("items").maybeSingle(),
   ]);
 
   let ideas;
@@ -42,12 +44,12 @@ export async function POST() {
     ideas = normalizeIdeas(
       await generateJson({
         system: IDEA_SYSTEM,
-        prompt: fortnightPrompt({
+        prompt: withMemory(fortnightPrompt({
           niche: profile.niche,
           platforms: profile.platforms ?? [],
           trends: (radar ?? []) as { title: string; what: string }[],
           recentTitles: (recent ?? []).map((r) => r.title),
-        }),
+        }), memory?.items, { surprise: true }),
       }),
       IDEAS_PER_PERIOD,
     );

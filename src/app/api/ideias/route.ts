@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { radarSince } from "@/lib/radar";
+import { withMemory } from "@/lib/memoria";
 import { IDEA_SYSTEM, ideaPrompt, normalizeIdeas, type Objective, type Platform, type Resource } from "@/lib/ideas";
 
 function fail(message: string, status: number) {
@@ -19,10 +20,11 @@ export async function POST(request: NextRequest) {
   const ask = typeof body?.request === "string" ? body.request.trim().slice(0, 300) : "";
   if (!videoId) return fail("Vídeo não informado.", 400);
 
-  const [{ data: video }, { data: profile }, { data: previous }] = await Promise.all([
+  const [{ data: video }, { data: profile }, { data: previous }, { data: memory }] = await Promise.all([
     supabase.from("videos").select("id, objective, platform, duration_s, resources").eq("id", videoId).maybeSingle(),
     supabase.from("creator_profiles").select("niche").maybeSingle(),
     supabase.from("video_ideas").select("title, round").eq("video_id", videoId).order("round", { ascending: false }),
+    supabase.from("creator_memory").select("items").maybeSingle(),
   ]);
   const { data: radar } = await supabase.from("trend_radar").select("title, what").gte("week_start", radarSince()).limit(5);
 
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
     ideas = normalizeIdeas(
       await generateJson({
         system: IDEA_SYSTEM,
-        prompt: ideaPrompt({
+        prompt: withMemory(ideaPrompt({
           niche: profile.niche,
           objective: video.objective as Objective,
           platform: video.platform as Platform,
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
           request: ask || undefined,
           previousTitles: (previous ?? []).slice(0, 15).map((p) => p.title),
           trends: (radar ?? []) as { title: string; what: string }[],
-        }),
+        }), memory?.items),
       }),
     );
   } catch (err) {
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
     .insert(ideas.map((i) => ({ ...i, video_id: videoId, round })))
     .select("id, round, title, format_slug, hook, why, chosen");
   if (error) return fail("Não foi possível guardar as ideias.", 500);
+  if (ask) await supabase.from("creator_signals").insert({ kind: "pedido_ideia", video_id: videoId, detail: { pedido: ask.slice(0, 160) } });
 
   return NextResponse.json({ ideas: saved });
 }

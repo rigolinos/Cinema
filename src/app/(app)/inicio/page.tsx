@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { MemoryNote } from "@/components/gravai/memoria";
 import { RadarCard, useRadar } from "@/components/gravai/radar";
 import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
@@ -55,6 +56,8 @@ export default function InicioPage() {
         <br />
         gravar hoje?
       </h1>
+
+      <MemoryNote />
 
       <Link href="/novo" className="flex min-h-11 items-center justify-between rounded-2xl bg-primary px-5 py-5 text-primary-foreground">
         <span className="flex flex-col gap-1">

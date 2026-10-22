@@ -34,6 +34,11 @@ describe("conteúdo mínimo da LGPD", () => {
     expect(privacy).toMatch(/cookies/i);
   });
 
+  it("a Política explica a memória do criador e como apagá-la", () => {
+    expect(privacy).toMatch(/Memória do criador/);
+    expect(privacy).toMatch(/Esquecer tudo/);
+  });
+
   it("os Termos avisam sobre a IA e a responsabilidade de quem publica", () => {
     expect(terms).toMatch(/inteligência artificial/);
     expect(terms).toMatch(/Quem publica o vídeo é você/);

@@ -10,6 +10,7 @@ import {
   type ScriptBlock,
   type ScriptBrief,
 } from "@/lib/roteiro";
+import { withMemory } from "@/lib/memoria";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
@@ -37,10 +38,11 @@ export async function POST(request: NextRequest) {
   if (!videoId) return fail("Vídeo não informado.", 400);
   if (mode === "bloco" && (!blockId || !ask)) return fail("Diga o que mudar neste bloco.", 400);
 
-  const [{ data: video }, { data: profile }, { data: current }] = await Promise.all([
+  const [{ data: video }, { data: profile }, { data: current }, { data: memory }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
     supabase.from("creator_profiles").select("niche").maybeSingle(),
     supabase.from("script_blocks").select("*").eq("video_id", videoId).order("position"),
+    supabase.from("creator_memory").select("items").maybeSingle(),
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
   const v = video as Video;
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
   if (mode === "rascunho") {
     let blocks: ScriptBlock[];
     try {
-      blocks = normalizeDraft(await generateJson({ system: SCRIPT_SYSTEM, prompt: draftPrompt(brief), temperature: 0.8 }));
+      blocks = normalizeDraft(await generateJson({ system: SCRIPT_SYSTEM, prompt: withMemory(draftPrompt(brief), memory?.items), temperature: 0.8 }));
     } catch (err) {
       return aiFailure(err);
     }
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
   let rewrite;
   try {
     rewrite = normalizeRewrite(
-      await generateJson({ system: SCRIPT_SYSTEM, prompt: rewritePrompt(brief, blocks, index, ask), temperature: 0.8 }),
+      await generateJson({ system: SCRIPT_SYSTEM, prompt: withMemory(rewritePrompt(brief, blocks, index, ask), memory?.items), temperature: 0.8 }),
     );
   } catch (err) {
     return aiFailure(err);
@@ -93,5 +95,6 @@ export async function POST(request: NextRequest) {
 
   const { data: updated, error } = await supabase.from("script_blocks").update(rewrite).eq("id", blockId).select().single();
   if (error) return fail("Não foi possível guardar o bloco.", 500);
+  await supabase.from("creator_signals").insert({ kind: "pedido_bloco", video_id: videoId, detail: { pedido: ask.slice(0, 160), bloco: (blocks[index].label ?? "").slice(0, 60) } });
   return NextResponse.json({ block: updated });
 }

@@ -7,6 +7,7 @@ import { Clapperboard, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, type Platform } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
+import { MemorySection } from "@/components/gravai/memoria";
 import { PrivacySection } from "@/components/gravai/privacy-section";
 
 const field =
@@ -125,6 +126,8 @@ export default function PerfilPage() {
           <span className="text-sm text-muted-foreground">Filmes e curtas: decupagem, elenco e ordem do dia</span>
         </span>
       </Link>
+
+      <MemorySection />
 
       <PrivacySection />
 
