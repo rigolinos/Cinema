@@ -216,3 +216,9 @@ export function normalizeShots(
   });
   return normalizeWardrobe(ordered.filter((_, i) => keep.has(i)));
 }
+
+// Plano em poucas palavras ("Médio, Altura dos olhos, Parado"), para a memória do criador.
+export function shotTerms(shot: Pick<Shot, "framing" | "angle" | "movement" | "description">): string {
+  const terms = [FRAMINGS[shot.framing]?.label, ANGLES[shot.angle]?.label, MOVEMENTS[shot.movement]?.label].filter(Boolean).join(", ");
+  return shot.description ? `${terms}: ${shot.description}` : terms;
+}

@@ -4,8 +4,9 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Minus, Plus, Star, X } from "lucide-react";
+import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
-import { ANGLES, FRAMINGS, MOVEMENTS, type Shot } from "@/lib/planos";
+import { ANGLES, FRAMINGS, MOVEMENTS, shotTerms, type Shot } from "@/lib/planos";
 import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
 import { CHECKLIST, firstPending, nextPending, progress, setOrder, setupChange } from "@/lib/set";
 import { cn } from "@/lib/utils";
@@ -248,6 +249,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                   <button
                     type="button"
                     onClick={() => {
+                      logSignal("plano_pulado", { plano: `(${shotTerms(shot)})` }, id);
                       const next = nextPending(shots, current);
                       if (next === -1 || next === current) setPhase("fim");
                       else goTo(next);

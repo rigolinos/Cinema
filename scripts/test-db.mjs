@@ -440,6 +440,37 @@ ok(r.rows?.[0]?.archived_at, 'dono arquiva um vídeo');
 r = await as('authenticated', A, `UPDATE public.videos SET archived_at = now() WHERE id = $1 RETURNING id`, [comIdeia]);
 ok(!r.err && r.rows.length === 0, 'ninguém arquiva o vídeo de outra pessoa');
 
+console.log('Memória do criador:');
+r = await as('authenticated', A, `INSERT INTO public.creator_signals (video_id, kind, detail) VALUES ($1, 'pedido_ideia', '{"pedido":"Mais engraçado"}') RETURNING id`, [vidQ]);
+ok(r.rows?.length === 1, 'a pessoa registra um sinal do próprio uso' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', B, `INSERT INTO public.creator_signals (video_id, kind) VALUES ($1, 'pedido_ideia')`, [vidQ]);
+ok(r.err, 'ninguém registra sinal num vídeo de outra pessoa');
+r = await as('authenticated', A, `INSERT INTO public.creator_signals (kind) VALUES ('espionagem')`);
+ok(r.err, 'tipo de sinal fora da lista é recusado');
+r = await as('authenticated', A, `INSERT INTO public.creator_signals (kind, detail) VALUES ('pedido_ideia', jsonb_build_object('x', repeat('a', 3000)))`);
+ok(r.err, 'sinal grande demais é recusado');
+r = await as('authenticated', B, 'SELECT id FROM public.creator_signals');
+ok(!r.err && r.rows.length === 0, 'ninguém vê os sinais de outra pessoa');
+r = await as('anon', null, 'SELECT id FROM public.creator_signals');
+ok(r.err || r.rows.length === 0, 'visitante não vê sinais');
+
+r = await as('authenticated', A, `INSERT INTO public.creator_memory (items, insight) VALUES ('[{"text":"Você prefere humor","source":"ia"}]', 'Percebi que você curte humor') RETURNING user_id`);
+ok(r.rows?.[0]?.user_id === A, 'a memória resumida fica guardada');
+r = await as('authenticated', B, 'SELECT user_id FROM public.creator_memory');
+ok(!r.err && r.rows.length === 0, 'ninguém vê a memória de outra pessoa');
+r = await as('authenticated', B, `UPDATE public.creator_memory SET insight = 'invadido' WHERE user_id = $1 RETURNING user_id`, [A]);
+ok(!r.err && r.rows.length === 0, 'ninguém mexe na memória de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.creator_memory SET items = (SELECT jsonb_agg(jsonb_build_object('text', 'x')) FROM generate_series(1, 13))`);
+ok(r.err, 'memória com mais de 12 itens é recusada');
+
+await as('authenticated', B, `INSERT INTO public.creator_signals (kind) VALUES ('formato_usado')`);
+r = await as('authenticated', A, 'SELECT public.forget_my_memory()');
+ok(!r.err, 'a pessoa manda esquecer tudo' + (r.err ? ': ' + r.err : ''));
+ok((await one('SELECT (SELECT count(*) FROM public.creator_signals WHERE user_id = $1) + (SELECT count(*) FROM public.creator_memory WHERE user_id = $1) AS n', [A])).n == 0, 'sinais e memória dela somem');
+ok((await one('SELECT count(*)::int AS n FROM public.creator_signals WHERE user_id = $1', [B])).n === 1, 'os de outra pessoa ficam');
+r = await as('anon', null, 'SELECT public.forget_my_memory()');
+ok(r.err, 'visitante não usa esquecer');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

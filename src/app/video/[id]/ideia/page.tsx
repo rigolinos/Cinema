@@ -18,6 +18,7 @@ import {
   type QuestionId,
   type Resource,
 } from "@/lib/ideas";
+import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
 import type { Video, VideoIdea } from "@/types/database";
 
@@ -91,6 +92,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   const [requests, setRequests] = useState<Record<number, string>>({});
   const [ask, setAsk] = useState("");
+  const [knowsYou, setKnowsYou] = useState(false);
   const [busy, setBusy] = useState<"ideas" | "choose" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -101,7 +103,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       createClient().from("videos").select("*").eq("id", id).maybeSingle(),
       createClient().from("creator_profiles").select("niche").maybeSingle(),
       createClient().from("video_ideas").select("*").eq("video_id", id).order("round").order("created_at"),
-    ]).then(([v, p, i]) => {
+      createClient().from("creator_memory").select("items").maybeSingle(),
+    ]).then(([v, p, i, m]) => {
       if (v.error || !v.data) {
         setError("Não encontramos este vídeo.");
         setLoaded(true);
@@ -116,6 +119,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         resources: video.resources ?? [],
       });
       setIdeas((i.data ?? []) as VideoIdea[]);
+      setKnowsYou(Array.isArray(m.data?.items) && m.data.items.length > 0);
       setLoaded(true);
     });
   }, [id]);
@@ -202,6 +206,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       setError("Não deu para escolher esta ideia. Tente de novo.");
       return;
     }
+    logSignal(
+      "ideia_escolhida",
+      {
+        title: idea.title,
+        format: findFormat(idea.format_slug)?.name,
+        ignored: ideas.filter((i) => i.round === idea.round && i.id !== idea.id).map((i) => i.title),
+      },
+      id,
+    );
     router.push(`/video/${id}`);
   }
 
@@ -219,6 +232,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           <Assistant>
             Bora achar a ideia. Vou te fazer umas perguntas rápidas e sugerir ideias com o <strong>gancho</strong>: o que
             você fala ou mostra nos 3 primeiros segundos, que é quando a pessoa decide se fica.
+            {knowsYou && " Já fui guardando o que você curte, então as ideias já vêm mais com a sua cara."}
           </Assistant>
         )}
 

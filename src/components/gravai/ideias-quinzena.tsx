@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
+import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
 
 interface FortnightIdea {
@@ -62,6 +63,7 @@ function StartSheet({ idea, platforms, onClose }: { idea: FortnightIdea; platfor
       setBusy(false);
       return;
     }
+    logSignal("ideia_quinzena_usada", { title: idea.title, format: findFormat(idea.format_slug)?.name }, data);
     router.push(`/video/${data}/roteiro`);
   }
 
@@ -176,6 +178,7 @@ export function IdeiasQuinzena() {
             <span>{daysUntilNext() === 1 ? "NOVAS AMANHÃ" : `NOVAS EM ${daysUntilNext()} DIAS`}</span>
           </p>
         )}
+        {niche && <p className="text-sm leading-relaxed text-muted-foreground">Quanto mais a gente cria junto, mais estas ideias ficam com a sua cara.</p>}
       </div>
 
       {niche === null && (

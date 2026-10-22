@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { nextReadyStage } from "@/components/gravai/trail";
 import { isSolo } from "@/lib/planos";
+import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { durationLabel } from "@/lib/ideas";
@@ -208,8 +209,16 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   async function saveField(block: Block, field: Field, value: string) {
     setError(null);
     const { error } = await createClient().from("script_blocks").update({ [field]: value }).eq("id", block.id);
-    if (error) setError("Não deu para salvar a última mudança. Confira a conexão.");
-    else setBlocks((list) => list.map((b) => (b.id === block.id ? { ...b, [field]: value } : b)));
+    if (error) {
+      setError("Não deu para salvar a última mudança. Confira a conexão.");
+      return;
+    }
+    setBlocks((list) => list.map((b) => (b.id === block.id ? { ...b, [field]: value } : b)));
+    // O que a pessoa reescreve à mão diz muito sobre o jeito dela de falar.
+    const before = (block[field] ?? "").trim();
+    if (before && value.trim() && before !== value.trim()) {
+      logSignal("roteiro_editado", { campo: field, bloco: block.label, antes: before, depois: value }, id);
+    }
   }
 
   async function rewrite(block: Block, request: string) {

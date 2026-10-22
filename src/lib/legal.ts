@@ -13,10 +13,10 @@ export type LegalDocument = "termos" | "privacidade";
 
 export const LEGAL_VERSIONS: Record<LegalDocument, string> = {
   termos: "v1",
-  privacidade: "v1",
+  privacidade: "v2",
 };
 
-export const LEGAL_UPDATED_AT = "21 de outubro de 2026";
+export const LEGAL_UPDATED_AT = "22 de outubro de 2026";
 
 export interface LegalSection {
   title: string;
@@ -102,6 +102,7 @@ export const PRIVACY: LegalSection[] = [
       "Conteúdo: ideias, roteiros, planos, data e lugar da gravação e textos de publicação que você cria no app.",
       "Pessoas convidadas: nome que você informa, confirmação de presença e, quando dada, a autorização de uso de imagem (nome completo, data e versão do termo). Não pedimos telefone nem e-mail dos convidados.",
       "Uso: quantas vezes por dia você usou as funções de inteligência artificial e registros técnicos de acesso mantidos pelos nossos provedores.",
+      "Memória do criador: o que você escolhe, pede, reescreve e pula no app (por exemplo, a ideia escolhida, um pedido como “mais engraçado” ou um plano apagado) e um resumo curto, feito por inteligência artificial, do que isso diz sobre o seu jeito de criar.",
     ],
   },
   {
@@ -109,6 +110,7 @@ export const PRIVACY: LegalSection[] = [
     paragraphs: [
       "Para prestar o serviço que você pediu (criar, guardar e organizar seus vídeos): execução de contrato (LGPD, art. 7º, V).",
       "Para manter o serviço seguro, limitar abusos e corrigir erros: legítimo interesse (art. 7º, IX).",
+      "Para personalizar as sugestões com a memória do criador: legítimo interesse (art. 7º, IX), em seu benefício e sob seu controle. Você vê, corrige e apaga tudo em Perfil › O que o Gravaí entendeu sobre você, no botão “Esquecer tudo”. A memória não é usada para publicidade nem compartilhada com outras pessoas.",
       "Para guardar a prova dos aceites dos Termos, desta Política e das autorizações de imagem: cumprimento de obrigação legal e exercício regular de direitos (art. 7º, II e VI).",
     ],
   },
@@ -136,7 +138,7 @@ export const PRIVACY: LegalSection[] = [
     title: "7. Seus direitos",
     paragraphs: [
       "Você pode, a qualquer momento: confirmar se tratamos seus dados e acessá-los; corrigi-los; pedir a exclusão; receber uma cópia (portabilidade); saber com quem compartilhamos; e revogar consentimentos (LGPD, art. 18).",
-      `No app: Perfil › Privacidade e dados, com "Baixar meus dados" e "Excluir minha conta". Por e-mail: ${COMPANY.email}. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`,
+      `No app: Perfil › Privacidade e dados, com "Baixar meus dados" e "Excluir minha conta", e Perfil › O que o Gravaí entendeu sobre você, para corrigir ou esquecer a memória. Por e-mail: ${COMPANY.email}. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`,
     ],
   },
   {

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { POST_SYSTEM, normalizePost, postPrompt } from "@/lib/publicar";
 import type { ScriptBlock } from "@/lib/roteiro";
+import { withMemory } from "@/lib/memoria";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
@@ -19,11 +20,12 @@ export async function POST(request: NextRequest) {
   const videoId = typeof body?.videoId === "string" ? body.videoId : "";
   if (!videoId) return fail("Vídeo não informado.", 400);
 
-  const [{ data: video }, { data: profile }, { data: blocks }, { data: shots }] = await Promise.all([
+  const [{ data: video }, { data: profile }, { data: blocks }, { data: shots }, { data: memory }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
     supabase.from("creator_profiles").select("niche").maybeSingle(),
     supabase.from("script_blocks").select("kind, label, speech").eq("video_id", videoId).order("position"),
     supabase.from("shots").select("description").eq("video_id", videoId).order("position"),
+    supabase.from("creator_memory").select("items").maybeSingle(),
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
   const v = video as Video;
@@ -39,14 +41,14 @@ export async function POST(request: NextRequest) {
     post = normalizePost(
       await generateJson({
         system: POST_SYSTEM,
-        prompt: postPrompt({
+        prompt: withMemory(postPrompt({
           niche: profile?.niche ?? "conteúdo",
           title: v.title,
           hook: v.hook,
           platform: v.platform,
           blocks: blocks as Pick<ScriptBlock, "kind" | "label" | "speech">[],
           shots: (shots ?? []) as { description: string }[],
-        }),
+        }), memory?.items),
         temperature: 0.8,
       }),
       v.platform,
