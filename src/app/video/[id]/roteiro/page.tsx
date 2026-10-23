@@ -4,6 +4,7 @@ import { use, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
+import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
 import { Thinking } from "@/components/gravai/thinking";
 import { nextReadyStage } from "@/components/gravai/trail";
@@ -53,10 +54,12 @@ function BlockCard({
   index,
   time,
   busy,
+  repeated,
   onSave,
   onRewrite,
 }: {
   block: Block;
+  repeated: boolean; // outro bloco do mesmo tipo já veio antes: a explicação não abre de novo
   index: number;
   time: { start: number; end: number };
   busy: boolean;
@@ -94,7 +97,9 @@ function BlockCard({
           {time.start}–{time.end} s
         </span>
       </div>
-      <p className="text-sm leading-relaxed text-muted-foreground">{kind.hint}</p>
+      <Explain id={`bloco-${block.kind}`} question="Para que serve este bloco?" closed={repeated} className="-mt-1">
+        {kind.hint}
+      </Explain>
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">Fala</span>
@@ -307,13 +312,13 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                   Gravaí
                 </span>
                 <p className="leading-relaxed">
-                  O <strong>roteiro</strong> é o texto do vídeo dividido em partes: o que você fala, o que aparece escrito e o
-                  que acontece em cena. Com ele você grava mais rápido e não esquece nada.
+                  Escrevo um rascunho{format ? ` no formato “${format.name}”` : ""}, começando pelo seu gancho. Depois você muda o
+                  que quiser.
                 </p>
-                <p className="leading-relaxed">
-                  Escrevo um rascunho seguindo a estrutura{format ? ` do “${format.name}”` : ""}, começando pelo seu gancho.
-                  Depois você muda o que quiser, à mão ou me pedindo.
-                </p>
+                <Explain id="roteiro" question="Por que escrever antes de gravar?" learn="roteiro" className="-mt-2">
+                  O roteiro separa o que você fala, o que aparece escrito e o que acontece em cena. Com ele você grava mais rápido e
+                  não esquece nada.
+                </Explain>
                 <button
                   type="button"
                   onClick={draft}
@@ -347,6 +352,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 index={i}
                 time={times[i]}
                 busy={busy !== null}
+                repeated={blocks.slice(0, i).some((x) => x.kind === b.kind)}
                 onSave={(field, value) => saveField(b, field, value)}
                 onRewrite={(request) => rewrite(b, request)}
               />

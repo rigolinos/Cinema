@@ -13,10 +13,26 @@ export const EMPTY_POST: Post = { caption: "", title: "", hashtags: [], cover_te
 
 // Explicações para quem está publicando pela primeira vez.
 export const POST_PARTS = {
-  caption: { label: "Legenda", why: "A primeira linha aparece antes do “mais”: ela precisa dar vontade de abrir." },
-  title: { label: "Título", why: "No YouTube, o título é o que faz alguém clicar. Diga o que a pessoa ganha assistindo." },
-  hashtags: { label: "Hashtags", why: "Poucas e certeiras: ajudam a plataforma a entender sobre o que é o vídeo." },
-  cover: { label: "Capa", why: "É a imagem que aparece no seu perfil. Texto curto e um quadro com expressão forte." },
+  caption: {
+    label: "Legenda",
+    what: "O texto que vai junto do vídeo.",
+    why: "A primeira linha aparece antes do “mais”: ela precisa dar vontade de abrir.",
+  },
+  title: {
+    label: "Título",
+    what: "O nome do vídeo no YouTube e no Shorts.",
+    why: "No YouTube, o título é o que faz alguém clicar. Diga o que a pessoa ganha assistindo.",
+  },
+  hashtags: {
+    label: "Hashtags",
+    what: "Palavras com # que dizem o assunto do vídeo.",
+    why: "Poucas e certeiras: ajudam a plataforma a entender sobre o que é o vídeo.",
+  },
+  cover: {
+    label: "Capa",
+    what: "A imagem que aparece no seu perfil e na busca.",
+    why: "É a vitrine do vídeo. Texto curto e um quadro com expressão forte.",
+  },
 } as const;
 
 export function needsTitle(platform: Platform | null): boolean {

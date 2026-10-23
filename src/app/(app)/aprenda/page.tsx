@@ -1,4 +1,15 @@
 import { ANGLES, FRAMINGS, MOVEMENTS, SET_RULES, type Term } from "@/lib/planos";
+import { POST_PARTS } from "@/lib/publicar";
+
+// Âncora de cada termo, para o "Saber mais" das telas cair direto nele.
+function termId(term: string): string {
+  return term
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 // Aprenda: os termos que aparecem no caminho, explicados em uma linha e com o porquê.
 // Enquadramentos, ângulos e movimentos vêm do mesmo vocabulário da tela de planos.
@@ -14,9 +25,24 @@ const TERMS = [
     why: "Um formato que já funciona deixa você focar no assunto, não na forma.",
   },
   {
+    term: "Contexto",
+    what: "Uma ou duas frases que situam quem assiste: de que situação você está falando.",
+    why: "Sem contexto, a pessoa não entende por que deveria se importar.",
+  },
+  {
+    term: "Virada",
+    what: "A surpresa, o resultado ou a lição que fecha a ideia.",
+    why: "É o momento que faz a pessoa comentar, mandar para alguém ou assistir de novo.",
+  },
+  {
     term: "Chamada final",
     what: "O pedido no fim do vídeo: seguir, comentar, salvar, comprar.",
     why: "Quem gostou precisa saber o que fazer em seguida. Peça uma coisa só.",
+  },
+  {
+    term: "Retenção",
+    what: "Quanto do vídeo as pessoas assistem antes de sair.",
+    why: "As plataformas mostram mais o vídeo que segura as pessoas até o fim. Gancho forte e vídeo sem enrolação ajudam.",
   },
   {
     term: "Roteiro",
@@ -24,9 +50,14 @@ const TERMS = [
     why: "Com roteiro você grava mais rápido e não esquece o que ia dizer.",
   },
   {
-    term: "Decupagem",
-    what: "Dividir cada parte do roteiro nas tomadas que você vai gravar.",
+    term: "Dividir em planos",
+    what: "Separar cada parte do roteiro nas tomadas que você vai gravar. No cinema, isso se chama decupagem.",
     why: "Fazer isso antes evita descobrir na edição que faltou um take.",
+  },
+  {
+    term: "Ordem de gravação",
+    what: "Gravar juntos os planos do mesmo lugar e da mesma roupa, mesmo que fiquem longe no roteiro.",
+    why: "Você troca menos de cenário e de roupa. Na edição, cada plano volta para o lugar dele.",
   },
   {
     term: "Plano",
@@ -51,7 +82,7 @@ function Section({ id, title, intro, terms }: { id: string; title: string; intro
       </div>
       <dl className="flex flex-col gap-3">
         {terms.map((t) => (
-          <div key={t.term} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
+          <div key={t.term} id={termId(t.term)} className="flex scroll-mt-6 flex-col gap-1.5 rounded-2xl bg-card p-4">
             <dt className="text-lg font-bold">{t.term}</dt>
             <dd className="text-[15px] leading-relaxed">{t.what}</dd>
             <dd className="text-sm leading-relaxed text-muted-foreground">
@@ -71,6 +102,12 @@ const SECTIONS = [
   { id: "enquadramentos", title: "Enquadramentos", intro: "Quanto da pessoa ou do lugar aparece na tela.", terms: asTerms(FRAMINGS) },
   { id: "angulos", title: "Ângulos", intro: "De onde a câmera olha.", terms: asTerms(ANGLES) },
   { id: "movimentos", title: "Movimentos", intro: "O que a câmera faz enquanto grava.", terms: asTerms(MOVEMENTS) },
+  {
+    id: "publicar",
+    title: "Publicar",
+    intro: "O texto que acompanha o vídeo.",
+    terms: Object.values(POST_PARTS).map((t) => ({ term: t.label, what: t.what, why: t.why })),
+  },
   { id: "regras", title: "Regras do set", intro: "O que separa um vídeo amador de um vídeo bem feito, mesmo no celular.", terms: SET_RULES.map((t) => ({ term: t.label, what: t.what, why: t.why })) },
 ];
 

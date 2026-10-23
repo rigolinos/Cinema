@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
+import { Explain } from "@/components/gravai/explain";
 import { Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
@@ -61,9 +62,7 @@ function Choice<K extends string>({
           </button>
         ))}
       </div>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {terms[value].what} <strong className="font-semibold text-foreground">Por quê:</strong> {terms[value].why}
-      </p>
+      <p className="text-sm leading-relaxed text-muted-foreground">{terms[value].what}</p>
     </fieldset>
   );
 }
@@ -107,9 +106,9 @@ function ShotCard({
         </div>
       </div>
       {shot.why && (
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          <strong className="font-semibold text-foreground">Por quê:</strong> {shot.why}
-        </p>
+        <Explain id="plano-porque" question="Por que este plano?" closed>
+          {shot.why}
+        </Explain>
       )}
       {(shot.location || shot.wardrobe) && (
         <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>
@@ -273,10 +272,11 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
               <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
               Gravaí
             </span>
-            <p className="leading-relaxed">
-              Vou dividir seu roteiro nos pedaços que você vai gravar, os <strong>planos</strong>: de perto ou de longe, de que
-              ângulo, câmera parada ou andando. Depois você muda o que quiser.
-            </p>
+            <p className="leading-relaxed">Vou dividir seu roteiro nos pedaços que você vai gravar. Depois você muda o que quiser.</p>
+            <Explain id="plano" question="O que é um plano?" learn="plano" className="-mt-2">
+              Cada pedaço que você grava sem cortar: de perto ou de longe, de que ângulo, com a câmera parada ou andando. Fazer
+              isso antes evita descobrir na edição que faltou um take.
+            </Explain>
             <button type="button" onClick={decupar} disabled={busy !== null} className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
               {busy === "decupar" ? <Thinking label="Dividindo em planos" /> : "Dividir em planos"}
             </button>

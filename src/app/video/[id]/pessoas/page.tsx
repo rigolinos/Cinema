@@ -165,8 +165,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
         {video && (
           <>
             <p className="leading-relaxed text-muted-foreground">
-              Quem aparece e quem ajuda. Cada pessoa recebe um link só com a parte dela, sem precisar criar conta: quem aparece
-              treina as falas, quem filma vê os planos.
+              Quem aparece e quem ajuda. Cada um recebe um link só com a parte dele, sem criar conta.
             </p>
 
             {!nameSaved && (

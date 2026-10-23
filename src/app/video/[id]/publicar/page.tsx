@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, Copy } from "lucide-react";
+import { useFirstTime } from "@/components/gravai/explain";
 import { Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, platformsLabel, videoPlatforms, type Platform } from "@/lib/ideas";
@@ -43,6 +44,8 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  // As dicas de cada campo aparecem só na primeira publicação.
+  const tips = useFirstTime("publicar");
 
   useEffect(() => {
     const db = createClient();
@@ -124,9 +127,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                 Gravaí
               </span>
               <p className="leading-relaxed">
-                Vídeo gravado e editado? Falta o texto que acompanha: <strong>legenda</strong>, <strong>hashtags</strong>,{" "}
-                {withTitle ? <><strong>título</strong> e </> : "e "}a ideia de <strong>capa</strong>. Eu preparo a partir do seu roteiro;
-                você ajusta e copia para o app de postagem.
+                Eu preparo a legenda, as hashtags{withTitle ? ", o título" : ""} e a capa a partir do seu roteiro. Você ajusta e copia.
               </p>
               <button type="button" onClick={prepare} disabled={busy} className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
                 {busy ? <Thinking label="Preparando" /> : "Preparar a publicação"}
@@ -176,7 +177,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                     <CopyButton text={post.title} label="o título" />
                   </div>
                   <input id="titulo" defaultValue={post.title} maxLength={100} onBlur={(e) => e.target.value !== post.title && save({ title: e.target.value })} className={cn(field, "min-h-12 font-semibold")} />
-                  <p className="text-sm text-muted-foreground">{POST_PARTS.title.why}</p>
+                  {tips && <p className="text-sm text-muted-foreground">{POST_PARTS.title.why}</p>}
                 </section>
               )}
 
@@ -195,7 +196,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                   onBlur={(e) => e.target.value !== post.caption && save({ caption: e.target.value })}
                   className={cn(field, "resize-none")}
                 />
-                <p className="text-sm text-muted-foreground">{POST_PARTS.caption.why}</p>
+                {tips && <p className="text-sm text-muted-foreground">{POST_PARTS.caption.why}</p>}
               </section>
 
               <section className="flex flex-col gap-2">
@@ -216,7 +217,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                   }}
                   className={cn(field, "min-h-12 font-mono text-sm")}
                 />
-                <p className="text-sm text-muted-foreground">{POST_PARTS.hashtags.why}</p>
+                {tips && <p className="text-sm text-muted-foreground">{POST_PARTS.hashtags.why}</p>}
               </section>
 
               <button
@@ -234,7 +235,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
 
               <section className="flex flex-col gap-3 rounded-2xl bg-card p-4">
                 <span className="label-set">{POST_PARTS.cover.label}</span>
-                <p className="text-sm text-muted-foreground">{POST_PARTS.cover.why}</p>
+                {tips && <p className="text-sm text-muted-foreground">{POST_PARTS.cover.why}</p>}
                 <label className="flex flex-col gap-1.5">
                   <span className="text-sm font-semibold">Texto da capa</span>
                   <input defaultValue={post.cover_text} maxLength={60} onBlur={(e) => e.target.value !== post.cover_text && save({ cover_text: e.target.value })} className={cn(field, "min-h-12 font-display text-xl")} />
