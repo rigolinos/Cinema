@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Minus, Plus, Star, X } from "lucide-react";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
-import { ANGLES, FRAMINGS, MOVEMENTS, shotTerms, type Shot } from "@/lib/planos";
-import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
+import { ANGLES, FRAMINGS, MOVEMENTS, isSolo, shotTerms, type Shot } from "@/lib/planos";
+import { BLOCK_KINDS, speakerOf, type ScriptBlock } from "@/lib/roteiro";
 import { CHECKLIST, firstPending, nextPending, progress, setOrder, setupChange } from "@/lib/set";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
-type Block = ScriptBlock & { id: string; position: number };
+type Block = ScriptBlock & { id: string; position: number; person_id?: string | null };
 type SetShot = Shot & { id: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
 type Phase = "checklist" | "set" | "fim";
 
@@ -35,6 +35,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [people, setPeople] = useState<{ id: string; name: string; role: string }[]>([]);
   const [shots, setShots] = useState<SetShot[]>([]);
   const [phase, setPhase] = useState<Phase>("checklist");
   const [checked, setChecked] = useState<string[]>([]);
@@ -63,7 +64,9 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("shots").select("*").eq("video_id", id),
-    ]).then(([v, b, s]) => {
+      db.from("video_people").select("id, name, role").eq("video_id", id),
+    ]).then(([v, b, s, p]) => {
+      setPeople(p.data ?? []);
       setVideo((v.data as Video | null) ?? null);
       setBlocks((b.data ?? []) as Block[]);
       const ordered = setOrder((s.data ?? []) as SetShot[]);
@@ -225,7 +228,9 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
               {block && (block.speech || block.on_screen) && (
                 <section aria-label="Teleprompter" className="flex flex-col gap-3 rounded-2xl bg-card p-5">
                   <div className="flex items-center justify-between">
-                    <span className="label-set text-muted-foreground">Fala · {block.label || BLOCK_KINDS[block.kind].label}</span>
+                    <span className="label-set text-muted-foreground">
+                      {["Fala", speakerOf(block, people, isSolo(video.resources ?? [])), block.label || BLOCK_KINDS[block.kind].label].filter(Boolean).join(" · ")}
+                    </span>
                     <span className="flex gap-1">
                       <button type="button" aria-label="Diminuir o texto" disabled={size === 0} onClick={() => setSize((s) => s - 1)} className="flex size-11 items-center justify-center rounded-full disabled:opacity-30">
                         <Minus className="size-4" strokeWidth={2} aria-hidden="true" />

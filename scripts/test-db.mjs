@@ -484,6 +484,36 @@ ok((await one('SELECT count(*)::int AS n FROM public.creator_signals WHERE user_
 r = await as('anon', null, 'SELECT public.forget_my_memory()');
 ok(r.err, 'visitante não usa esquecer');
 
+console.log('Ideias guardadas:');
+const fonte = '00000000-0000-4000-8000-0000000000aa';
+r = await as('authenticated', A, `INSERT INTO public.saved_ideas (source, source_id, title, format_slug, hook, why) VALUES ('video', $1, 'Guardada', 'pov', 'Gancho bom', 'Porque sim') RETURNING id`, [fonte]);
+const salva = r.rows?.[0]?.id;
+ok(salva, 'pessoa guarda uma ideia' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `INSERT INTO public.saved_ideas (source, source_id, title, hook) VALUES ('video', $1, 'De novo', 'x')`, [fonte]);
+ok(r.err, 'a mesma ideia não é guardada duas vezes');
+r = await as('authenticated', A, `INSERT INTO public.saved_ideas (source, source_id, title, hook, video_id) VALUES ('quinzena', gen_random_uuid(), 'Com vídeo', 'x', $1)`, [vidA]);
+ok(r.err, 'o vínculo com o vídeo não vem de fora');
+r = await as('authenticated', B, 'SELECT id FROM public.saved_ideas');
+ok(!r.err && r.rows.length === 0, 'ninguém vê as ideias guardadas de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.saved_ideas SET video_id = $2 WHERE id = $1 RETURNING id`, [salva, vidA]);
+ok(r.err || r.rows.length === 0, 'o vínculo com o vídeo só muda pela função');
+r = await as('authenticated', B, 'SELECT public.start_video_from_saved($1, $2, $3, $4, $5)', [salva, 'crescer', ['reels'], 30, ['sozinho']]);
+ok(r.err, 'ninguém começa vídeo com a ideia guardada de outra pessoa');
+r = await as('authenticated', A, 'SELECT public.start_video_from_saved($1, $2, $3, $4, $5)', [salva, 'crescer', [], 30, ['sozinho']]);
+ok(r.err, 'sem plataforma não começa');
+r = await as('authenticated', A, 'SELECT public.start_video_from_saved($1, $2, $3, $4, $5) AS id', [salva, 'divertir', ['youtube', 'tiktok'], 30, ['sozinho']]);
+const vidS = r.rows?.[0]?.id;
+ok(vidS, 'dono começa um vídeo a partir da ideia guardada' + (r.err ? ': ' + r.err : ''));
+const vs = await one('SELECT title, hook, stage, platform, platforms FROM public.videos WHERE id = $1', [vidS]);
+ok(vs?.title === 'Guardada' && vs.stage === 'roteiro' && vs.platform === 'tiktok' && vs.platforms.length === 2, 'nasce no roteiro, com a principal em pé e as duas plataformas');
+ok((await one('SELECT video_id FROM public.saved_ideas WHERE id = $1', [salva]))?.video_id === vidS, 'a ideia guardada fica marcada como usada');
+r = await as('authenticated', A, `INSERT INTO public.creator_signals (kind, detail) VALUES ('ideia_guardada', '{"title":"Guardada"}') RETURNING id`);
+ok(!r.err, 'guardar ideia vira sinal da memória' + (r.err ? ': ' + r.err : ''));
+r = await as('anon', null, 'SELECT public.start_video_from_saved($1, $2, $3, $4, $5)', [salva, 'crescer', ['reels'], 30, ['sozinho']]);
+ok(r.err, 'visitante não usa a função');
+r = await as('authenticated', A, 'DELETE FROM public.saved_ideas WHERE id = $1 RETURNING id', [salva]);
+ok(r.rows?.length === 1, 'pessoa tira a ideia guardada');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

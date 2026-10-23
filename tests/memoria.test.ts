@@ -17,6 +17,7 @@ describe("sinais", () => {
       'Reescreveu à mão a fala do bloco Gancho: de "Olá pessoal" para "E aí"',
     );
     expect(describeSignal({ kind: "plano_pulado", detail: { plano: "aberto, de baixo" } })).toBe("Pulou no set um plano aberto, de baixo");
+    expect(describeSignal({ kind: "ideia_guardada", detail: { title: "3 erros", format: "POV" } })).toBe('Guardou para depois a ideia "3 erros" (POV)');
   });
 });
 

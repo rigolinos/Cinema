@@ -116,7 +116,7 @@ ${b.previousTitles?.length ? `Ideias que a pessoa já viu (não repita): ${b.pre
 Formatos que você pode usar (use o slug):
 ${formats}
 
-Sugira 3 ideias diferentes entre si, cada uma num formato. Responda só com JSON:
+Sugira 5 ideias diferentes entre si, em formatos variados. Responda só com JSON:
 {"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho","why":"por que funciona, em uma frase; se houver virada ou final inesperado, conte qual é"}]}`;
 }
 

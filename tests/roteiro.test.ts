@@ -3,6 +3,7 @@ import {
   blockSeconds,
   checkScript,
   draftPrompt,
+  speakerOf,
   normalizeDraft,
   normalizeRewrite,
   rewritePrompt,
@@ -122,5 +123,18 @@ describe("scriptAsText", () => {
     expect(text).toContain("3 ERROS\n\n[0–3 s] Gancho");
     expect(text).toContain("NA TELA: 3 ERROS");
     expect(text).toContain("[3–5 s] Final\nFALA: Segue\nCENA: Aponta");
+  });
+});
+
+describe("quem fala", () => {
+  const people = [
+    { id: "p1", name: "Natasha", role: "ator" },
+    { id: "p2", name: "Rodrigo", role: "eu" },
+  ];
+  it("a pessoa marcada no bloco; você mesmo; ou você para a câmera quando grava sozinho", () => {
+    expect(speakerOf({ person_id: "p1" }, people, false)).toBe("Natasha");
+    expect(speakerOf({ person_id: "p2" }, people, false)).toBe("você");
+    expect(speakerOf({ person_id: null }, people, true)).toBe("você, para a câmera");
+    expect(speakerOf({}, people, false)).toBeNull();
   });
 });

@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
+import { Explain } from "@/components/gravai/explain";
+import { SaveButton } from "@/components/gravai/guardar";
 import { Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
@@ -42,8 +44,34 @@ function Choice<T extends string | number>({ label, options, value, onPick }: { 
   );
 }
 
+// Começa um vídeo com a ideia da quinzena; devolve o id do vídeo (ou null se não deu).
+async function startFromFortnight(idea: FortnightIdea, answers: QuickStart): Promise<string | null> {
+  const { data, error } = await createClient().rpc("start_video_from_idea", {
+    p_idea_id: idea.id,
+    p_objective: answers.objective,
+    p_platform: mainPlatform(answers.platforms),
+    p_duration: answers.durationS,
+    p_resources: answers.resources,
+  });
+  if (error || !data) return null;
+  // A função do banco recebe só a principal; as outras plataformas entram logo depois.
+  if (answers.platforms.length > 1) await createClient().from("videos").update({ platforms: answers.platforms }).eq("id", data);
+  logSignal("ideia_quinzena_usada", { title: idea.title, format: findFormat(idea.format_slug)?.name }, data);
+  return data as string;
+}
+
 // Folha para começar o vídeo com um toque: as respostas já vêm preenchidas.
-function StartSheet({ idea, platforms, onClose }: { idea: FortnightIdea; platforms: string[]; onClose: () => void }) {
+export function StartSheet({
+  idea,
+  platforms,
+  onStart,
+  onClose,
+}: {
+  idea: { title: string; format_slug: string | null };
+  platforms: string[];
+  onStart: (answers: QuickStart) => Promise<string | null>;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [answers, setAnswers] = useState<QuickStart>(() => quickStartDefaults(idea.format_slug, platforms));
   const [busy, setBusy] = useState(false);
@@ -52,22 +80,13 @@ function StartSheet({ idea, platforms, onClose }: { idea: FortnightIdea; platfor
   async function start() {
     setBusy(true);
     setError(null);
-    const { data, error } = await createClient().rpc("start_video_from_idea", {
-      p_idea_id: idea.id,
-      p_objective: answers.objective,
-      p_platform: mainPlatform(answers.platforms),
-      p_duration: answers.durationS,
-      p_resources: answers.resources,
-    });
-    if (error || !data) {
+    const videoId = await onStart(answers);
+    if (!videoId) {
       setError("Não deu para começar o vídeo. Tente de novo.");
       setBusy(false);
       return;
     }
-    // A função do banco recebe só a principal; as outras plataformas entram logo depois.
-    if (answers.platforms.length > 1) await createClient().from("videos").update({ platforms: answers.platforms }).eq("id", data);
-    logSignal("ideia_quinzena_usada", { title: idea.title, format: findFormat(idea.format_slug)?.name }, data);
-    router.push(`/video/${data}/roteiro`);
+    router.push(`/video/${videoId}/roteiro`);
   }
 
   return (
@@ -233,8 +252,13 @@ export function IdeiasQuinzena() {
         return (
           <article key={idea.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
             <div className="flex items-center justify-between gap-2">
-              {format && <p className="label-set text-muted-foreground">{format.name}</p>}
-              {idea.video_id && <span className="rounded-md bg-foreground px-2 py-1 font-mono text-xs uppercase text-background">Em vídeo</span>}
+              <span className="flex items-center gap-2">
+                {format && <span className="label-set text-muted-foreground">{format.name}</span>}
+                {idea.video_id && <span className="rounded-md bg-foreground px-2 py-1 font-mono text-xs uppercase text-background">Em vídeo</span>}
+              </span>
+              <SaveButton
+                idea={{ source: "quinzena", source_id: idea.id, title: idea.title, format_slug: idea.format_slug, hook: idea.hook, why: idea.why }}
+              />
             </div>
             <h3 className="text-lg font-bold leading-snug">{idea.title}</h3>
             <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
@@ -242,9 +266,9 @@ export function IdeiasQuinzena() {
               <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
             </div>
             {idea.why && (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                <strong className="font-semibold text-foreground">Por que funciona:</strong> {idea.why}
-              </p>
+              <Explain id="ideia-porque" question="Por que funciona?" closed>
+                {idea.why}
+              </Explain>
             )}
             {idea.video_id ? (
               <Link href={`/video/${idea.video_id}`} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
@@ -259,7 +283,7 @@ export function IdeiasQuinzena() {
         );
       })}
 
-      {picked && <StartSheet idea={picked} platforms={platforms} onClose={() => setPicked(null)} />}
+      {picked && <StartSheet idea={picked} platforms={platforms} onStart={(a) => startFromFortnight(picked, a)} onClose={() => setPicked(null)} />}
     </section>
   );
 }
