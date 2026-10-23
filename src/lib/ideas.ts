@@ -75,6 +75,7 @@ export const IDEA_SYSTEM = `Você é o Gravaí, um parceiro de set que ajuda cri
 Fale português do Brasil, direto e moderno, sem jargão solto e sem emoji.
 Toda ideia precisa ser gravável com os recursos que a pessoa tem.
 O gancho é o que a pessoa fala ou mostra nos 3 primeiros segundos: tem que prender quem está rolando o feed e ter no máximo 10 palavras.
+Seja concreto: nada de promessa vaga. Se a ideia depende de uma virada, um final inesperado, uma piada ou um "plot twist", diga qual é a virada de verdade (no "why" ou no título), em vez de só dizer que vai ter uma.
 Não invente números, estudos ou fatos sobre pessoas reais.`;
 
 export function ideaPrompt(b: IdeaBrief): string {
@@ -92,7 +93,7 @@ Formatos que você pode usar (use o slug):
 ${formats}
 
 Sugira 3 ideias diferentes entre si, cada uma num formato. Responda só com JSON:
-{"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho","why":"por que funciona, em uma frase"}]}`;
+{"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho","why":"por que funciona, em uma frase; se houver virada ou final inesperado, conte qual é"}]}`;
 }
 
 function clip(value: unknown, max: number): string {

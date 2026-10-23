@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
+import { Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import {
@@ -30,7 +31,24 @@ const QUESTIONS: Record<QuestionId, string> = {
   resources: "Com o que você conta hoje? Pode marcar mais de um.",
 };
 
-const NICHE_EXAMPLES = ["Treino em casa", "Receitas", "Maquiagem", "Humor", "Finanças", "Meu negócio"];
+const NICHE_EXAMPLES = [
+  "Humor",
+  "Treino em casa",
+  "Receitas",
+  "Maquiagem",
+  "Moda",
+  "Finanças",
+  "Meu negócio",
+  "Games",
+  "Viagem",
+  "Pets",
+  "Maternidade",
+  "Estudos",
+  "Música",
+  "Decoração",
+  "Tecnologia",
+  "Bem-estar",
+];
 const QUICK_REQUESTS = ["Outras ideias", "Mais engraçado", "Mais fácil de gravar"];
 
 const chip =
@@ -97,6 +115,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const autoAsked = useRef(false);
+  // Rodada nova de ideias: a tela para no começo dela, não no fim da página.
+  const jumpToRound = useRef<number | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -141,6 +161,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       } else {
         const fresh = body.ideas as VideoIdea[];
         if (request && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: request }));
+        if (fresh[0]) jumpToRound.current = fresh[0].round;
         setIdeas((prev) => [...prev, ...fresh]);
         setAsk("");
       }
@@ -160,6 +181,12 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   }, [loaded, question, ideas.length, requestIdeas, searchParams]);
 
   useEffect(() => {
+    const round = jumpToRound.current;
+    if (round !== null) {
+      jumpToRound.current = null;
+      document.getElementById(`rodada-${round}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [ideas.length, question, busy]);
 
@@ -215,7 +242,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       },
       id,
     );
-    router.push(`/video/${id}`);
+    // Escolheu: segue direto para o roteiro (a visão geral do vídeo fica no ícone do topo).
+    router.push(`/video/${id}/roteiro`);
   }
 
   const answered = QUESTION_ORDER.filter((q) => q !== question && answerText(q, answers));
@@ -223,7 +251,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <StepHeader step="ideia" backHref="/inicio" />
+      <StepHeader step="ideia" backHref="/inicio" videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-48 pt-5">
         {!loaded && <p className="label-set text-muted-foreground">Carregando…</p>}
@@ -255,7 +283,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                   if (nicheDraft.trim()) save("niche", { niche: nicheDraft.trim().slice(0, 120) });
                 }}
               >
-                <div className="flex flex-wrap gap-2">
+                <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
                   {NICHE_EXAMPLES.map((n) => (
                     <button key={n} type="button" className={chip} onClick={() => setNicheDraft(n)}>
                       {n}
@@ -271,7 +299,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                     value={nicheDraft}
                     onChange={(e) => setNicheDraft(e.target.value)}
                     maxLength={120}
-                    placeholder="Escreva com suas palavras"
+                    placeholder="Ou escreva com suas palavras"
                     className="min-h-12 flex-1 rounded-full border border-input bg-card px-4 text-base outline-none focus:border-foreground"
                   />
                   <button
@@ -337,9 +365,9 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                   type="button"
                   disabled={resourcesDraft.length === 0 || busy !== null}
                   onClick={() => save("resources", { resources: resourcesDraft })}
-                  className="min-h-12 self-start rounded-full bg-primary px-6 font-bold text-primary-foreground disabled:opacity-40"
+                  className="mt-2 min-h-13 w-full rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                 >
-                  Pronto
+                  Pronto, seguir
                 </button>
               </div>
             )}
@@ -355,7 +383,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
         {!question &&
           rounds.map((round) => (
-            <div key={round} className="flex flex-col gap-3.5">
+            <div key={round} id={`rodada-${round}`} className="flex scroll-mt-32 flex-col gap-3.5">
               {requests[round] && <Mine text={requests[round]} />}
               {ideas
                 .filter((i) => i.round === round)
@@ -398,7 +426,17 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             </div>
           ))}
 
-        {busy === "ideas" && <p className="label-set text-muted-foreground">Pensando nas ideias…</p>}
+        {!question && rounds.length > 0 && (
+          <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
+            {QUICK_REQUESTS.map((r) => (
+              <button key={r} type="button" disabled={busy !== null} className={chip} onClick={() => requestIdeas(r)}>
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {busy === "ideas" && <p className="label-set text-muted-foreground"><Thinking label="Pensando nas ideias" /></p>}
         {error && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
             {error}
@@ -421,13 +459,6 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               if (ask.trim() && !busy) requestIdeas(ask.trim());
             }}
           >
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
-              {QUICK_REQUESTS.map((r) => (
-                <button key={r} type="button" disabled={busy !== null} className={chip} onClick={() => requestIdeas(r)}>
-                  {r}
-                </button>
-              ))}
-            </div>
             <div className="flex items-center gap-2">
               <label htmlFor="pedido" className="sr-only">
                 Peça algo ao Gravaí

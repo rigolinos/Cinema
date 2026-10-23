@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clapperboard, LogOut } from "lucide-react";
+import { Check, Clapperboard, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, type Platform } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
@@ -117,7 +117,17 @@ export default function PerfilPage() {
         >
           {status === "saving" ? "Salvando…" : status === "saved" ? "Salvo" : "Salvar"}
         </button>
-        {status === "error" && <p role="alert" className="text-sm text-destructive">Não deu para salvar. Tente de novo.</p>}
+        {status === "saved" && (
+          <p role="status" className="flex items-center gap-2 text-sm font-semibold">
+            <Check className="size-4" strokeWidth={2.5} aria-hidden="true" />
+            Salvo. Vou usar isso nas próximas ideias.
+          </p>
+        )}
+        {status === "error" && (
+          <p role="alert" className="text-sm text-destructive">
+            Não deu para salvar. Confira a internet e tente de novo; se continuar, saia e entre de novo na conta.
+          </p>
+        )}
       </form>
 
       <Link href="/dashboard" className="flex min-h-14 items-center gap-3 rounded-2xl border border-border p-4">

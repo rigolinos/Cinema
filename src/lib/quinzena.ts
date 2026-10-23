@@ -75,5 +75,5 @@ ${formats}
 Sugira ${IDEAS_PER_PERIOD} ideias de vídeo curto para as próximas duas semanas, variadas entre si e em formatos diferentes.
 Misture ideias fáceis de gravar sozinho com uma ou duas mais elaboradas.
 Responda só com JSON:
-{"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho, até 10 palavras","why":"por que funciona, em uma frase"}]}`;
+{"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho, até 10 palavras","why":"por que funciona, em uma frase; se houver virada ou final inesperado, conte qual é"}]}`;
 }

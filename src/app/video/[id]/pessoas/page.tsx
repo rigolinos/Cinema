@@ -148,7 +148,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     if (video?.stage === "pessoas") {
       await createClient().from("videos").update({ stage: nextReadyStage("pessoas") }).eq("id", id);
     }
-    router.push(`/video/${id}`);
+    router.push(`/video/${id}/${nextReadyStage("pessoas")}`);
   }
 
   const onCamera = people.filter((p) => p.role === "eu" || p.role === "ator");
@@ -156,7 +156,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <StepHeader step="pessoas" backHref={`/video/${id}`} />
+      <StepHeader step="pessoas" backHref={`/video/${id}/roteiro`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-5 pb-36 pt-5">
         {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}

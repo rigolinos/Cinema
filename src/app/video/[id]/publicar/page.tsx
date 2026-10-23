@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, Copy } from "lucide-react";
+import { Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS } from "@/lib/ideas";
 import { POST_PARTS, captionWithTags, cleanHashtags, needsTitle, type Post } from "@/lib/publicar";
@@ -112,7 +113,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                 você ajusta e copia para o app de postagem.
               </p>
               <button type="button" onClick={prepare} disabled={busy} className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
-                {busy ? "Preparando…" : "Preparar a publicação"}
+                {busy ? <Thinking label="Preparando" /> : "Preparar a publicação"}
               </button>
             </div>
           )}
@@ -206,7 +207,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                   {video.published_at ? `Publicado em ${new Date(video.published_at).toLocaleDateString("pt-BR")} · desfazer` : "Já publiquei"}
                 </button>
                 <button type="button" onClick={prepare} disabled={busy} className="min-h-11 self-center text-sm font-semibold underline disabled:opacity-40">
-                  {busy ? "Preparando…" : "Preparar de novo"}
+                  {busy ? <Thinking label="Preparando" /> : "Preparar de novo"}
                 </button>
               </div>
             </>
