@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
+import { Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -12,6 +13,7 @@ import {
   FRAMINGS,
   MOVEMENTS,
   defaultOrientation,
+  isSolo,
   setupChanges,
   shootingOrder,
   shotTerms,
@@ -28,7 +30,6 @@ import type { Video } from "@/types/database";
 
 type Block = ScriptBlock & { id: string; position: number };
 type SavedShot = Shot & { id: string };
-type View = "roteiro" | "gravar";
 
 const ORIENTATIONS: Record<Orientation, Term> = {
   vertical: { label: "Vertical", what: "Celular em pé (9:16).", why: "É o formato de Reels, TikTok e Shorts: ocupa a tela toda." },
@@ -154,7 +155,6 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [shots, setShots] = useState<SavedShot[]>([]);
-  const [view, setView] = useState<View>("roteiro");
   const [busy, setBusy] = useState<"decupar" | "seguir" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -172,7 +172,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
   }, [id]);
 
   async function decupar() {
-    if (shots.length > 0 && !window.confirm("Decupar de novo substitui todos os planos, inclusive o que você mudou. Continuar?")) return;
+    if (shots.length > 0 && !window.confirm("Dividir de novo troca todos os planos, inclusive o que você mudou. Continuar?")) return;
     setBusy("decupar");
     setError(null);
     const res = await fetch("/api/planos", {
@@ -240,7 +240,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
       setError("Não deu para salvar a ordem de gravação. Tente de novo.");
       return;
     }
-    router.push(`/video/${id}`);
+    router.push(`/video/${id}/gravar`);
   }
 
   const blockIndex = new Map(blocks.map((b, i) => [b.id, i]));
@@ -252,7 +252,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <StepHeader step="planos" backHref={`/video/${id}`} />
+      <StepHeader step="planos" backHref={`/video/${id}/${video && isSolo(video.resources ?? []) ? "roteiro" : "pessoas"}`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-36 pt-5">
         {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
@@ -274,43 +274,24 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
               Gravaí
             </span>
             <p className="leading-relaxed">
-              <strong>Plano</strong> é cada pedaço que você grava sem cortar. <strong>Decupar</strong> é dividir o roteiro nos
-              planos que você vai gravar: de perto ou de longe, de que ângulo, com a câmera parada ou andando.
-            </p>
-            <p className="leading-relaxed">
-              Fazer isso antes evita descobrir na edição que faltou um take. Eu sugiro os planos de cada bloco e explico o porquê
-              de cada um; você muda o que quiser.
+              Vou dividir seu roteiro nos pedaços que você vai gravar, os <strong>planos</strong>: de perto ou de longe, de que
+              ângulo, câmera parada ou andando. Depois você muda o que quiser.
             </p>
             <button type="button" onClick={decupar} disabled={busy !== null} className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
-              {busy === "decupar" ? "Decupando…" : "Decupar o roteiro"}
+              {busy === "decupar" ? <Thinking label="Dividindo em planos" /> : "Dividir em planos"}
             </button>
           </div>
         )}
 
         {shots.length > 0 && (
           <>
-            <div role="tablist" aria-label="Como ver os planos" className="grid grid-cols-2 gap-1 rounded-full bg-card p-1">
-              {(
-                [
-                  ["roteiro", "Pelo roteiro"],
-                  ["gravar", "Ordem de gravação"],
-                ] as const
-              ).map(([v, label]) => (
-                <button
-                  key={v}
-                  role="tab"
-                  type="button"
-                  aria-selected={view === v}
-                  onClick={() => setView(v)}
-                  className={cn("min-h-11 rounded-full text-sm font-semibold", view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {after < before && (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Na hora de gravar, eu junto os planos do mesmo lugar: você troca de cenário {after === 1 ? "1 vez" : `${after} vezes`} em vez de {before}.
+              </p>
+            )}
 
-            {view === "roteiro" &&
-              blocks.map((b, i) => (
+            {blocks.map((b, i) => (
                 <section key={b.id} className="flex flex-col gap-3" aria-label={`Bloco ${i + 1}`}>
                   <div className="flex flex-col gap-1">
                     <h2 className="label-set">
@@ -330,29 +311,8 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
                 </section>
               ))}
 
-            {view === "gravar" && (
-              <>
-                <p className="rounded-2xl border border-border p-4 text-sm leading-relaxed">
-                  Você não precisa gravar na ordem do roteiro. Juntando os planos do mesmo lugar e da mesma roupa, você troca de
-                  cenário {after === 1 ? "1 vez" : `${after} vezes`} em vez de {before}. Na edição, cada plano volta para o lugar
-                  dele.
-                </p>
-                {toShoot.map((s, i) => {
-                  const prev = toShoot[i - 1];
-                  const newGroup = !prev || prev.location.trim().toLowerCase() !== s.location.trim().toLowerCase() || prev.wardrobe.trim().toLowerCase() !== s.wardrobe.trim().toLowerCase();
-                  const shot = shots.find((x) => x.id === s.id)!;
-                  return (
-                    <div key={s.id} className="flex flex-col gap-3">
-                      {newGroup && <h2 className="label-set mt-2">{[s.location || "Lugar não definido", s.wardrobe].filter(Boolean).join(" · ")}</h2>}
-                      <ShotCard shot={shot} number={number.get(s.id)!} onChange={(p) => update(shot, p)} onDelete={() => remove(shot)} />
-                    </div>
-                  );
-                })}
-              </>
-            )}
-
             <button type="button" onClick={decupar} disabled={busy !== null} className="min-h-11 self-start text-sm font-semibold underline disabled:opacity-40">
-              {busy === "decupar" ? "Decupando…" : "Decupar de novo"}
+              {busy === "decupar" ? <Thinking label="Dividindo" /> : "Dividir de novo"}
             </button>
           </>
         )}
@@ -371,7 +331,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
               {busy === "seguir" ? "Salvando…" : "Planos prontos"}
             </button>
             <p className="label-set text-center text-muted-foreground">
-              {shots.length} planos · grava na ordem que junta lugar e roupa
+              {shots.length} planos
             </p>
           </div>
         </div>

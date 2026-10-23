@@ -42,8 +42,20 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const [previousId, setPreviousId] = useState<string | null>(null); // último plano mostrado, para o aviso de troca de cenário
   const [size, setSize] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null); // "Plano 3 gravado": diz o que aconteceu ao tocar
 
   useWakeLock(phase === "set");
+
+  // Plano novo começa do topo, com o cabeçalho à vista.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [current, phase]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 2500);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   useEffect(() => {
     const db = createClient();
@@ -86,6 +98,8 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
     }
     if (advance) {
       const next = nextPending(list, list.indexOf(updated));
+      const done = `Plano ${scriptNumber.get(shot.id)} ${patch.good_take ? "gravado e marcado como bom" : "gravado"}`;
+      setNotice(next === -1 ? done : `${done}. Agora o plano ${scriptNumber.get(list[next].id)}.`);
       if (next === -1) setPhase("fim");
       else goTo(next);
     }
@@ -105,7 +119,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
     [...shots].sort((a, b) => (blocks.findIndex((x) => x.id === a.block_id) - blocks.findIndex((x) => x.id === b.block_id)) || a.position - b.position).map((s, i) => [s.id, i + 1]),
   );
   const change = shot ? setupChange(shots.find((s) => s.id === previousId), shot) : null;
-  const upcoming = shots.filter((s, i) => i > current && !s.recorded).slice(0, 2);
+  const upcoming = shots.find((s, i) => i > current && !s.recorded);
 
   return (
     <div className="dark min-h-dvh bg-background text-foreground">
@@ -129,6 +143,13 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
             </div>
           )}
         </header>
+
+        {notice && (
+          <p role="status" className="fixed inset-x-4 top-3 z-50 mx-auto max-w-md rounded-full bg-foreground px-4 py-3 text-center text-sm font-semibold text-background">
+            <Check className="mr-1.5 inline size-4 align-[-3px]" strokeWidth={2.5} aria-hidden="true" />
+            {notice}
+          </p>
+        )}
 
         <main className="flex flex-1 flex-col gap-5 px-5 pb-6">
           {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
@@ -219,16 +240,11 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 </section>
               )}
 
-              {upcoming.length > 0 && (
-                <section aria-label="A seguir" className="flex flex-col">
-                  <span className="label-set mb-1 text-muted-foreground">A seguir</span>
-                  {upcoming.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0">
-                      <span className="truncate text-[15px]">{s.description || FRAMINGS[s.framing].label}</span>
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">PLANO {String(scriptNumber.get(s.id)).padStart(2, "0")}</span>
-                    </div>
-                  ))}
-                </section>
+              {upcoming && (
+                <p className="truncate text-sm text-muted-foreground">
+                  <span className="label-set mr-2">Depois</span>
+                  {upcoming.description || FRAMINGS[upcoming.framing].label}
+                </p>
               )}
 
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -250,6 +266,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                     type="button"
                     onClick={() => {
                       logSignal("plano_pulado", { plano: `(${shotTerms(shot)})` }, id);
+                      setNotice(`Plano ${scriptNumber.get(shot.id)} ficou para depois. Ele volta no fim.`);
                       const next = nextPending(shots, current);
                       if (next === -1 || next === current) setPhase("fim");
                       else goTo(next);

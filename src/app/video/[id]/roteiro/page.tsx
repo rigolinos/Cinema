@@ -1,10 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
+import { Thinking } from "@/components/gravai/thinking";
 import { nextReadyStage } from "@/components/gravai/trail";
 import { isSolo } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
@@ -33,6 +34,18 @@ async function callApi(body: Record<string, unknown>) {
   const data = await res?.json().catch(() => null);
   if (!res?.ok) throw new Error(data?.error ?? "Sem conexão. Tente de novo.");
   return data;
+}
+
+// Caixa de texto que cresce com o que está escrito: nada fica escondido nem cortado.
+function GrowingText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [props.value]);
+  return <textarea ref={ref} rows={1} {...props} className={cn(input, "resize-none overflow-hidden", props.className)} />;
 }
 
 function BlockCard({
@@ -85,36 +98,35 @@ function BlockCard({
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">Fala</span>
-        <textarea
+        <GrowingText
           value={draft.speech}
           onChange={(e) => setDraft((d) => ({ ...d, speech: e.target.value }))}
           onBlur={() => save("speech")}
           maxLength={1500}
-          rows={Math.min(8, Math.max(2, Math.ceil(draft.speech.length / 34)))}
           placeholder="O que você fala neste trecho"
-          className={cn(input, "resize-none font-medium")}
+          className="min-h-20 font-medium"
         />
       </label>
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">Na tela</span>
-        <input
+        <GrowingText
           value={draft.on_screen}
           onChange={(e) => setDraft((d) => ({ ...d, on_screen: e.target.value }))}
           onBlur={() => save("on_screen")}
           maxLength={300}
           placeholder="Texto que aparece escrito (opcional)"
-          className={cn(input, "min-h-12")}
+          className="min-h-12"
         />
       </label>
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">Cena</span>
-        <input
+        <GrowingText
           value={draft.action}
           onChange={(e) => setDraft((d) => ({ ...d, action: e.target.value }))}
           onBlur={() => save("action")}
           maxLength={500}
           placeholder="O que acontece (opcional)"
-          className={cn(input, "min-h-12")}
+          className="min-h-12"
         />
       </label>
 
@@ -243,9 +255,9 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   async function finish() {
     if (!video) return;
     setBusy("seguir");
+    // Quem grava sozinho não tem ninguém para chamar: pula o passo Pessoas.
+    const next = isSolo(video.resources ?? []) ? nextReadyStage("pessoas") : nextReadyStage("roteiro");
     if (video.stage === "roteiro") {
-      // Quem grava sozinho não tem ninguém para chamar: pula o passo Pessoas.
-      const next = isSolo(video.resources ?? []) ? nextReadyStage("pessoas") : nextReadyStage("roteiro");
       const { error } = await createClient().from("videos").update({ stage: next }).eq("id", id);
       if (error) {
         setBusy(null);
@@ -253,7 +265,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
         return;
       }
     }
-    router.push(`/video/${id}`);
+    router.push(`/video/${id}/${next}`);
   }
 
   const times = timeline(blocks);
@@ -262,7 +274,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <StepHeader step="roteiro" backHref={`/video/${id}`} />
+      <StepHeader step="roteiro" backHref={`/video/${id}/ideia`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-40 pt-5">
         {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
@@ -308,7 +320,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                   disabled={busy !== null}
                   className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                 >
-                  {busy === "rascunho" ? "Escrevendo…" : "Escrever o rascunho"}
+                  {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" /> : "Escrever o rascunho"}
                 </button>
               </div>
             )}
@@ -340,7 +352,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               />
             ))}
 
-            {busy && busy !== "rascunho" && busy !== "seguir" && <p className="label-set text-muted-foreground">Reescrevendo o bloco…</p>}
+            {busy && busy !== "rascunho" && busy !== "seguir" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo o bloco" /></p>}
             {error && (
               <p role="alert" className="rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
                 {error}
@@ -349,7 +361,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
             {blocks.length > 0 && (
               <button type="button" onClick={draft} disabled={busy !== null} className="min-h-11 self-start text-sm font-semibold underline disabled:opacity-40">
-                {busy === "rascunho" ? "Escrevendo…" : "Escrever outro rascunho"}
+                {busy === "rascunho" ? <Thinking label="Escrevendo" /> : "Escrever outro rascunho"}
               </button>
             )}
           </>
