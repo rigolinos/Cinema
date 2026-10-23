@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp } from "lucide-react";
+import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
 import { Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
@@ -265,9 +266,9 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
         {loaded && (
           <Assistant>
-            Bora achar a ideia. Vou te fazer umas perguntas rápidas e sugerir ideias com o <strong>gancho</strong>: o que
-            você fala ou mostra nos 3 primeiros segundos, que é quando a pessoa decide se fica.
-            {knowsYou && " Já fui guardando o que você curte, então as ideias já vêm mais com a sua cara."}
+            {knowsYou
+              ? "Bora achar a ideia. Já sei um pouco do que você curte, então elas vêm mais com a sua cara."
+              : "Bora achar a ideia. Umas perguntas rápidas e eu te trago sugestões."}
           </Assistant>
         )}
 
@@ -404,10 +405,14 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         )}
 
         {!question && rounds.length > 0 && (
-          <Assistant>
-            Separei ideias para quem fala de <strong>{answers.niche}</strong>. Escolha uma para seguir para o roteiro, ou peça
-            outras lá embaixo.
-          </Assistant>
+          <div className="flex flex-col gap-1">
+            <Assistant>
+              Separei estas para quem fala de <strong>{answers.niche}</strong>. Escolha uma ou peça outras.
+            </Assistant>
+            <Explain id="gancho" question="O que é o gancho?" learn="gancho">
+              É o que você fala ou mostra nos 3 primeiros segundos. É ali que a pessoa decide se fica ou rola o feed.
+            </Explain>
+          </div>
         )}
 
         {!question &&
