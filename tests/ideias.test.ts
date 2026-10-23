@@ -1,24 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel, ideaPrompt, nextQuestion, normalizeIdeas, type Answers } from "@/lib/ideas";
+import { durationLabel, ideaPrompt, mainPlatform, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, videoPlatforms, type Answers } from "@/lib/ideas";
 import { parseJson } from "@/lib/ai";
 
-const full: Answers = { niche: "treino em casa", objective: "crescer", platform: "reels", durationS: 30, resources: ["sozinho"] };
+const full: Answers = { niche: "treino em casa", objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho"] };
 
 describe("nextQuestion", () => {
   it("pergunta na ordem e libera as ideias quando tudo foi respondido", () => {
     expect(nextQuestion({ ...full, niche: "  " })).toBe("niche");
     expect(nextQuestion({ ...full, objective: null })).toBe("objective");
-    expect(nextQuestion({ ...full, platform: null })).toBe("platform");
+    expect(nextQuestion({ ...full, platforms: [] })).toBe("platform");
     expect(nextQuestion({ ...full, durationS: null })).toBe("duration");
     expect(nextQuestion({ ...full, resources: [] })).toBe("resources");
     expect(nextQuestion(full)).toBeNull();
   });
 });
 
+describe("várias plataformas", () => {
+  it("a principal é a primeira em pé; YouTube sozinho grava deitado", () => {
+    expect(mainPlatform(["youtube", "tiktok", "reels"])).toBe("tiktok");
+    expect(mainPlatform(["youtube"])).toBe("youtube");
+    expect(mainPlatform([])).toBeNull();
+    expect(mixesOrientation(["youtube", "reels"])).toBe(true);
+    expect(mixesOrientation(["tiktok", "reels"])).toBe(false);
+  });
+
+  it("nomes juntos e vídeos antigos com uma plataforma só", () => {
+    expect(platformsLabel(["reels"])).toBe("Reels");
+    expect(platformsLabel(["reels", "tiktok", "youtube"])).toBe("Reels, TikTok e YouTube");
+    expect(videoPlatforms({ platform: "reels", platforms: [] })).toEqual(["reels"]);
+    expect(videoPlatforms({ platform: "reels", platforms: ["tiktok", "reels"] })).toEqual(["tiktok", "reels"]);
+    expect(videoPlatforms({ platform: null })).toEqual([]);
+  });
+});
+
 describe("ideaPrompt", () => {
   it("leva o contexto da pessoa e não oferece formato que precisa de outra pessoa a quem grava sozinho", () => {
-    const solo = ideaPrompt({ niche: "receitas", objective: "vender", platform: "tiktok", durationS: 60, resources: ["sozinho"], previousTitles: ["Ideia velha"], request: "Mais engraçado" });
+    const solo = ideaPrompt({ niche: "receitas", objective: "vender", platforms: ["tiktok"], durationS: 60, resources: ["sozinho"], previousTitles: ["Ideia velha"], request: "Mais engraçado" });
     expect(solo).toContain("receitas");
     expect(solo).toContain("Vender");
     expect(solo).toContain("TikTok, com cerca de 1 min");
@@ -26,11 +44,12 @@ describe("ideaPrompt", () => {
     expect(solo).toContain("Mais engraçado");
     expect(solo).not.toContain("- dialogo:");
 
-    const junto = ideaPrompt({ niche: "humor", objective: "divertir", platform: "reels", durationS: 30, resources: ["com_alguem"] });
+    const junto = ideaPrompt({ niche: "humor", objective: "divertir", platforms: ["reels", "tiktok"], durationS: 30, resources: ["com_alguem"] });
     expect(junto).toContain("- dialogo:");
+    expect(junto).toContain("Onde vai postar: Reels e TikTok");
     expect(junto).not.toContain("Trends desta semana");
 
-    const comRadar = ideaPrompt({ niche: "humor", objective: "divertir", platform: "reels", durationS: 30, resources: ["sozinho"], trends: [{ title: "POV de segunda", what: "Vídeos sobre a segunda-feira." }] });
+    const comRadar = ideaPrompt({ niche: "humor", objective: "divertir", platforms: ["reels"], durationS: 30, resources: ["sozinho"], trends: [{ title: "POV de segunda", what: "Vídeos sobre a segunda-feira." }] });
     expect(comRadar).toContain("Trends desta semana (use no máximo uma, e só se combinar com o nicho): POV de segunda: Vídeos sobre a segunda-feira.");
   });
 });

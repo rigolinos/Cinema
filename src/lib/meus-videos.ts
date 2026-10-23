@@ -1,5 +1,5 @@
 import { findFormat } from "./formats";
-import { PLATFORMS, durationLabel } from "./ideas";
+import { PLATFORMS, durationLabel, platformsLabel, videoPlatforms, type Platform } from "./ideas";
 import { ANGLES, FRAMINGS, MOVEMENTS, shootingOrder, type Shot } from "./planos";
 import { scriptAsText, type ScriptBlock } from "./roteiro";
 import type { Video } from "@/types/database";
@@ -18,16 +18,16 @@ export function videoTab(v: Pick<Video, "stage"> & { archived_at?: string | null
 
 // Pacote do vídeo em texto: para mandar no WhatsApp, guardar fora do app ou imprimir no set.
 export function exportPackage(input: {
-  video: Pick<Video, "title" | "hook" | "format_slug" | "platform" | "duration_s">;
+  video: Pick<Video, "title" | "hook" | "format_slug" | "platform" | "duration_s"> & { platforms?: Platform[] };
   blocks: ScriptBlock[];
   shots: (Pick<Shot, "block_id" | "position" | "shoot_order" | "framing" | "angle" | "movement" | "orientation" | "description" | "location" | "wardrobe" | "why"> & { id?: string })[];
   blockIds: string[];
-  post?: { title: string; caption: string; hashtags: string[]; cover_text: string; cover_idea: string } | null;
+  posts?: { platform?: Platform; title: string; caption: string; hashtags: string[]; cover_text: string; cover_idea: string }[];
 }): string {
-  const { video, blocks, shots, blockIds, post } = input;
+  const { video, blocks, shots, blockIds, posts = [] } = input;
   const title = video.title || "Vídeo";
   const format = findFormat(video.format_slug);
-  const info = [format?.name, video.platform ? PLATFORMS[video.platform] : null, video.duration_s ? durationLabel(video.duration_s) : null].filter(Boolean).join(" · ");
+  const info = [format?.name, platformsLabel(videoPlatforms(video)) || null, video.duration_s ? durationLabel(video.duration_s) : null].filter(Boolean).join(" · ");
   const parts: string[] = [`GRAVAÍ · ${title.toUpperCase()}`];
   if (info) parts.push(info);
   if (video.hook) parts.push(`GANCHO: “${video.hook}”`);
@@ -56,14 +56,17 @@ export function exportPackage(input: {
     parts.push(lines.join("\n"));
   }
 
-  if (post && (post.caption || post.title)) {
-    const pub = ["━━ PUBLICAÇÃO ━━"];
+  // Uma publicação por plataforma; a capa é a mesma para todas.
+  const filled = posts.filter((p) => p.caption || p.title);
+  for (const post of filled) {
+    const pub = [filled.length > 1 && post.platform ? `━━ PUBLICAÇÃO · ${PLATFORMS[post.platform].toUpperCase()} ━━` : "━━ PUBLICAÇÃO ━━"];
     if (post.title) pub.push(`TÍTULO: ${post.title}`);
     if (post.caption) pub.push(`LEGENDA:\n${post.caption}`);
     if (post.hashtags.length) pub.push(post.hashtags.join(" "));
-    if (post.cover_text) pub.push(`CAPA: “${post.cover_text}”${post.cover_idea ? ` (${post.cover_idea})` : ""}`);
     parts.push(pub.join("\n"));
   }
+  const cover = filled[0];
+  if (cover?.cover_text) parts.push(`CAPA: “${cover.cover_text}”${cover.cover_idea ? ` (${cover.cover_idea})` : ""}`);
 
   return parts.join("\n\n");
 }

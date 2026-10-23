@@ -1,5 +1,5 @@
 import { findFormat } from "./formats";
-import { OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, type Objective, type Platform, type Resource } from "./ideas";
+import { OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, platformsLabel, type Objective, type Platform, type Resource } from "./ideas";
 
 export type BlockKind = "gancho" | "contexto" | "conteudo" | "virada" | "chamada";
 
@@ -114,6 +114,7 @@ export interface ScriptBrief {
   formatSlug: string | null;
   objective: Objective | null;
   platform: Platform | null;
+  platforms?: Platform[]; // todas onde vai sair (a principal está entre elas)
   durationS: number;
   resources: Resource[];
 }
@@ -126,7 +127,7 @@ function briefText(b: ScriptBrief): string {
     `Gancho escolhido: "${b.hook}"`,
     format ? `Formato: ${format.name}. Estrutura: ${format.structure.join(" → ")}` : "",
     b.objective ? `Objetivo: ${OBJECTIVES[b.objective]}` : "",
-    b.platform ? `Plataforma: ${PLATFORMS[b.platform]}` : "",
+    b.platforms?.length ? `Onde vai sair: ${platformsLabel(b.platforms)}` : b.platform ? `Plataforma: ${PLATFORMS[b.platform]}` : "",
     `Duração: cerca de ${durationLabel(b.durationS)}`,
     `Recursos: ${b.resources.map((r) => RESOURCES[r]).join(", ") || "não informado"}`,
   ]

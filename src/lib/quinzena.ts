@@ -45,19 +45,19 @@ export function periodLabel(start: string): string {
 // Respostas já preenchidas para começar o vídeo com um toque.
 export interface QuickStart {
   objective: Objective;
-  platform: Platform;
+  platforms: Platform[];
   durationS: number;
   resources: Resource[];
 }
 
 export function quickStartDefaults(formatSlug: string | null, platforms: string[]): QuickStart {
-  const platform = (platforms.find((p) => p in PLATFORMS) as Platform | undefined) ?? "reels";
+  const known = platforms.filter((p): p is Platform => p in PLATFORMS);
   const format = findFormat(formatSlug);
   const ideal = format ? (format.idealSeconds[0] + format.idealSeconds[1]) / 2 : 30;
   const durationS = [...DURATIONS].sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal))[0];
   return {
     objective: "crescer",
-    platform,
+    platforms: known.length ? known : ["reels"],
     durationS,
     resources: format?.needsSomeone ? ["com_alguem", "em_casa"] : ["sozinho", "em_casa"],
   };

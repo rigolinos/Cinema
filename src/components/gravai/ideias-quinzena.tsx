@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
-import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, type Objective, type Platform, type Resource } from "@/lib/ideas";
+import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
@@ -55,7 +55,7 @@ function StartSheet({ idea, platforms, onClose }: { idea: FortnightIdea; platfor
     const { data, error } = await createClient().rpc("start_video_from_idea", {
       p_idea_id: idea.id,
       p_objective: answers.objective,
-      p_platform: answers.platform,
+      p_platform: mainPlatform(answers.platforms),
       p_duration: answers.durationS,
       p_resources: answers.resources,
     });
@@ -64,6 +64,8 @@ function StartSheet({ idea, platforms, onClose }: { idea: FortnightIdea; platfor
       setBusy(false);
       return;
     }
+    // A função do banco recebe só a principal; as outras plataformas entram logo depois.
+    if (answers.platforms.length > 1) await createClient().from("videos").update({ platforms: answers.platforms }).eq("id", data);
     logSignal("ideia_quinzena_usada", { title: idea.title, format: findFormat(idea.format_slug)?.name }, data);
     router.push(`/video/${data}/roteiro`);
   }
@@ -90,7 +92,17 @@ function StartSheet({ idea, platforms, onClose }: { idea: FortnightIdea; platfor
         </div>
         <p className="text-sm leading-relaxed text-muted-foreground">Já deixei preenchido. Confira e toque em começar: o vídeo abre direto no roteiro.</p>
 
-        <Choice<Platform> label="Onde vai sair" options={Object.entries(PLATFORMS) as [Platform, string][]} value={answers.platform} onPick={(platform) => setAnswers((a) => ({ ...a, platform }))} />
+        <Choice<Platform>
+          label="Onde vai sair (pode marcar mais de um)"
+          options={Object.entries(PLATFORMS) as [Platform, string][]}
+          value={answers.platforms}
+          onPick={(p) =>
+            setAnswers((a) => {
+              const platforms = a.platforms.includes(p) ? a.platforms.filter((x) => x !== p) : [...a.platforms, p];
+              return { ...a, platforms: platforms.length ? platforms : a.platforms };
+            })
+          }
+        />
         <Choice<number> label="Quanto tempo" options={DURATIONS.map((d) => [d, durationLabel(d)] as [number, string])} value={answers.durationS} onPick={(durationS) => setAnswers((a) => ({ ...a, durationS }))} />
         <Choice<Resource>
           label="Com o que você conta"

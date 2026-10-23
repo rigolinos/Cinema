@@ -39,7 +39,7 @@ export async function GET() {
       roteiro: byVideo(blocks.data, v.id),
       planos: byVideo(shots.data, v.id),
       pessoas: byVideo(people.data, v.id),
-      publicacao: byVideo(posts.data, v.id)[0] ?? null,
+      publicacao: byVideo(posts.data, v.id),
     })),
     autorizacoes_de_imagem_recebidas: consents.data,
     ideias_da_quinzena: fortnight.data,

@@ -27,10 +27,34 @@ export type Objective = keyof typeof OBJECTIVES;
 export type Platform = keyof typeof PLATFORMS;
 export type Resource = keyof typeof RESOURCES;
 
+const VERTICAL: Platform[] = ["reels", "tiktok", "shorts"];
+
+// O mesmo vídeo pode sair em várias plataformas. A principal decide o formato da gravação:
+// se houver alguma vertical, grava em pé (no YouTube ele entra como Short).
+export function mainPlatform(list: readonly Platform[]): Platform | null {
+  return list.find((p) => VERTICAL.includes(p)) ?? list[0] ?? null;
+}
+
+// Junta YouTube (deitado) com plataformas em pé.
+export function mixesOrientation(list: readonly Platform[]): boolean {
+  return list.includes("youtube") && list.some((p) => VERTICAL.includes(p));
+}
+
+// "Reels", "Reels e TikTok", "Reels, TikTok e YouTube".
+export function platformsLabel(list: readonly Platform[]): string {
+  const names = list.map((p) => PLATFORMS[p]);
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+}
+
+// Plataformas do vídeo, mesmo de vídeos antigos que só têm a principal.
+export function videoPlatforms(v: { platform: Platform | null; platforms?: readonly Platform[] | null }): Platform[] {
+  return v.platforms?.length ? [...v.platforms] : v.platform ? [v.platform] : [];
+}
+
 export interface IdeaBrief {
   niche: string;
   objective: Objective;
-  platform: Platform;
+  platforms: Platform[];
   durationS: number;
   resources: Resource[];
   request?: string; // "outras", "mais engraçado" ou o que a pessoa escreveu
@@ -52,7 +76,7 @@ export const QUESTION_ORDER: QuestionId[] = ["niche", "objective", "platform", "
 export interface Answers {
   niche: string | null;
   objective: Objective | null;
-  platform: Platform | null;
+  platforms: Platform[];
   durationS: number | null;
   resources: Resource[];
 }
@@ -61,7 +85,7 @@ export interface Answers {
 export function nextQuestion(a: Answers): QuestionId | null {
   if (!a.niche?.trim()) return "niche";
   if (!a.objective) return "objective";
-  if (!a.platform) return "platform";
+  if (a.platforms.length === 0) return "platform";
   if (!a.durationS) return "duration";
   if (a.resources.length === 0) return "resources";
   return null;
@@ -86,7 +110,7 @@ export function ideaPrompt(b: IdeaBrief): string {
 
   return `Nicho do criador: ${b.niche}
 Objetivo do vídeo: ${OBJECTIVES[b.objective]}
-Onde vai postar: ${PLATFORMS[b.platform]}, com cerca de ${durationLabel(b.durationS)}
+Onde vai postar: ${platformsLabel(b.platforms)}, com cerca de ${durationLabel(b.durationS)}
 Recursos: ${b.resources.map((r) => RESOURCES[r]).join(", ") || "não informado"}
 ${b.previousTitles?.length ? `Ideias que a pessoa já viu (não repita): ${b.previousTitles.join(" | ")}\n` : ""}${b.request ? `Pedido da pessoa: ${b.request}\n` : ""}${b.trends?.length ? `Trends desta semana (use no máximo uma, e só se combinar com o nicho): ${b.trends.map((t) => `${t.title}: ${t.what}`).join(" | ")}\n` : ""}
 Formatos que você pode usar (use o slug):

@@ -14,8 +14,13 @@ import {
   QUESTION_ORDER,
   RESOURCES,
   durationLabel,
+  mainPlatform,
+  mixesOrientation,
   nextQuestion,
+  platformsLabel,
+  videoPlatforms,
   type Answers,
+  type Platform,
   type QuestionId,
   type Resource,
 } from "@/lib/ideas";
@@ -26,7 +31,7 @@ import type { Video, VideoIdea } from "@/types/database";
 const QUESTIONS: Record<QuestionId, string> = {
   niche: "Sobre o que é o seu perfil? Pode ser bem simples, tipo “treino em casa” ou “receitas baratas”.",
   objective: "O que esse vídeo precisa fazer por você?",
-  platform: "Onde ele vai sair?",
+  platform: "Onde ele vai sair? Pode marcar mais de um.",
   duration: "E quanto tempo, mais ou menos?",
   resources: "Com o que você conta hoje? Pode marcar mais de um.",
 };
@@ -62,7 +67,7 @@ function answerText(q: QuestionId, a: Answers): string {
     case "objective":
       return a.objective ? OBJECTIVES[a.objective] : "";
     case "platform":
-      return a.platform ? PLATFORMS[a.platform] : "";
+      return platformsLabel(a.platforms);
     case "duration":
       return a.durationS ? durationLabel(a.durationS) : "";
     case "resources":
@@ -103,10 +108,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const searchParams = useSearchParams();
 
   const [loaded, setLoaded] = useState(false);
-  const [answers, setAnswers] = useState<Answers>({ niche: null, objective: null, platform: null, durationS: null, resources: [] });
+  const [answers, setAnswers] = useState<Answers>({ niche: null, objective: null, platforms: [], durationS: null, resources: [] });
   const [editing, setEditing] = useState<QuestionId | null>(null);
   const [nicheDraft, setNicheDraft] = useState("");
   const [resourcesDraft, setResourcesDraft] = useState<Resource[]>([]);
+  const [platformsDraft, setPlatformsDraft] = useState<Platform[]>([]);
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   const [requests, setRequests] = useState<Record<number, string>>({});
   const [ask, setAsk] = useState("");
@@ -134,7 +140,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       setAnswers({
         niche: p.data?.niche ?? null,
         objective: video.objective,
-        platform: video.platform,
+        platforms: videoPlatforms(video),
         durationS: video.duration_s,
         resources: video.resources ?? [],
       });
@@ -202,7 +208,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               q === "objective"
                 ? { objective: patch.objective }
                 : q === "platform"
-                  ? { platform: patch.platform }
+                  ? { platforms: patch.platforms, platform: mainPlatform(patch.platforms ?? []) }
                   : q === "duration"
                     ? { duration_s: patch.durationS }
                     : { resources: patch.resources },
@@ -221,6 +227,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     if (busy) return;
     if (q === "niche") setNicheDraft(answers.niche ?? "");
     if (q === "resources") setResourcesDraft(answers.resources);
+    if (q === "platform") setPlatformsDraft(answers.platforms);
     setEditing(q);
   }
 
@@ -324,12 +331,34 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             )}
 
             {question === "platform" && (
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(PLATFORMS) as (keyof typeof PLATFORMS)[]).map((p) => (
-                  <button key={p} type="button" disabled={busy !== null} className={cn(chip, answers.platform === p && chipOn)} onClick={() => save("platform", { platform: p })}>
-                    {PLATFORMS[p]}
-                  </button>
-                ))}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(PLATFORMS) as Platform[]).map((p) => {
+                    const on = platformsDraft.includes(p);
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        aria-pressed={on}
+                        className={cn(chip, on && chipOn)}
+                        onClick={() => setPlatformsDraft((d) => (on ? d.filter((x) => x !== p) : [...d, p]))}
+                      >
+                        {PLATFORMS[p]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {mixesOrientation(platformsDraft) && (
+                  <p className="text-sm leading-relaxed text-muted-foreground">Vou planejar em pé (vertical): no YouTube ele entra como Short.</p>
+                )}
+                <button
+                  type="button"
+                  disabled={platformsDraft.length === 0 || busy !== null}
+                  onClick={() => save("platform", { platforms: platformsDraft })}
+                  className="mt-2 min-h-13 w-full rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                >
+                  Pronto, seguir
+                </button>
               </div>
             )}
 
