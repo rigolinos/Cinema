@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
-import { POST_SYSTEM, normalizePost, postPrompt } from "@/lib/publicar";
+import { videoPlatforms } from "@/lib/ideas";
+import { POST_SYSTEM, normalizePosts, postPrompt } from "@/lib/publicar";
 import type { ScriptBlock } from "@/lib/roteiro";
 import { withMemory } from "@/lib/memoria";
 import type { Video } from "@/types/database";
@@ -36,22 +37,23 @@ export async function POST(request: NextRequest) {
   if (quotaErr) return fail("Não foi possível falar com a IA agora.", 500);
   if (!allowed) return fail("Você usou todas as chamadas da IA de hoje. Amanhã tem mais.", 429);
 
-  let post;
+  const platforms = videoPlatforms(v);
+  let posts;
   try {
-    post = normalizePost(
+    posts = normalizePosts(
       await generateJson({
         system: POST_SYSTEM,
         prompt: withMemory(postPrompt({
           niche: profile?.niche ?? "conteúdo",
           title: v.title,
           hook: v.hook,
-          platform: v.platform,
+          platforms,
           blocks: blocks as Pick<ScriptBlock, "kind" | "label" | "speech">[],
           shots: (shots ?? []) as { description: string }[],
         }), memory?.items),
         temperature: 0.8,
       }),
-      v.platform,
+      platforms,
     );
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {
@@ -59,13 +61,17 @@ export async function POST(request: NextRequest) {
     }
     return fail("A IA não respondeu direito desta vez. Tente de novo.", 502);
   }
-  if (!post) return fail("A IA não trouxe a publicação desta vez. Tente de novo.", 502);
+  if (posts.length === 0) return fail("A IA não trouxe a publicação desta vez. Tente de novo.", 502);
 
+  // Plataforma que saiu do vídeo perde o texto; as outras são substituídas.
+  await supabase.from("video_posts").delete().eq("video_id", videoId).not("platform", "in", `(${posts.map((p) => p.platform).join(",")})`);
   const { data: saved, error } = await supabase
     .from("video_posts")
-    .upsert({ video_id: videoId, ...post }, { onConflict: "video_id" })
-    .select()
-    .single();
+    .upsert(
+      posts.map((p) => ({ video_id: videoId, ...p })),
+      { onConflict: "video_id,platform" },
+    )
+    .select();
   if (error) return fail("Não foi possível guardar a publicação.", 500);
-  return NextResponse.json({ post: saved });
+  return NextResponse.json({ posts: saved });
 }

@@ -17,7 +17,8 @@ export interface Video {
   format_slug: string | null;
   hook: string | null;
   objective: 'crescer' | 'vender' | 'divertir' | 'ensinar' | null;
-  platform: 'reels' | 'tiktok' | 'shorts' | 'youtube' | null;
+  platform: 'reels' | 'tiktok' | 'shorts' | 'youtube' | null; // a principal: decide vertical ou horizontal
+  platforms: ('reels' | 'tiktok' | 'shorts' | 'youtube')[];
   duration_s: number | null;
   resources: ('sozinho' | 'com_alguem' | 'em_casa' | 'na_rua')[];
   stage: VideoStage;

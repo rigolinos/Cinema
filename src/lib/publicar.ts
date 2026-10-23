@@ -57,20 +57,30 @@ export const POST_SYSTEM = `Você é o Gravaí, e ajuda criadores de conteúdo b
 Escreva em português do Brasil, natural, sem exagero e sem emoji em excesso (no máximo dois na legenda).
 Não prometa resultado, não invente números nem fatos e não use hashtags genéricas como #viral ou #fyp.`;
 
+// Como cada plataforma pede o texto.
+const PLATFORM_RULES: Record<Platform, string> = {
+  reels: "legenda de até 300 caracteres; a primeira linha prende antes do “mais”; 3 a 5 hashtags; sem título",
+  tiktok: "legenda curta, de até 150 caracteres, direta e no tom do TikTok; 3 a 5 hashtags; sem título",
+  shorts: "título de até 70 caracteres e descrição curta de 1 ou 2 frases; 3 hashtags",
+  youtube: "título de até 70 caracteres que diga o que a pessoa ganha assistindo e descrição de 2 ou 3 frases; 3 hashtags",
+};
+
 export function postPrompt(ctx: {
   niche: string;
   title: string;
   hook: string;
-  platform: Platform | null;
+  platforms: Platform[];
   blocks: Pick<ScriptBlock, "kind" | "label" | "speech">[];
   shots: { description: string }[];
 }): string {
   const roteiro = ctx.blocks.map((b) => `- ${b.label || BLOCK_KINDS[b.kind].label}: ${b.speech}`).join("\n");
   const planos = ctx.shots.map((s, i) => `${i + 1}. ${s.description}`).join("\n");
+  const platforms: Platform[] = ctx.platforms.length ? ctx.platforms : ["reels"];
+  const shape = platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",");
   return `Nicho: ${ctx.niche}
 Vídeo: ${ctx.title}
 Gancho: "${ctx.hook}"
-Plataforma: ${ctx.platform ? PLATFORMS[ctx.platform] : "não informada"}
+Onde vai sair: ${platforms.map((p) => PLATFORMS[p]).join(", ")}
 
 Roteiro:
 ${roteiro}
@@ -78,28 +88,37 @@ ${roteiro}
 Planos gravados:
 ${planos || "(sem lista de planos)"}
 
-Prepare a publicação:
-- "caption": legenda curta (até 300 caracteres). A primeira linha prende, a última repete a chamada final do roteiro.
-- "title": ${needsTitle(ctx.platform) ? "título de até 70 caracteres que diga o que a pessoa ganha assistindo" : "deixe vazio"}.
-- "hashtags": de 3 a 5, específicas do nicho e do assunto, sem espaço.
+Prepare a publicação de cada plataforma, com um texto próprio para cada uma (não copie a mesma legenda):
+${platforms.map((p) => `- ${p} (${PLATFORMS[p]}): ${PLATFORM_RULES[p]}.`).join("\n")}
+Em todas, a última frase repete a chamada final do roteiro. Hashtags específicas do nicho e do assunto, sem espaço. Onde não há título, deixe "title" vazio.
+A capa é a mesma para todas:
 - "cover_text": texto da capa com até 5 palavras.
 - "cover_idea": qual dos planos gravados usar como capa e por quê, em uma frase.
 Responda só com JSON:
-{"caption":"","title":"","hashtags":[],"cover_text":"","cover_idea":""}`;
+{"cover_text":"","cover_idea":"","posts":{${shape}}}`;
 }
 
 function clip(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-export function normalizePost(raw: unknown, platform: Platform | null): Post | null {
+export type PlatformPost = Post & { platform: Platform };
+
+// Uma publicação por plataforma; a capa é a mesma. Aceita também a resposta antiga, com um texto só.
+export function normalizePosts(raw: unknown, platforms: Platform[]): PlatformPost[] {
   const r = (raw ?? {}) as Record<string, unknown>;
-  const post: Post = {
-    caption: clip(r.caption, 2200),
-    title: needsTitle(platform) ? clip(r.title, 100) : "",
-    hashtags: cleanHashtags(r.hashtags),
-    cover_text: clip(r.cover_text, 60),
-    cover_idea: clip(r.cover_idea, 300),
-  };
-  return post.caption ? post : null;
+  const byPlatform = (r.posts ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  const list: Platform[] = platforms.length ? platforms : ["reels"];
+  return list.flatMap((platform) => {
+    const p = byPlatform[platform] ?? r;
+    const post: PlatformPost = {
+      platform,
+      caption: clip(p.caption, 2200),
+      title: needsTitle(platform) ? clip(p.title, 100) : "",
+      hashtags: cleanHashtags(p.hashtags),
+      cover_text: clip(r.cover_text, 60),
+      cover_idea: clip(r.cover_idea, 300),
+    };
+    return post.caption ? [post] : [];
+  });
 }

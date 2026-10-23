@@ -10,6 +10,7 @@ import {
   type ScriptBlock,
   type ScriptBrief,
 } from "@/lib/roteiro";
+import { videoPlatforms } from "@/lib/ideas";
 import { withMemory } from "@/lib/memoria";
 import type { Video } from "@/types/database";
 
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
     formatSlug: v.format_slug,
     objective: v.objective,
     platform: v.platform,
+    platforms: videoPlatforms(v),
     durationS: v.duration_s ?? 30,
     resources: v.resources ?? [],
   };

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { radarSince } from "@/lib/radar";
 import { withMemory } from "@/lib/memoria";
-import { IDEA_SYSTEM, ideaPrompt, normalizeIdeas, type Objective, type Platform, type Resource } from "@/lib/ideas";
+import { IDEA_SYSTEM, ideaPrompt, normalizeIdeas, videoPlatforms, type Objective, type Platform, type Resource } from "@/lib/ideas";
 
 function fail(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (!videoId) return fail("Vídeo não informado.", 400);
 
   const [{ data: video }, { data: profile }, { data: previous }, { data: memory }] = await Promise.all([
-    supabase.from("videos").select("id, objective, platform, duration_s, resources").eq("id", videoId).maybeSingle(),
+    supabase.from("videos").select("id, objective, platform, platforms, duration_s, resources").eq("id", videoId).maybeSingle(),
     supabase.from("creator_profiles").select("niche").maybeSingle(),
     supabase.from("video_ideas").select("title, round").eq("video_id", videoId).order("round", { ascending: false }),
     supabase.from("creator_memory").select("items").maybeSingle(),
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         prompt: withMemory(ideaPrompt({
           niche: profile.niche,
           objective: video.objective as Objective,
-          platform: video.platform as Platform,
+          platforms: videoPlatforms(video as { platform: Platform | null; platforms: Platform[] }),
           durationS: video.duration_s,
           resources: (video.resources ?? []) as Resource[],
           request: ask || undefined,

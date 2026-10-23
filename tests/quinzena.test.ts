@@ -27,10 +27,10 @@ describe("quinzena", () => {
 
 describe("começar com um toque", () => {
   it("preenche plataforma do perfil, duração do formato e recursos", () => {
-    expect(quickStartDefaults("tres-erros", ["tiktok", "reels"])).toEqual({ objective: "crescer", platform: "tiktok", durationS: 30, resources: ["sozinho", "em_casa"] });
-    expect(quickStartDefaults("storytime", [])).toMatchObject({ platform: "reels", durationS: 60 });
-    expect(quickStartDefaults("dialogo", ["orkut"])).toMatchObject({ platform: "reels", resources: ["com_alguem", "em_casa"] });
-    expect(quickStartDefaults(null, ["youtube"])).toMatchObject({ platform: "youtube", durationS: 30 });
+    expect(quickStartDefaults("tres-erros", ["tiktok", "reels"])).toEqual({ objective: "crescer", platforms: ["tiktok", "reels"], durationS: 30, resources: ["sozinho", "em_casa"] });
+    expect(quickStartDefaults("storytime", [])).toMatchObject({ platforms: ["reels"], durationS: 60 });
+    expect(quickStartDefaults("dialogo", ["orkut"])).toMatchObject({ platforms: ["reels"], resources: ["com_alguem", "em_casa"] });
+    expect(quickStartDefaults(null, ["youtube"])).toMatchObject({ platforms: ["youtube"], durationS: 30 });
   });
 });
 

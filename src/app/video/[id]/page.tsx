@@ -7,7 +7,7 @@ import { ArrowRight, Check, ChevronLeft, Lock, Share2, Trash2 } from "lucide-rea
 import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
-import { OBJECTIVES, PLATFORMS, durationLabel } from "@/lib/ideas";
+import { OBJECTIVES, durationLabel, platformsLabel, videoPlatforms } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -71,7 +71,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
             <p className="font-mono text-sm text-muted-foreground">
               {[
                 video.objective && OBJECTIVES[video.objective],
-                video.platform && PLATFORMS[video.platform],
+                platformsLabel(videoPlatforms(video)),
                 video.duration_s && durationLabel(video.duration_s),
               ]
                 .filter(Boolean)
@@ -106,7 +106,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
                   <span className="size-2.5 rounded-full bg-rec" aria-hidden="true" />
                   {video.published_at ? "Publicado" : "Publicar"}
                 </span>
-                <span className="text-sm opacity-75">Legenda, hashtags{video.platform === "youtube" || video.platform === "shorts" ? ", título" : ""} e capa prontos para copiar</span>
+                <span className="text-sm opacity-75">Legenda, hashtags{videoPlatforms(video).some((p) => p === "youtube" || p === "shorts") ? ", título" : ""} e capa prontos para copiar</span>
               </span>
               <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
             </Link>

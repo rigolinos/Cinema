@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Check, ChevronLeft, Copy } from "lucide-react";
 import { Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
-import { PLATFORMS } from "@/lib/ideas";
-import { POST_PARTS, captionWithTags, cleanHashtags, needsTitle, type Post } from "@/lib/publicar";
+import { PLATFORMS, platformsLabel, videoPlatforms, type Platform } from "@/lib/ideas";
+import { POST_PARTS, captionWithTags, cleanHashtags, needsTitle, type PlatformPost, type Post } from "@/lib/publicar";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -37,7 +37,8 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 export default function PublicarPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [video, setVideo] = useState<VideoRow | null | undefined>(undefined);
-  const [post, setPost] = useState<Post | null>(null);
+  const [posts, setPosts] = useState<PlatformPost[]>([]);
+  const [active, setActive] = useState<Platform | null>(null);
   const [tagsText, setTagsText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,33 +46,45 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     const db = createClient();
-    Promise.all([db.from("videos").select("*").eq("id", id).maybeSingle(), db.from("video_posts").select("*").eq("video_id", id).maybeSingle()]).then(([v, p]) => {
-      setVideo((v.data as VideoRow | null) ?? null);
-      if (p.data) {
-        setPost(p.data as Post);
-        setTagsText((p.data as Post).hashtags.join(" "));
-      }
+    Promise.all([db.from("videos").select("*").eq("id", id).maybeSingle(), db.from("video_posts").select("*").eq("video_id", id)]).then(([v, p]) => {
+      const row = (v.data as VideoRow | null) ?? null;
+      setVideo(row);
+      show(sortByVideo((p.data ?? []) as PlatformPost[], row));
     });
   }, [id]);
 
+  // Na ordem em que a pessoa marcou as plataformas.
+  function sortByVideo(list: PlatformPost[], v: VideoRow | null): PlatformPost[] {
+    const order = v ? videoPlatforms(v) : [];
+    return [...list].sort((a, b) => order.indexOf(a.platform) - order.indexOf(b.platform));
+  }
+
+  function show(list: PlatformPost[], platform?: Platform) {
+    setPosts(list);
+    const current = list.find((p) => p.platform === platform) ?? list[0];
+    setActive(current?.platform ?? null);
+    setTagsText(current?.hashtags.join(" ") ?? "");
+  }
+
   async function prepare() {
-    if (post && !window.confirm("Preparar de novo substitui a legenda, o título, as hashtags e a capa, inclusive o que você mudou. Continuar?")) return;
+    if (posts.length > 0 && !window.confirm("Preparar de novo substitui a legenda, o título, as hashtags e a capa, inclusive o que você mudou. Continuar?")) return;
     setBusy(true);
     setError(null);
     const res = await fetch("/api/publicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId: id }) }).catch(() => null);
     const data = await res?.json().catch(() => null);
     if (!res?.ok) setError(data?.error ?? "Sem conexão. Tente de novo.");
-    else {
-      setPost(data.post as Post);
-      setTagsText((data.post as Post).hashtags.join(" "));
-    }
+    else show(sortByVideo(data.posts as PlatformPost[], video ?? null), active ?? undefined);
     setBusy(false);
   }
 
+  // Legenda, título e hashtags são de cada plataforma; a capa é uma só para todas.
   async function save(patch: Partial<Post>) {
     if (!post) return;
-    setPost({ ...post, ...patch });
-    const { error } = await createClient().from("video_posts").update(patch).eq("video_id", id);
+    const shared = "cover_text" in patch || "cover_idea" in patch;
+    setPosts((list) => list.map((p) => (shared || p.platform === post.platform ? { ...p, ...patch } : p)));
+    let query = createClient().from("video_posts").update(patch).eq("video_id", id);
+    if (!shared) query = query.eq("platform", post.platform);
+    const { error } = await query;
     if (error) setError("Não deu para salvar a última mudança.");
   }
 
@@ -83,7 +96,10 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
     else setVideo({ ...video, published_at });
   }
 
-  const withTitle = needsTitle(video?.platform ?? null);
+  const post = posts.find((p) => p.platform === active) ?? null;
+  const withTitle = needsTitle(post?.platform ?? video?.platform ?? null);
+  const wanted = video ? videoPlatforms(video) : [];
+  const missing = wanted.filter((p) => posts.length > 0 && !posts.some((x) => x.platform === p));
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 px-5 pb-16 pt-3">
@@ -97,11 +113,11 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
       {video && (
         <>
           <header className="flex flex-col gap-2">
-            <p className="label-set text-muted-foreground">Publicar{video.platform ? ` · ${PLATFORMS[video.platform]}` : ""}</p>
+            <p className="label-set text-muted-foreground">Publicar{wanted.length ? ` · ${platformsLabel(wanted)}` : ""}</p>
             <h1 className="font-display text-[28px]">{video.title}</h1>
           </header>
 
-          {!post && (
+          {posts.length === 0 && (
             <div className="flex flex-col gap-4 rounded-2xl bg-card p-4">
               <span className="label-set flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
@@ -118,8 +134,39 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
             </div>
           )}
 
+          {missing.length > 0 && (
+            <p className="rounded-2xl border border-border p-4 text-sm leading-relaxed">
+              Ainda não preparei o texto para {platformsLabel(missing)}. Toque em <strong>Preparar de novo</strong>, lá embaixo.
+            </p>
+          )}
+
+          {posts.length > 1 && (
+            <div className="flex flex-col gap-2">
+              <span className="label-set text-muted-foreground">Texto para</span>
+              <div className="flex flex-wrap gap-2">
+                {posts.map((p) => (
+                  <button
+                    key={p.platform}
+                    type="button"
+                    aria-pressed={p.platform === active}
+                    onClick={() => {
+                      setActive(p.platform);
+                      setTagsText(p.hashtags.join(" "));
+                    }}
+                    className={cn(
+                      "min-h-11 rounded-full border border-input px-4 text-sm font-semibold",
+                      p.platform === active && "border-foreground bg-foreground text-background",
+                    )}
+                  >
+                    {PLATFORMS[p.platform]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {post && (
-            <>
+            <div key={post.platform} className="flex flex-col gap-6">
               {withTitle && (
                 <section className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
@@ -182,7 +229,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                 className="flex min-h-13 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-bold"
               >
                 {copiedAll ? <Check className="size-5" strokeWidth={2.5} aria-hidden="true" /> : <Copy className="size-5" strokeWidth={1.75} aria-hidden="true" />}
-                {copiedAll ? "Copiado" : "Copiar legenda com hashtags"}
+                {copiedAll ? "Copiado" : posts.length > 1 ? `Copiar legenda do ${PLATFORMS[post.platform]}` : "Copiar legenda com hashtags"}
               </button>
 
               <section className="flex flex-col gap-3 rounded-2xl bg-card p-4">
@@ -210,7 +257,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                   {busy ? <Thinking label="Preparando" /> : "Preparar de novo"}
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {error && (
