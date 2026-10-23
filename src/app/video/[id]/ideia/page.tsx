@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
+import { SaveButton } from "@/components/gravai/guardar";
 import { StepHeader } from "@/components/gravai/step-header";
 import { Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
@@ -425,16 +426,21 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                   const format = findFormat(idea.format_slug);
                   return (
                     <article key={idea.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
-                      {format && <p className="label-set text-muted-foreground">Formato · {format.name}</p>}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="label-set text-muted-foreground">{format ? `Formato · ${format.name}` : ""}</span>
+                        <SaveButton
+                          idea={{ source: "video", source_id: idea.id, title: idea.title, format_slug: idea.format_slug, hook: idea.hook, why: idea.why }}
+                        />
+                      </div>
                       <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
                       <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
                         <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
                         <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
                       </div>
                       {idea.why && (
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                          <strong className="font-semibold text-foreground">Por que funciona:</strong> {idea.why}
-                        </p>
+                        <Explain id="ideia-porque" question="Por que funciona?" closed>
+                          {idea.why}
+                        </Explain>
                       )}
                       <div className="flex gap-2">
                         <button

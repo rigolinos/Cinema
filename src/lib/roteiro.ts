@@ -105,6 +105,7 @@ Escreva em português do Brasil, falado, natural, como a pessoa falaria olhando 
 Frases curtas. Nada de emoji, hashtag ou jargão solto.
 Cada bloco separa: "speech" (o que a pessoa fala), "on_screen" (texto curto que aparece na tela, pode ficar vazio) e "action" (o que acontece em cena, em uma frase, pode ficar vazio).
 Tudo precisa ser gravável com os recursos da pessoa. Não invente números, estudos ou fatos.
+Se mais de uma pessoa fala no mesmo bloco, comece cada fala com quem fala (ex.: "Você: …" e "Amiga: …"), para ficar claro quem fala com quem.
 Escreva a cena de verdade, nunca uma descrição dela: se há virada, piada ou final inesperado, o roteiro traz a fala e a ação exatas da virada, não "aqui entra o final inesperado".`;
 
 export interface ScriptBrief {
@@ -202,4 +203,15 @@ export function normalizeRewrite(raw: unknown): Pick<ScriptBlock, "speech" | "on
   const r = (raw ?? {}) as Record<string, unknown>;
   const block = { speech: clip(r.speech, 1500), on_screen: clip(r.on_screen, 300), action: clip(r.action, 500) };
   return block.speech || block.on_screen || block.action ? block : null;
+}
+
+// Quem fala neste bloco: a pessoa marcada em Pessoas; gravando sozinho, você para a câmera.
+export function speakerOf(
+  block: { person_id?: string | null },
+  people: { id: string; name: string; role: string }[],
+  solo: boolean,
+): string | null {
+  const person = people.find((p) => p.id === block.person_id);
+  if (person) return person.role === "eu" ? "você" : person.name;
+  return solo ? "você, para a câmera" : null;
 }

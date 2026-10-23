@@ -13,11 +13,12 @@ import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { durationLabel } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, scriptAsText, timeline, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
+import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, timeline, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
-type Block = ScriptBlock & { id: string; position: number };
+type Block = ScriptBlock & { id: string; position: number; person_id?: string | null };
+type Person = { id: string; name: string; role: string };
 type Field = "speech" | "on_screen" | "action";
 
 const QUICK = ["Mais curto", "Mais engraçado", "Mais direto"];
@@ -55,11 +56,13 @@ function BlockCard({
   time,
   busy,
   repeated,
+  speaker,
   onSave,
   onRewrite,
 }: {
   block: Block;
   repeated: boolean; // outro bloco do mesmo tipo já veio antes: a explicação não abre de novo
+  speaker: string | null;
   index: number;
   time: { start: number; end: number };
   busy: boolean;
@@ -102,7 +105,7 @@ function BlockCard({
       </Explain>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">Fala</span>
+        <span className="text-sm font-semibold">Fala{speaker ? ` · ${speaker}` : ""}</span>
         <GrowingText
           value={draft.speech}
           onChange={(e) => setDraft((d) => ({ ...d, speech: e.target.value }))}
@@ -195,6 +198,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [busy, setBusy] = useState<string | null>(null); // "rascunho", id de um bloco ou "seguir"
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -204,9 +208,11 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     Promise.all([
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
-    ]).then(([v, b]) => {
+      db.from("video_people").select("id, name, role").eq("video_id", id),
+    ]).then(([v, b, p]) => {
       setVideo((v.data as Video | null) ?? null);
       setBlocks((b.data ?? []) as Block[]);
+      setPeople((p.data ?? []) as Person[]);
     });
   }, [id]);
 
@@ -353,6 +359,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 time={times[i]}
                 busy={busy !== null}
                 repeated={blocks.slice(0, i).some((x) => x.kind === b.kind)}
+                speaker={speakerOf(b, people, isSolo(video.resources ?? []))}
                 onSave={(field, value) => saveField(b, field, value)}
                 onRewrite={(request) => rewrite(b, request)}
               />

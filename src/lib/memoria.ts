@@ -10,7 +10,8 @@ export type SignalKind =
   | "plano_adicionado"
   | "plano_pulado"
   | "ideia_quinzena_usada"
-  | "formato_usado";
+  | "formato_usado"
+  | "ideia_guardada";
 
 export interface Signal {
   kind: SignalKind;
@@ -64,6 +65,8 @@ export function describeSignal(s: Signal): string {
       return `Começou um vídeo com a ideia da quinzena "${d.title}"${d.format ? ` (${d.format})` : ""}`;
     case "formato_usado":
       return `Quis criar no formato ${d.format}`;
+    case "ideia_guardada":
+      return `Guardou para depois a ideia "${d.title}"${d.format ? ` (${d.format})` : ""}`;
   }
 }
 
