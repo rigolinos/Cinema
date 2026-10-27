@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, Bookmark, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, nicheInSentence, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
-import { SaveButton } from "@/components/gravai/guardar";
+import { SaveButton, useSavedIdeas } from "@/components/gravai/guardar";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
@@ -154,6 +154,7 @@ export function StartSheet({
 }
 
 export function IdeiasQuinzena() {
+  const savedCount = useSavedIdeas()?.length ?? 0;
   const [niche, setNiche] = useState<string | null | undefined>(undefined);
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [nicheDraft, setNicheDraft] = useState("");
@@ -213,7 +214,15 @@ export function IdeiasQuinzena() {
             <span>{daysUntilNext() === 1 ? "NOVAS AMANHÃ" : `NOVAS EM ${daysUntilNext()} DIAS`}</span>
           </p>
         )}
-        {niche && <p className="text-sm leading-relaxed text-muted-foreground">Ficam mais com a sua cara a cada vídeo.</p>}
+        <div className="flex items-center justify-between gap-3">
+          {niche && <p className="text-sm leading-relaxed text-muted-foreground">Ficam mais com a sua cara a cada vídeo.</p>}
+          {savedCount > 0 && (
+            <Link href="/ideias/guardadas" className="ml-auto flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-semibold">
+              <Bookmark className="size-4" strokeWidth={1.5} fill="currentColor" aria-hidden="true" />
+              Guardadas {savedCount}
+            </Link>
+          )}
+        </div>
       </div>
 
       {niche === null && (

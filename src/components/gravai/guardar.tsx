@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { Bookmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -93,14 +94,19 @@ export function SaveButton({ idea, className }: { idea: IdeaToSave; className?: 
   async function onClick() {
     const wasSaved = saved;
     const ok = await toggle(idea);
-    setNote(ok ? (wasSaved ? "Tirada das guardadas" : "Guardada nas suas ideias") : "Não deu para guardar");
+    setNote(ok ? (wasSaved ? "Tirada das guardadas" : "Guardada") : "Não deu para guardar");
   }
 
   return (
     <span className={cn("relative flex shrink-0 items-center", className)}>
       {note && (
-        <span role="status" className="absolute right-full mr-1 whitespace-nowrap rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background">
+        <span role="status" className="absolute right-full mr-1 flex items-center gap-2 whitespace-nowrap rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background">
           {note}
+          {note === "Guardada" && (
+            <Link href="/ideias/guardadas" className="underline">
+              Ver
+            </Link>
+          )}
         </span>
       )}
       <button
@@ -109,9 +115,12 @@ export function SaveButton({ idea, className }: { idea: IdeaToSave; className?: 
         disabled={list === null}
         aria-pressed={saved}
         aria-label={saved ? "Tirar das ideias guardadas" : "Guardar esta ideia"}
-        className="-m-2 flex size-11 items-center justify-center disabled:opacity-40"
+        className={cn(
+          "-m-2.5 flex size-11 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-40",
+          saved ? "text-foreground" : "text-muted-foreground",
+        )}
       >
-        <Bookmark className="size-5" strokeWidth={1.75} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+        <Bookmark className="size-4" strokeWidth={1.5} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
       </button>
     </span>
   );

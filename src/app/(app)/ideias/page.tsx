@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { FORMATS } from "@/lib/formats";
 import { RadarSection } from "@/components/gravai/radar";
-import { IdeiasGuardadas } from "@/components/gravai/ideias-guardadas";
 import { IdeiasQuinzena } from "@/components/gravai/ideias-quinzena";
 
-// Ideias: as guardadas, as da quinzena (feitas para o perfil), o radar da semana e a biblioteca de formatos.
+// Ideias: as da quinzena (feitas para o perfil), o radar da semana e a biblioteca de formatos.
 export default function IdeiasPage() {
   return (
     <div className="flex flex-col gap-8">
-      <IdeiasGuardadas />
-
       <IdeiasQuinzena />
 
       <RadarSection />

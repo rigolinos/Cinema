@@ -34,46 +34,43 @@ export function IdeiasGuardadas() {
       .then(({ data }) => setPlatforms(data?.platforms ?? []));
   }, []);
 
-  if (!saved?.length) return null;
+  if (saved === null) return <p className="label-set text-muted-foreground">Carregando…</p>;
+  if (saved.length === 0) {
+    return (
+      <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed text-muted-foreground">
+        Nenhuma ideia guardada ainda. Toque no marcador de uma ideia para guardar e gravar quando quiser.
+      </p>
+    );
+  }
 
+  // Lista compacta: título e gancho à vista; cena, desfecho e porquê num toque.
   return (
-    <section aria-labelledby="guardadas" className="flex flex-col gap-3">
-      <h2 id="guardadas" className="label-set">
-        Guardadas
-      </h2>
+    <section aria-label="Ideias guardadas" className="flex flex-col gap-2.5">
       {saved.map((idea) => {
         const format = findFormat(idea.format_slug);
+        const detail = [idea.situation, idea.payoff && `Desfecho: ${idea.payoff}`, idea.why].filter(Boolean).join(" ");
         return (
-          <article key={idea.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
+          <article key={idea.id} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2">
                 {format && <span className="label-set text-muted-foreground">{format.name}</span>}
-                {idea.video_id && <span className="rounded-md bg-foreground px-2 py-1 font-mono text-xs uppercase text-background">Em vídeo</span>}
+                {idea.video_id && <span className="label-set text-foreground">· Em vídeo</span>}
               </span>
               <SaveButton idea={idea} />
             </div>
-            <h3 className="text-lg font-bold leading-snug">{idea.title}</h3>
-            <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
-              <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-              <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
-            </div>
-            {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
-            {(idea.payoff || idea.why) && (
-              <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
-                {idea.payoff && (
-                  <>
-                    <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
-                  </>
-                )}
-                {idea.why}
+            <h3 className="text-[17px] font-bold leading-snug">{idea.title}</h3>
+            <p className="text-[15px] leading-snug text-muted-foreground">“{idea.hook}”</p>
+            {detail && (
+              <Explain id="ideia-porque" question="Ver a cena e o desfecho" closed>
+                {detail}
               </Explain>
             )}
             {idea.video_id ? (
-              <Link href={`/video/${idea.video_id}`} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
+              <Link href={`/video/${idea.video_id}`} className="flex min-h-11 items-center self-start text-sm font-semibold underline">
                 Abrir o vídeo
               </Link>
             ) : (
-              <button type="button" onClick={() => setPicked(idea)} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
+              <button type="button" onClick={() => setPicked(idea)} className="min-h-11 rounded-full border-[1.5px] border-foreground text-sm font-bold">
                 Gravar esta ideia
               </button>
             )}
