@@ -22,6 +22,10 @@ export interface Video {
   duration_s: number | null;
   resources: ('sozinho' | 'com_alguem' | 'em_casa' | 'na_rua')[];
   stage: VideoStage;
+  situation?: string; // a cena da ideia escolhida
+  payoff?: string; // o desfecho exato da ideia escolhida
+  brief?: string; // o que a pessoa trouxe: briefing, ideia ou roteiro colado
+  start_door?: "zero" | "ideia" | "roteiro" | null; // por onde a pessoa começou
   published_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -33,6 +37,8 @@ export interface VideoIdea {
   title: string;
   format_slug: string | null;
   hook: string;
+  situation?: string;
+  payoff?: string;
   why: string | null;
   chosen: boolean;
 }

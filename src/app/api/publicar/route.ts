@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
-import { videoPlatforms } from "@/lib/ideas";
-import { POST_SYSTEM, normalizePosts, postPrompt } from "@/lib/publicar";
-import type { ScriptBlock } from "@/lib/roteiro";
-import { withMemory } from "@/lib/memoria";
+import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
+import { memoryLines } from "@/lib/memoria";
+import { context, tag } from "@/lib/prompts/base";
+import { personTag, postTask, productTag, videoTag } from "@/lib/prompts/tarefas";
+import { normalizePosts } from "@/lib/publicar";
+import { scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-// Prepara legenda, título, hashtags e capa a partir do roteiro e dos planos. Substitui o texto anterior.
+// Prepara legenda, título, hashtags e capa de cada plataforma a partir do roteiro e dos planos.
+// Substitui o texto anterior. Uma chamada de IA para todas as plataformas.
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -23,8 +26,8 @@ export async function POST(request: NextRequest) {
 
   const [{ data: video }, { data: profile }, { data: blocks }, { data: shots }, { data: memory }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
-    supabase.from("creator_profiles").select("niche").maybeSingle(),
-    supabase.from("script_blocks").select("kind, label, speech").eq("video_id", videoId).order("position"),
+    supabase.from("creator_profiles").select("niche, product, product_edge").maybeSingle(),
+    supabase.from("script_blocks").select("kind, label, speech, on_screen, action").eq("video_id", videoId).order("position"),
     supabase.from("shots").select("description").eq("video_id", videoId).order("position"),
     supabase.from("creator_memory").select("items").maybeSingle(),
   ]);
@@ -37,24 +40,22 @@ export async function POST(request: NextRequest) {
   if (quotaErr) return fail("Não foi possível falar com a IA agora.", 500);
   if (!allowed) return fail("Você usou todas as chamadas da IA de hoje. Amanhã tem mais.", 429);
 
+  const objective = (v.objective ?? null) as Objective | null;
   const platforms = videoPlatforms(v);
+  const script = blocks as Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action">[];
+  const call = [...script].reverse().find((b) => b.kind === "chamada")?.speech;
+  const prompt = context([
+    tag("roteiro", scriptForPrompt(script)),
+    tag("chamada_final", call),
+    tag("planos", (shots ?? []).map((s, i) => `${i + 1}. ${s.description}`)),
+    videoTag({ objective, platforms, durationS: v.duration_s, resources: (v.resources ?? []) as Resource[] }),
+    productTag(objective, { product: profile?.product, edge: profile?.product_edge }),
+    personTag({ niche: profile?.niche, memory: memoryLines(memory?.items) }),
+  ]);
+
   let posts;
   try {
-    posts = normalizePosts(
-      await generateJson({
-        system: POST_SYSTEM,
-        prompt: withMemory(postPrompt({
-          niche: profile?.niche ?? "conteúdo",
-          title: v.title,
-          hook: v.hook,
-          platforms,
-          blocks: blocks as Pick<ScriptBlock, "kind" | "label" | "speech">[],
-          shots: (shots ?? []) as { description: string }[],
-        }), memory?.items),
-        temperature: 0.8,
-      }),
-      platforms,
-    );
+    posts = normalizePosts(await generateJson({ ...postTask({ objective, platforms }), prompt }), platforms);
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {
       return fail("A IA está no limite de uso agora. Tente de novo em alguns minutos.", 503);

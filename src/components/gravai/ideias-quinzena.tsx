@@ -19,7 +19,10 @@ interface FortnightIdea {
   title: string;
   format_slug: string | null;
   hook: string;
+  situation: string;
+  payoff: string;
   why: string | null;
+  objective: Objective | null;
   video_id: string | null;
 }
 
@@ -67,13 +70,13 @@ export function StartSheet({
   onStart,
   onClose,
 }: {
-  idea: { title: string; format_slug: string | null };
+  idea: { title: string; format_slug: string | null; objective?: Objective | null };
   platforms: string[];
   onStart: (answers: QuickStart) => Promise<string | null>;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [answers, setAnswers] = useState<QuickStart>(() => quickStartDefaults(idea.format_slug, platforms));
+  const [answers, setAnswers] = useState<QuickStart>(() => quickStartDefaults(idea.format_slug, platforms, idea.objective ?? "crescer"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -257,7 +260,16 @@ export function IdeiasQuinzena() {
                 {idea.video_id && <span className="rounded-md bg-foreground px-2 py-1 font-mono text-xs uppercase text-background">Em vídeo</span>}
               </span>
               <SaveButton
-                idea={{ source: "quinzena", source_id: idea.id, title: idea.title, format_slug: idea.format_slug, hook: idea.hook, why: idea.why }}
+                idea={{
+                  source: "quinzena",
+                  source_id: idea.id,
+                  title: idea.title,
+                  format_slug: idea.format_slug,
+                  hook: idea.hook,
+                  situation: idea.situation,
+                  payoff: idea.payoff,
+                  why: idea.why,
+                }}
               />
             </div>
             <h3 className="text-lg font-bold leading-snug">{idea.title}</h3>
@@ -265,8 +277,14 @@ export function IdeiasQuinzena() {
               <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
               <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
             </div>
-            {idea.why && (
-              <Explain id="ideia-porque" question="Por que funciona?" closed>
+            {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+            {(idea.payoff || idea.why) && (
+              <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
+                {idea.payoff && (
+                  <>
+                    <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
+                  </>
+                )}
                 {idea.why}
               </Explain>
             )}

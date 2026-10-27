@@ -12,16 +12,15 @@ import { isSolo } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
-import { durationLabel } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, timeline, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
+import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
+import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, timeline, totalSeconds, type ScriptBlock, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
 type Block = ScriptBlock & { id: string; position: number; person_id?: string | null };
 type Person = { id: string; name: string; role: string };
 type Field = "speech" | "on_screen" | "action";
-
-const QUICK = ["Mais curto", "Mais engraçado", "Mais direto"];
+type BlockSuggestion = Suggestion & { blockId: string };
 
 const chip = "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap";
 const input =
@@ -57,10 +56,16 @@ function BlockCard({
   busy,
   repeated,
   speaker,
+  quick,
+  suggestion,
+  onSuggestion,
   onSave,
   onRewrite,
 }: {
   block: Block;
+  quick: string[]; // botões rápidos do objetivo do vídeo
+  suggestion?: BlockSuggestion; // sugestão do Gravaí para este bloco: só muda se a pessoa aceitar
+  onSuggestion: (accept: boolean) => void;
   repeated: boolean; // outro bloco do mesmo tipo já veio antes: a explicação não abre de novo
   speaker: string | null;
   index: number;
@@ -138,6 +143,27 @@ function BlockCard({
         />
       </label>
 
+      {suggestion && (
+        <div className="flex flex-col gap-2.5 rounded-xl border-[1.5px] border-foreground p-3.5">
+          <span className="label-set flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
+            Sugestão do Gravaí
+          </span>
+          {suggestion.speech && <p className="text-[15px] font-medium leading-relaxed">{suggestion.speech}</p>}
+          {suggestion.on_screen && <p className="text-sm text-muted-foreground">Na tela: {suggestion.on_screen}</p>}
+          {suggestion.action && <p className="text-sm text-muted-foreground">Cena: {suggestion.action}</p>}
+          <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>
+          <div className="flex gap-2">
+            <button type="button" disabled={busy} onClick={() => onSuggestion(true)} className="min-h-11 flex-1 rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-40">
+              Usar sugestão
+            </button>
+            <button type="button" disabled={busy} onClick={() => onSuggestion(false)} className="min-h-11 flex-1 rounded-full border-[1.5px] border-foreground text-sm font-semibold disabled:opacity-40">
+              Manter o meu
+            </button>
+          </div>
+        </div>
+      )}
+
       {!asking ? (
         <button
           type="button"
@@ -157,7 +183,7 @@ function BlockCard({
           }}
         >
           <div className="flex flex-wrap gap-2">
-            {QUICK.map((q) => (
+            {quick.map((q) => (
               <button key={q} type="button" disabled={busy} className={chip} onClick={() => rewrite(q)}>
                 {q}
               </button>
@@ -199,6 +225,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [review, setReview] = useState<{ note: string; suggestions: BlockSuggestion[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null); // "rascunho", id de um bloco ou "seguir"
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -244,6 +271,38 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     }
   }
 
+  // Sugestões por bloco: o Gravaí lê o roteiro e sugere pouco, onde importa. Nada muda sem a pessoa tocar.
+  async function askReview() {
+    setBusy("revisar");
+    setError(null);
+    try {
+      const data = await callApi({ videoId: id, mode: "sugestoes" });
+      setReview({ note: data.note ?? "", suggestions: (data.suggestions ?? []) as BlockSuggestion[] });
+    } catch (err) {
+      setError((err as Error).message);
+    }
+    setBusy(null);
+  }
+
+  async function decide(block: Block, accept: boolean) {
+    const suggestion = review?.suggestions.find((s) => s.blockId === block.id);
+    if (!suggestion) return;
+    const name = block.label || BLOCK_KINDS[block.kind].label;
+    if (accept) {
+      const patch = { speech: suggestion.speech, on_screen: suggestion.on_screen, action: suggestion.action };
+      const { error } = await createClient().from("script_blocks").update(patch).eq("id", block.id);
+      if (error) {
+        setError("Não deu para usar a sugestão. Tente de novo.");
+        return;
+      }
+      setBlocks((list) => list.map((b) => (b.id === block.id ? { ...b, ...patch } : b)));
+      logSignal("sugestao_aceita", { bloco: name, antes: block.speech, depois: suggestion.speech }, id);
+    } else {
+      logSignal("sugestao_recusada", { bloco: name, sugestao: suggestion.speech }, id);
+    }
+    setReview((r) => (r ? { ...r, suggestions: r.suggestions.filter((s) => s.blockId !== block.id) } : r));
+  }
+
   async function rewrite(block: Block, request: string) {
     setBusy(block.id);
     setError(null);
@@ -280,7 +339,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   }
 
   const times = timeline(blocks);
-  const checks = video ? checkScript(blocks, video.duration_s) : [];
+  const checks = video ? checkScript(blocks, video.duration_s, video.objective) : [];
   const format = findFormat(video?.format_slug);
 
   return (
@@ -351,6 +410,33 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               </ul>
             )}
 
+            {blocks.length > 0 && !review && (
+              <button
+                type="button"
+                onClick={askReview}
+                disabled={busy !== null}
+                className={cn(
+                  "flex min-h-12 items-center justify-center gap-2 rounded-full font-semibold disabled:opacity-40",
+                  video.start_door === "roteiro" ? "border-[1.5px] border-foreground" : "self-start text-sm underline",
+                )}
+              >
+                <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                {busy === "revisar" ? <Thinking label="Lendo o seu roteiro" /> : "Quero sugestões do Gravaí"}
+              </button>
+            )}
+            {review && (
+              <div className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
+                <span className="label-set flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
+                  Gravaí
+                </span>
+                <p className="leading-relaxed">
+                  {review.note ||
+                    (review.suggestions.length ? "Deixei sugestões nos blocos. Nada muda se você não tocar." : "Seu roteiro já está bom. Não mudaria nada.")}
+                </p>
+              </div>
+            )}
+
             {blocks.map((b, i) => (
               <BlockCard
                 key={b.id}
@@ -360,19 +446,22 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 busy={busy !== null}
                 repeated={blocks.slice(0, i).some((x) => x.kind === b.kind)}
                 speaker={speakerOf(b, people, isSolo(video.resources ?? []))}
+                quick={QUICK_BLOCK[(video.objective ?? "crescer") as Objective]}
+                suggestion={review?.suggestions.find((s) => s.blockId === b.id)}
+                onSuggestion={(accept) => decide(b, accept)}
                 onSave={(field, value) => saveField(b, field, value)}
                 onRewrite={(request) => rewrite(b, request)}
               />
             ))}
 
-            {busy && busy !== "rascunho" && busy !== "seguir" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo o bloco" /></p>}
+            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo o bloco" /></p>}
             {error && (
               <p role="alert" className="rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
                 {error}
               </p>
             )}
 
-            {blocks.length > 0 && (
+            {blocks.length > 0 && video.start_door !== "roteiro" && (
               <button type="button" onClick={draft} disabled={busy !== null} className="min-h-11 self-start text-sm font-semibold underline disabled:opacity-40">
                 {busy === "rascunho" ? <Thinking label="Escrevendo" /> : "Escrever outro rascunho"}
               </button>

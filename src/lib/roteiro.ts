@@ -1,5 +1,4 @@
-import { findFormat } from "./formats";
-import { OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, platformsLabel, type Objective, type Platform, type Resource } from "./ideas";
+import { durationLabel } from "./ideas";
 
 export type BlockKind = "gancho" | "contexto" | "conteudo" | "virada" | "chamada";
 
@@ -22,10 +21,15 @@ export interface ScriptBlock {
 
 // Fala em português, num vídeo curto: por volta de 2,6 palavras por segundo.
 export const WORDS_PER_SECOND = 2.6;
+
+// Limite de palavras de fala do roteiro todo, com 10% de folga para respirar.
+export function maxWords(durationS: number): number {
+  return Math.round(durationS * WORDS_PER_SECOND * 0.9);
+}
 // Bloco sem fala (só imagem ou texto na tela) ainda ocupa tempo.
 const MIN_BLOCK_SECONDS = 1.5;
-// Um gancho que cabe em 3 segundos tem até umas 10 palavras.
-export const HOOK_MAX_WORDS = 10;
+// Um gancho que cabe em 3 segundos tem até umas 12 palavras (o mesmo número em todos os prompts).
+export const HOOK_MAX_WORDS = 12;
 
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
@@ -55,7 +59,7 @@ export interface ScriptCheck {
 }
 
 // Avisos que ajudam sem travar: tempo, gancho e chamada final.
-export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null): ScriptCheck[] {
+export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null, objective?: string | null): ScriptCheck[] {
   const checks: ScriptCheck[] = [];
   const total = totalSeconds(blocks);
 
@@ -78,7 +82,8 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null)
     checks.push({ level: "alerta", text: `Gancho longo (${wordCount(hook.speech)} palavras). Para caber em 3 segundos, fique em até ${HOOK_MAX_WORDS}.` });
   }
 
-  if (!blocks.some((b) => b.kind === "chamada")) {
+  // Em Divertir a chamada é opcional: depois da virada, ela pode matar a risada.
+  if (objective !== "divertir" && !blocks.some((b) => b.kind === "chamada")) {
     checks.push({ level: "alerta", text: "Sem chamada final: diga o que a pessoa faz depois de assistir." });
   }
 
@@ -99,73 +104,6 @@ export function scriptAsText(title: string, blocks: ScriptBlock[]): string {
 }
 
 // ── IA ──────────────────────────────────────────────────────────────────
-
-export const SCRIPT_SYSTEM = `Você é o Gravaí, um roteirista que escreve junto com criadores de conteúdo brasileiros.
-Escreva em português do Brasil, falado, natural, como a pessoa falaria olhando para a câmera.
-Frases curtas. Nada de emoji, hashtag ou jargão solto.
-Cada bloco separa: "speech" (o que a pessoa fala), "on_screen" (texto curto que aparece na tela, pode ficar vazio) e "action" (o que acontece em cena, em uma frase, pode ficar vazio).
-Tudo precisa ser gravável com os recursos da pessoa. Não invente números, estudos ou fatos.
-Se mais de uma pessoa fala no mesmo bloco, comece cada fala com quem fala (ex.: "Você: …" e "Amiga: …"), para ficar claro quem fala com quem.
-Escreva a cena de verdade, nunca uma descrição dela: se há virada, piada ou final inesperado, o roteiro traz a fala e a ação exatas da virada, não "aqui entra o final inesperado".`;
-
-export interface ScriptBrief {
-  niche: string;
-  title: string;
-  hook: string;
-  formatSlug: string | null;
-  objective: Objective | null;
-  platform: Platform | null;
-  platforms?: Platform[]; // todas onde vai sair (a principal está entre elas)
-  durationS: number;
-  resources: Resource[];
-}
-
-function briefText(b: ScriptBrief): string {
-  const format = findFormat(b.formatSlug);
-  return [
-    `Nicho: ${b.niche}`,
-    `Ideia: ${b.title}`,
-    `Gancho escolhido: "${b.hook}"`,
-    format ? `Formato: ${format.name}. Estrutura: ${format.structure.join(" → ")}` : "",
-    b.objective ? `Objetivo: ${OBJECTIVES[b.objective]}` : "",
-    b.platforms?.length ? `Onde vai sair: ${platformsLabel(b.platforms)}` : b.platform ? `Plataforma: ${PLATFORMS[b.platform]}` : "",
-    `Duração: cerca de ${durationLabel(b.durationS)}`,
-    `Recursos: ${b.resources.map((r) => RESOURCES[r]).join(", ") || "não informado"}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-// Orçamento de palavras faladas: um pouco abaixo do tempo, porque pausa e cena também contam.
-export function maxWords(durationS: number): number {
-  return Math.round(durationS * WORDS_PER_SECOND * 0.9);
-}
-
-export function draftPrompt(b: ScriptBrief): string {
-  return `${briefText(b)}
-
-Escreva o roteiro completo em blocos, seguindo a estrutura do formato.
-Limite rígido: somando todas as falas, NO MÁXIMO ${maxWords(b.durationS)} palavras. Conte antes de responder; se passar, corte.
-O primeiro bloco é o gancho (kind "gancho") e usa o gancho escolhido, com até ${HOOK_MAX_WORDS} palavras (se ele for maior, encurte sem perder a ideia).
-O último bloco é a chamada final (kind "chamada"), pedindo uma coisa só.
-Os blocos do meio usam kind "contexto", "conteudo" ou "virada", com um "label" curto (ex.: "Erro 1").
-Responda só com JSON:
-{"blocks":[{"kind":"gancho","label":"","speech":"","on_screen":"","action":""}]}`;
-}
-
-export function rewritePrompt(b: ScriptBrief, blocks: ScriptBlock[], index: number, request: string): string {
-  const roteiro = blocks
-    .map((x, i) => `${i === index ? ">>> " : ""}${i + 1}. [${x.kind}${x.label ? " · " + x.label : ""}] FALA: ${x.speech} | TELA: ${x.on_screen} | CENA: ${x.action}`)
-    .join("\n");
-  return `${briefText(b)}
-
-Roteiro atual (o bloco marcado com >>> é o que vai mudar):
-${roteiro}
-
-Reescreva só o bloco ${index + 1}. Pedido da pessoa: ${request}
-Mantenha o papel do bloco no roteiro e o tom dos outros blocos.
-Responda só com JSON: {"speech":"","on_screen":"","action":""}`;
-}
 
 function clip(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().replace(/[ \t]+/g, " ").slice(0, max) : "";
@@ -214,4 +152,41 @@ export function speakerOf(
   const person = people.find((p) => p.id === block.person_id);
   if (person) return person.role === "eu" ? "você" : person.name;
   return solo ? "você, para a câmera" : null;
+}
+
+// ── Sugestões por bloco (no roteiro que a pessoa trouxe ou editou) ─────────
+export interface Suggestion {
+  block: number; // a partir de 1, como no pedido
+  speech: string;
+  on_screen: string;
+  action: string;
+  reason: string;
+}
+
+// No máximo 4 sugestões e 1 por bloco, só em blocos que existem e só se mudarem algo.
+export function normalizeSuggestions(raw: unknown, blocks: Pick<ScriptBlock, "speech" | "on_screen" | "action">[]): { note: string; suggestions: Suggestion[] } {
+  const r = (raw ?? {}) as { note?: unknown; suggestions?: unknown };
+  const seen = new Set<number>();
+  const suggestions: Suggestion[] = [];
+  for (const item of Array.isArray(r.suggestions) ? r.suggestions : []) {
+    const s = (item ?? {}) as Record<string, unknown>;
+    const block = Number(s.block);
+    const original = blocks[block - 1];
+    if (!Number.isInteger(block) || !original || seen.has(block)) continue;
+    const next = { speech: clip(s.speech, 1500), on_screen: clip(s.on_screen, 300), action: clip(s.action, 500) };
+    const reason = clip(s.reason, 300);
+    const changed = next.speech !== original.speech.trim() || next.on_screen !== original.on_screen.trim() || next.action !== original.action.trim();
+    if (!reason || !(next.speech || next.on_screen || next.action) || !changed) continue;
+    seen.add(block);
+    suggestions.push({ block, ...next, reason });
+    if (suggestions.length === 4) break;
+  }
+  return { note: clip(r.note, 400), suggestions };
+}
+
+// O roteiro como vai no contexto: blocos numerados a partir de 1; o marcado com >>> é o que muda.
+export function scriptForPrompt(blocks: Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action">[], marked?: number): string {
+  return blocks
+    .map((b, i) => `${i === marked ? ">>> " : ""}${i + 1}. [${b.kind}${b.label ? ` · ${b.label}` : ""}] FALA: ${b.speech} | TELA: ${b.on_screen} | CENA: ${b.action}`)
+    .join("\n");
 }

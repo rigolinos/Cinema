@@ -57,8 +57,14 @@ export function IdeiasGuardadas() {
               <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
               <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
             </div>
-            {idea.why && (
-              <Explain id="ideia-porque" question="Por que funciona?" closed>
+            {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+            {(idea.payoff || idea.why) && (
+              <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
+                {idea.payoff && (
+                  <>
+                    <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
+                  </>
+                )}
                 {idea.why}
               </Explain>
             )}

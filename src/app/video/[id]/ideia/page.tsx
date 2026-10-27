@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
+import { BriefBox, OwnIdeaBox, PasteBox } from "@/components/gravai/portas";
 import { SaveButton } from "@/components/gravai/guardar";
 import { StepHeader } from "@/components/gravai/step-header";
 import { Thinking } from "@/components/gravai/thinking";
@@ -14,6 +15,7 @@ import {
   OBJECTIVES,
   PLATFORMS,
   QUESTION_ORDER,
+  QUICK_IDEAS,
   RESOURCES,
   durationLabel,
   mainPlatform,
@@ -33,6 +35,7 @@ import type { Video, VideoIdea } from "@/types/database";
 const QUESTIONS: Record<QuestionId, string> = {
   niche: "Sobre o que é o seu perfil? Pode ser bem simples, tipo “treino em casa” ou “receitas baratas”.",
   objective: "O que esse vídeo precisa fazer por você?",
+  produto: "O que você vende, e por que alguém compraria de você e não de outro?",
   platform: "Onde ele vai sair? Pode marcar mais de um.",
   duration: "E quanto tempo, mais ou menos?",
   resources: "Com o que você conta hoje? Pode marcar mais de um.",
@@ -56,7 +59,6 @@ const NICHE_EXAMPLES = [
   "Tecnologia",
   "Bem-estar",
 ];
-const QUICK_REQUESTS = ["Outras ideias", "Mais engraçado", "Mais fácil de gravar"];
 
 const chip =
   "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap transition-colors";
@@ -68,6 +70,8 @@ function answerText(q: QuestionId, a: Answers): string {
       return a.niche ?? "";
     case "objective":
       return a.objective ? OBJECTIVES[a.objective] : "";
+    case "produto":
+      return [a.product, a.productEdge].filter(Boolean).join(" · ");
     case "platform":
       return platformsLabel(a.platforms);
     case "duration":
@@ -115,6 +119,9 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [nicheDraft, setNicheDraft] = useState("");
   const [resourcesDraft, setResourcesDraft] = useState<Resource[]>([]);
   const [platformsDraft, setPlatformsDraft] = useState<Platform[]>([]);
+  const [productDraft, setProductDraft] = useState({ product: "", edge: "" });
+  const [door, setDoor] = useState<"zero" | "ideia" | "roteiro">("zero");
+  const [brief, setBrief] = useState("");
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   const [requests, setRequests] = useState<Record<number, string>>({});
   const [ask, setAsk] = useState("");
@@ -129,7 +136,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     Promise.all([
       createClient().from("videos").select("*").eq("id", id).maybeSingle(),
-      createClient().from("creator_profiles").select("niche").maybeSingle(),
+      createClient().from("creator_profiles").select("niche, product, product_edge").maybeSingle(),
       createClient().from("video_ideas").select("*").eq("video_id", id).order("round").order("created_at"),
       createClient().from("creator_memory").select("items").maybeSingle(),
     ]).then(([v, p, i, m]) => {
@@ -139,9 +146,14 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         return;
       }
       const video = v.data as Video;
+      setDoor(video.start_door ?? "zero");
+      setBrief(video.brief ?? "");
+      setProductDraft({ product: p.data?.product ?? "", edge: p.data?.product_edge ?? "" });
       setAnswers({
         niche: p.data?.niche ?? null,
         objective: video.objective,
+        product: p.data?.product ?? null,
+        productEdge: p.data?.product_edge ?? null,
         platforms: videoPlatforms(video),
         durationS: video.duration_s,
         resources: video.resources ?? [],
@@ -154,21 +166,23 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
   const question = editing ?? nextQuestion(answers);
 
+  // Pedido: "outras ideias", um botão rápido, um pedido escrito, ou "mais assim" (like) sobre uma ideia.
   const requestIdeas = useCallback(
-    async (request?: string) => {
+    async (request?: string, like?: string) => {
       setBusy("ideas");
       setError(null);
       const res = await fetch("/api/ideias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId: id, request }),
+        body: JSON.stringify({ videoId: id, request, like }),
       }).catch(() => null);
       const body = await res?.json().catch(() => null);
       if (!res?.ok) {
         setError(body?.error ?? "Sem conexão. Tente de novo.");
       } else {
         const fresh = body.ideas as VideoIdea[];
-        if (request && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: request }));
+        const said = like ? `Mais assim: ${like}` : request;
+        if (said && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: said }));
         if (fresh[0]) jumpToRound.current = fresh[0].round;
         setIdeas((prev) => [...prev, ...fresh]);
         setAsk("");
@@ -178,9 +192,10 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     [id],
   );
 
-  // Com todas as respostas e nenhuma ideia ainda, o Gravaí já sugere.
+  // Vindo de "Usar este formato", com todas as respostas, o Gravaí já sugere naquele formato.
+  // Nos outros casos, a porta "Do zero" mostra antes a caixa do briefing (opcional).
   useEffect(() => {
-    if (loaded && !question && ideas.length === 0 && !autoAsked.current) {
+    if (loaded && !question && ideas.length === 0 && !autoAsked.current && searchParams.get("formato")) {
       autoAsked.current = true;
       // Vindo de "Usar este formato", a primeira rodada já usa o formato escolhido.
       const chosen = findFormat(searchParams.get("formato"));
@@ -204,7 +219,9 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     const { error } =
       q === "niche"
         ? await createClient().from("creator_profiles").upsert({ niche: patch.niche }, { onConflict: "user_id" })
-        : await createClient()
+        : q === "produto"
+          ? await createClient().from("creator_profiles").upsert({ product: patch.product, product_edge: patch.productEdge }, { onConflict: "user_id" })
+          : await createClient()
             .from("videos")
             .update(
               q === "objective"
@@ -230,6 +247,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     if (q === "niche") setNicheDraft(answers.niche ?? "");
     if (q === "resources") setResourcesDraft(answers.resources);
     if (q === "platform") setPlatformsDraft(answers.platforms);
+    if (q === "produto") setProductDraft({ product: answers.product ?? "", edge: answers.productEdge ?? "" });
     setEditing(q);
   }
 
@@ -267,9 +285,13 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
         {loaded && (
           <Assistant>
-            {knowsYou
-              ? "Bora achar a ideia. Já sei um pouco do que você curte, então elas vêm mais com a sua cara."
-              : "Bora achar a ideia. Umas perguntas rápidas e eu te trago sugestões."}
+            {door === "ideia"
+              ? "Bora deixar a sua ideia pronta para gravar. Antes, umas perguntas rápidas sobre o vídeo."
+              : door === "roteiro"
+                ? "Bora organizar o seu roteiro. Antes, umas perguntas rápidas sobre o vídeo, para os planos e a publicação."
+                : knowsYou
+                  ? "Bora achar a ideia. Já sei um pouco do que você curte, então elas vêm mais com a sua cara."
+                  : "Bora achar a ideia. Umas perguntas rápidas e eu te trago sugestões."}
           </Assistant>
         )}
 
@@ -330,6 +352,45 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                   </button>
                 ))}
               </div>
+            )}
+
+            {question === "produto" && (
+              <form
+                className="flex flex-col gap-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (productDraft.product.trim() && productDraft.edge.trim())
+                    save("produto", { product: productDraft.product.trim().slice(0, 200), productEdge: productDraft.edge.trim().slice(0, 200) });
+                }}
+              >
+                <label className="flex flex-col gap-1.5 text-sm font-semibold">
+                  O que você vende
+                  <input
+                    value={productDraft.product}
+                    onChange={(e) => setProductDraft((d) => ({ ...d, product: e.target.value }))}
+                    maxLength={200}
+                    placeholder="Ex.: bolo de pote caseiro, entrega no bairro"
+                    className="min-h-12 rounded-xl border border-input bg-card px-4 text-base font-normal outline-none focus:border-foreground"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm font-semibold">
+                  Por que comprar de você
+                  <input
+                    value={productDraft.edge}
+                    onChange={(e) => setProductDraft((d) => ({ ...d, edge: e.target.value }))}
+                    maxLength={200}
+                    placeholder="Ex.: feito no dia, recheio que não enjoa"
+                    className="min-h-12 rounded-xl border border-input bg-card px-4 text-base font-normal outline-none focus:border-foreground"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={!productDraft.product.trim() || !productDraft.edge.trim() || busy !== null}
+                  className="mt-2 min-h-13 w-full rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                >
+                  Pronto, seguir
+                </button>
+              </form>
             )}
 
             {question === "platform" && (
@@ -405,7 +466,13 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
-        {!question && rounds.length > 0 && (
+        {loaded && !question && door === "ideia" && <OwnIdeaBox videoId={id} initial={brief} />}
+        {loaded && !question && door === "roteiro" && <PasteBox videoId={id} initial="" />}
+        {loaded && !question && door === "zero" && rounds.length === 0 && busy !== "ideas" && !searchParams.get("formato") && (
+          <BriefBox videoId={id} initial={brief} busy={busy !== null} onReady={() => requestIdeas()} />
+        )}
+
+        {door === "zero" && !question && rounds.length > 0 && (
           <div className="flex flex-col gap-1">
             <Assistant>
               Separei estas para quem fala de <strong>{answers.niche}</strong>. Escolha uma ou peça outras.
@@ -416,7 +483,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
-        {!question &&
+        {door === "zero" &&
+          !question &&
           rounds.map((round) => (
             <div key={round} id={`rodada-${round}`} className="flex scroll-mt-32 flex-col gap-3.5">
               {requests[round] && <Mine text={requests[round]} />}
@@ -429,7 +497,16 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                       <div className="flex items-center justify-between gap-2">
                         <span className="label-set text-muted-foreground">{format ? `Formato · ${format.name}` : ""}</span>
                         <SaveButton
-                          idea={{ source: "video", source_id: idea.id, title: idea.title, format_slug: idea.format_slug, hook: idea.hook, why: idea.why }}
+                          idea={{
+                            source: "video",
+                            source_id: idea.id,
+                            title: idea.title,
+                            format_slug: idea.format_slug,
+                            hook: idea.hook,
+                            situation: idea.situation ?? "",
+                            payoff: idea.payoff ?? "",
+                            why: idea.why,
+                          }}
                         />
                       </div>
                       <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
@@ -437,26 +514,30 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                         <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
                         <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
                       </div>
-                      {idea.why && (
-                        <Explain id="ideia-porque" question="Por que funciona?" closed>
+                      {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+                      {(idea.payoff || idea.why) && (
+                        <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
+                          {idea.payoff && (
+                            <>
+                              <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
+                            </>
+                          )}
                           {idea.why}
                         </Explain>
                       )}
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={busy !== null}
-                          onClick={() => choose(idea)}
-                          className="min-h-12 flex-1 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
-                        >
-                          {idea.chosen ? "Seguir com esta" : "Quero essa"}
+                      <button
+                        type="button"
+                        disabled={busy !== null}
+                        onClick={() => choose(idea)}
+                        className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                      >
+                        {idea.chosen ? "Seguir com esta" : "Quero essa"}
+                      </button>
+                      <div className="flex justify-center gap-6 text-sm font-semibold">
+                        <button type="button" disabled={busy !== null} onClick={() => requestIdeas(undefined, idea.title)} className="min-h-11 underline disabled:opacity-40">
+                          Mais assim
                         </button>
-                        <button
-                          type="button"
-                          disabled={busy !== null}
-                          onClick={() => setAsk(`Ajuste a ideia "${idea.title}": `)}
-                          className="min-h-12 rounded-full border-[1.5px] border-foreground px-5 font-semibold disabled:opacity-40"
-                        >
+                        <button type="button" disabled={busy !== null} onClick={() => setAsk(`Ajuste a ideia "${idea.title}": `)} className="min-h-11 underline disabled:opacity-40">
                           Ajustar
                         </button>
                       </div>
@@ -466,9 +547,9 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             </div>
           ))}
 
-        {!question && rounds.length > 0 && (
+        {door === "zero" && !question && rounds.length > 0 && (
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
-            {QUICK_REQUESTS.map((r) => (
+            {QUICK_IDEAS[answers.objective ?? "crescer"].map((r) => (
               <button key={r} type="button" disabled={busy !== null} className={chip} onClick={() => requestIdeas(r)}>
                 {r}
               </button>
@@ -480,7 +561,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         {error && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
             {error}
-            {!question && busy === null && (
+            {door === "zero" && !question && busy === null && (
               <button type="button" onClick={() => requestIdeas()} className="min-h-11 font-semibold text-foreground underline">
                 Tentar de novo
               </button>
@@ -490,7 +571,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         <div ref={bottom} />
       </div>
 
-      {!question && rounds.length > 0 && (
+      {door === "zero" && !question && rounds.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
           <form
             className="mx-auto flex max-w-lg flex-col gap-2.5 px-4 py-3"
