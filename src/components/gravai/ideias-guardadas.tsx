@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Explain } from "@/components/gravai/explain";
 import { SaveButton, useSavedIdeas, type SavedIdea } from "@/components/gravai/guardar";
-import { OpenVideoLink, RecButton } from "@/components/gravai/rec-button";
+import { OpenVideoLink, UseIdeaButton } from "@/components/gravai/idea-action";
 import { StartSheet } from "@/components/gravai/ideias-quinzena";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -67,7 +67,7 @@ export function IdeiasGuardadas() {
                 </Explain>
               )}
               <span className="ml-auto">
-                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <RecButton onClick={() => setPicked(idea)} ariaLabel={`Gravar a ideia: ${idea.title}`} />}
+                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <UseIdeaButton onClick={() => setPicked(idea)} ariaLabel={`Usar a ideia: ${idea.title}`} />}
               </span>
             </div>
           </article>

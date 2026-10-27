@@ -10,7 +10,7 @@ import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatfor
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
 import { SaveButton, useSavedIdeas } from "@/components/gravai/guardar";
-import { OpenVideoLink, RecButton } from "@/components/gravai/rec-button";
+import { OpenVideoLink, UseIdeaButton } from "@/components/gravai/idea-action";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
@@ -300,7 +300,7 @@ export function IdeiasQuinzena() {
                 </Explain>
               )}
               <span className="ml-auto">
-                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <RecButton onClick={() => setPicked(idea)} ariaLabel={`Gravar a ideia: ${idea.title}`} />}
+                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <UseIdeaButton onClick={() => setPicked(idea)} ariaLabel={`Usar a ideia: ${idea.title}`} />}
               </span>
             </div>
           </article>
