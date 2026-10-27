@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Explain } from "@/components/gravai/explain";
 import { SaveButton, useSavedIdeas, type SavedIdea } from "@/components/gravai/guardar";
+import { OpenVideoLink, RecButton } from "@/components/gravai/rec-button";
 import { StartSheet } from "@/components/gravai/ideias-quinzena";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -60,20 +60,16 @@ export function IdeiasGuardadas() {
             </div>
             <h3 className="idea-title">{idea.title}</h3>
             <p className="text-[15px] leading-snug text-muted-foreground">“{idea.hook}”</p>
-            {detail && (
-              <Explain id="ideia-porque" question="Ver a cena e o desfecho" closed>
-                {detail}
-              </Explain>
-            )}
-            {idea.video_id ? (
-              <Link href={`/video/${idea.video_id}`} className="flex min-h-11 items-center self-start text-sm font-semibold underline">
-                Abrir o vídeo
-              </Link>
-            ) : (
-              <button type="button" onClick={() => setPicked(idea)} className="min-h-11 rounded-full border-[1.5px] border-foreground text-sm font-bold">
-                Gravar esta ideia
-              </button>
-            )}
+            <div className="flex items-end justify-between gap-3">
+              {detail && (
+                <Explain id="ideia-porque" question="Ver a cena e o desfecho" closed className="min-w-0 flex-1">
+                  {detail}
+                </Explain>
+              )}
+              <span className="ml-auto">
+                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <RecButton onClick={() => setPicked(idea)} ariaLabel={`Gravar a ideia: ${idea.title}`} />}
+              </span>
+            </div>
           </article>
         );
       })}

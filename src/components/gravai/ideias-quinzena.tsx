@@ -10,6 +10,7 @@ import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatfor
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
 import { SaveButton, useSavedIdeas } from "@/components/gravai/guardar";
+import { OpenVideoLink, RecButton } from "@/components/gravai/rec-button";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
@@ -287,25 +288,21 @@ export function IdeiasQuinzena() {
               <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
             </div>
             {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
-            {(idea.payoff || idea.why) && (
-              <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
-                {idea.payoff && (
-                  <>
-                    <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
-                  </>
-                )}
-                {idea.why}
-              </Explain>
-            )}
-            {idea.video_id ? (
-              <Link href={`/video/${idea.video_id}`} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
-                Abrir o vídeo
-              </Link>
-            ) : (
-              <button type="button" onClick={() => setPicked(idea)} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
-                Gravar esta ideia
-              </button>
-            )}
+            <div className="flex items-end justify-between gap-3">
+              {(idea.payoff || idea.why) && (
+                <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho" : "Por que funciona?"} closed className="min-w-0 flex-1">
+                  {idea.payoff && (
+                    <>
+                      <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
+                    </>
+                  )}
+                  {idea.why}
+                </Explain>
+              )}
+              <span className="ml-auto">
+                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <RecButton onClick={() => setPicked(idea)} ariaLabel={`Gravar a ideia: ${idea.title}`} />}
+              </span>
+            </div>
           </article>
         );
       })}
