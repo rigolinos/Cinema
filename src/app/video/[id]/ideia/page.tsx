@@ -76,21 +76,28 @@ function Assistant({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Resposta da pessoa. Tocar nela reabre a pergunta: o lápis mostra que dá para mudar,
-// e a nota explica o que já veio preenchido (ex.: o nicho, que vem do perfil).
+// Resposta da pessoa. Tocar nela (ou em "Mudar", ao lado) reabre a pergunta no mesmo lugar.
+// A nota explica o que já veio preenchido (ex.: o nicho, que vem do perfil).
 function Mine({ text, onClick, note }: { text: string; onClick?: () => void; note?: string }) {
   return (
-    <div className="flex max-w-[85%] flex-col items-end gap-1 self-end">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={!onClick}
-        aria-label={onClick ? `Mudar resposta: ${text}` : undefined}
-        className="flex items-center gap-2 rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-3 text-left text-[15px] leading-snug text-primary-foreground"
-      >
-        {text}
-        {onClick && <Pencil className="size-3.5 shrink-0 opacity-60" strokeWidth={2} aria-hidden="true" />}
-      </button>
+    <div className="flex max-w-[92%] flex-col items-end gap-1 self-end">
+      <div className="flex items-center gap-2.5">
+        {onClick && (
+          <button type="button" onClick={onClick} className="flex min-h-11 items-center gap-1 text-sm text-muted-foreground">
+            <Pencil className="size-3.5" strokeWidth={2} aria-hidden="true" />
+            Mudar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={!onClick}
+          aria-label={onClick ? `Mudar resposta: ${text}` : undefined}
+          className="rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-3 text-left text-[15px] leading-snug text-primary-foreground"
+        >
+          {text}
+        </button>
+      </div>
       {note && onClick && <span className="text-xs text-muted-foreground">{note}</span>}
     </div>
   );
@@ -303,7 +310,6 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     router.push(`/video/${id}/roteiro`);
   }
 
-  const answered = QUESTION_ORDER.filter((q) => q !== question && answerText(q, answers));
   const rounds = [...new Set(ideas.map((i) => i.round))];
 
   return (
@@ -325,19 +331,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           </Assistant>
         )}
 
-        {answered.map((q) => (
-          <div key={q} className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">{QUESTIONS[q]}</p>
-            <Mine
-              text={answerText(q, answers)}
-              onClick={busy ? undefined : () => edit(q)}
-              note={q === "niche" || q === "produto" ? "Veio do seu perfil · toque para mudar" : undefined}
-            />
-          </div>
-        ))}
-
-        {loaded && question && (
-          <div className="flex flex-col gap-3">
+        {loaded &&
+          QUESTION_ORDER.map((q) => {
+            if (q === question) {
+              return (
+                <div key={q} className="flex flex-col gap-3">
             <Assistant>{QUESTIONS[question]}</Assistant>
 
             {question === "niche" && (
@@ -350,7 +348,12 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               >
                 <div className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
                   {NICHE_EXAMPLES.map((n) => (
-                    <button key={n} type="button" className={chip} onClick={() => {
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={nicheDraft.trim().toLowerCase() === n.toLowerCase()}
+                      className={cn(chip, nicheDraft.trim().toLowerCase() === n.toLowerCase() && chipOn)}
+                      onClick={() => {
                         setNicheDraft(n);
                         focusNiche();
                       }}
@@ -502,8 +505,27 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 </button>
               </div>
             )}
-          </div>
-        )}
+
+              {editing === q && (
+                <button type="button" onClick={() => setEditing(null)} className="flex min-h-11 items-center self-start text-sm text-muted-foreground underline">
+                  Manter como estava
+                </button>
+              )}
+                </div>
+              );
+            }
+            if (!answerText(q, answers)) return null;
+            return (
+              <div key={q} className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground">{QUESTIONS[q]}</p>
+                <Mine
+                  text={answerText(q, answers)}
+                  onClick={busy ? undefined : () => edit(q)}
+                  note={q === "niche" || q === "produto" ? "Veio do seu perfil" : undefined}
+                />
+              </div>
+            );
+          })}
 
         {loaded && !question && door === "ideia" && <OwnIdeaBox videoId={id} initial={brief} />}
         {loaded && !question && door === "roteiro" && <PasteBox videoId={id} initial="" />}
