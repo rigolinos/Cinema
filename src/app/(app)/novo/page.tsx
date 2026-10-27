@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, FileText, Lightbulb, Sparkles } from "lucide-react";
+import { FileText, Lightbulb, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { isEmptyDraft } from "@/lib/meus-videos";
@@ -86,21 +86,22 @@ function Doors() {
         <p className="label-set text-muted-foreground">Novo vídeo</p>
         <h1 className="font-display text-[30px]">Por onde você quer começar?</h1>
       </header>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         {DOORS.map(({ id, icon: Icon, title, text }) => (
           <button
             key={id}
             type="button"
             disabled={busy !== null}
             onClick={() => open(id)}
-            className="flex items-center gap-4 rounded-2xl border-[1.5px] border-foreground bg-card p-5 text-left disabled:opacity-50"
+            className="flex items-center gap-3.5 rounded-2xl bg-card p-4 text-left transition-transform active:scale-[0.99] disabled:opacity-50"
           >
-            <Icon className="size-6 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden="true">
+              <Icon className="size-5" strokeWidth={1.75} />
+            </span>
             <span className="flex flex-1 flex-col gap-1">
-              <span className="text-lg font-bold">{title}</span>
+              <span className="text-[17px] font-bold">{title}</span>
               <span className="text-sm leading-relaxed text-muted-foreground">{busy === id ? "Abrindo…" : text}</span>
             </span>
-            <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
           </button>
         ))}
       </div>
