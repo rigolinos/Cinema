@@ -58,7 +58,7 @@ export function IdeiasGuardadas() {
               </span>
               <SaveButton idea={idea} />
             </div>
-            <h3 className="text-[17px] font-bold leading-snug">{idea.title}</h3>
+            <h3 className="idea-title">{idea.title}</h3>
             <p className="text-[15px] leading-snug text-muted-foreground">“{idea.hook}”</p>
             {detail && (
               <Explain id="ideia-porque" question="Ver a cena e o desfecho" closed>

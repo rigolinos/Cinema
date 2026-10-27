@@ -281,12 +281,12 @@ export function IdeiasQuinzena() {
                 }}
               />
             </div>
-            <h3 className="text-lg font-bold leading-snug">{idea.title}</h3>
+            <h3 className="idea-title">{idea.title}</h3>
             <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
               <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-              <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
+              <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
             </div>
-            {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+            {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
             {(idea.payoff || idea.why) && (
               <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
                 {idea.payoff && (

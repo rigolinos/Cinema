@@ -172,6 +172,15 @@
     letter-spacing: -0.025em;
     line-height: 1.02;
   }
+  /* Nome da ideia nos cartões: a letra dos títulos, menor e menos larga, para não competir com o cabeçalho. */
+  .idea-title {
+    font-family: var(--font-archivo);
+    font-size: 19px;
+    font-weight: 800;
+    font-stretch: 112%;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+  }
   /* Rótulos técnicos: cena, plano, take, tempo. */
   .label-set {
     font-family: var(--font-plex-mono);
