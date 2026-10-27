@@ -10,7 +10,7 @@ import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatfor
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
 import { SaveButton } from "@/components/gravai/guardar";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
 
@@ -237,7 +237,7 @@ export function IdeiasQuinzena() {
         </form>
       )}
 
-      {niche && !ideas && !error && <p className="label-set text-muted-foreground"><Thinking label="Separando suas ideias" /></p>}
+      {niche && !ideas && !error && <p className="label-set text-muted-foreground"><Thinking label="Separando suas ideias" steps={STEPS.ideias} /></p>}
 
       {error && (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">

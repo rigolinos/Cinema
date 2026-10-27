@@ -1,17 +1,20 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Minus, Plus, Star, X } from "lucide-react";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
+import { PLATFORMS, durationLabel, type Platform } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { ANGLES, FRAMINGS, MOVEMENTS, isSolo, shotTerms, type Shot } from "@/lib/planos";
-import { BLOCK_KINDS, speakerOf, type ScriptBlock } from "@/lib/roteiro";
+import { BLOCK_KINDS, speakerOf, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
 import { CHECKLIST, firstPending, nextPending, progress, setOrder, setupChange } from "@/lib/set";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
+type Post = { platform: Platform; caption: string; hashtags: string[] };
 type Block = ScriptBlock & { id: string; position: number; person_id?: string | null };
 type SetShot = Shot & { id: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
 type Phase = "checklist" | "set" | "fim";
@@ -44,6 +47,10 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const [size, setSize] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null); // "Plano 3 gravado": diz o que aconteceu ao tocar
+  // Fim do vídeo: a publicação já preparada e a frase do Gravaí (vêm da mesma chamada de IA).
+  const [finale, setFinale] = useState<{ post: Post | null; closing: string; loading: boolean }>({ post: null, closing: "", loading: false });
+  const [showList, setShowList] = useState(false);
+  const finaleStarted = useRef(false);
 
   useWakeLock(phase === "set");
 
@@ -108,13 +115,38 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
     }
   }
 
-  async function finishVideo() {
+  async function finishVideo(to: "publicar" | "visao") {
     const { error } = await createClient().from("videos").update({ stage: "pronto" }).eq("id", id);
     if (error) setError("Não deu para concluir. Tente de novo.");
-    else router.push(`/video/${id}`);
+    else router.push(to === "publicar" ? `/video/${id}/publicar` : `/video/${id}`);
   }
 
   const p = progress(shots);
+
+  // Tudo gravado: o Gravaí já deixa a publicação pronta (se ainda não houver) e comemora com a pessoa.
+  useEffect(() => {
+    if (phase !== "fim" || !p.done || !video || finaleStarted.current) return;
+    finaleStarted.current = true;
+    const db = createClient();
+    db.from("video_posts")
+      .select("platform, caption, hashtags")
+      .eq("video_id", id)
+      .then(async ({ data }) => {
+        const existing = (data ?? []) as Post[];
+        if (existing.length) {
+          setFinale({ post: existing[0], closing: "", loading: false });
+          return;
+        }
+        setFinale((f) => ({ ...f, loading: true }));
+        const res = await fetch("/api/publicar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videoId: id }),
+        }).catch(() => null);
+        const body = await res?.json().catch(() => null);
+        setFinale({ post: res?.ok ? ((body?.posts ?? [])[0] ?? null) : null, closing: res?.ok ? (body?.closing ?? "") : "", loading: false });
+      });
+  }, [phase, p.done, video, id]);
   const shot = shots[current];
   const block = blocks.find((b) => b.id === shot?.block_id);
   const blockNumber = block ? blocks.indexOf(block) + 1 : 0;
@@ -291,16 +323,62 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
             </>
           )}
 
-          {video && shots.length > 0 && phase === "fim" && (
+          {video && shots.length > 0 && phase === "fim" && p.done && (
             <>
               <div className="flex flex-col gap-2">
-                <h1 className="font-display text-[28px]">{p.done ? "Tudo gravado." : "Faltou algum plano?"}</h1>
-                <p className="leading-relaxed text-muted-foreground">
-                  {p.done
-                    ? `Os ${p.total} planos estão gravados${p.good ? `, ${p.good} com take marcado como bom` : ""}. Confira a lista antes de desmontar o set.`
-                    : `${p.missing === 1 ? "Falta 1 plano" : `Faltam ${p.missing} planos`}. Grave agora, enquanto o set está montado: voltar depois custa caro.`}
+                <h1 className="font-display text-[30px]">Vídeo gravado.</h1>
+                <p className="min-h-6 leading-relaxed text-muted-foreground">
+                  {finale.loading ? <Thinking label="Preparando a publicação" steps={STEPS.publicar} /> : finale.closing || "Agora é só editar e publicar. Já deixei o texto pronto."}
                 </p>
               </div>
+
+              <div className="grid grid-cols-3 gap-2" aria-label="Resumo da gravação">
+                {[
+                  [String(p.total), p.total === 1 ? "plano" : "planos"],
+                  [String(p.good), p.good === 1 ? "take bom" : "takes bons"],
+                  [durationLabel(Math.round(totalSeconds(blocks))), "de roteiro"],
+                ].map(([n, label]) => (
+                  <div key={label} className="flex flex-col items-center gap-0.5 rounded-xl bg-card py-3">
+                    <span className="font-display text-xl">{n}</span>
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {finale.post && (
+                <div className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
+                  <span className="label-set text-muted-foreground">Já deixei pronto · {PLATFORMS[finale.post.platform]}</span>
+                  <p className="text-[15px] leading-relaxed">{finale.post.caption}</p>
+                  {finale.post.hashtags.length > 0 && <p className="text-sm text-muted-foreground">{finale.post.hashtags.join(" ")}</p>}
+                </div>
+              )}
+
+              {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+
+              <div className="flex flex-col gap-3 rounded-2xl border border-border p-4 text-sm leading-relaxed">
+                <p className="font-bold">Na edição</p>
+                <p className="text-muted-foreground">
+                  Monte na ordem dos números dos planos (é a ordem do roteiro). Use os takes marcados como bons e corte 2 segundos do
+                  começo e do fim de cada um.
+                </p>
+              </div>
+
+              <button type="button" onClick={() => setShowList((v) => !v)} aria-expanded={showList} className="flex min-h-11 items-center self-center text-sm text-muted-foreground underline">
+                {showList ? "Esconder os planos" : "Conferir os planos"}
+              </button>
+            </>
+          )}
+
+          {video && shots.length > 0 && phase === "fim" && (!p.done || showList) && (
+            <>
+              {!p.done && (
+                <div className="flex flex-col gap-2">
+                  <h1 className="font-display text-[28px]">Faltou algum plano?</h1>
+                  <p className="leading-relaxed text-muted-foreground">
+                    {`${p.missing === 1 ? "Falta 1 plano" : `Faltam ${p.missing} planos`}. Grave agora, enquanto o set está montado: voltar depois custa caro.`}
+                  </p>
+                </div>
+              )}
 
               <ol className="flex flex-col gap-2">
                 {[...shots]
@@ -337,23 +415,22 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                   ))}
               </ol>
 
-              {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+              {!p.done && error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            </>
+          )}
 
-              {p.done && (
-                <div className="flex flex-col gap-3 rounded-2xl border border-border p-4 text-sm leading-relaxed">
-                  <p className="font-bold">Na edição</p>
-                  <p className="text-muted-foreground">
-                    Monte na ordem dos números dos planos (é a ordem do roteiro). Use os takes marcados como bons e corte 2 segundos
-                    do começo e do fim de cada um.
-                  </p>
-                </div>
-              )}
-
+          {video && shots.length > 0 && phase === "fim" && (
+            <>
               <div className="mt-auto flex flex-col gap-2.5 pt-2">
                 {p.done ? (
-                  <button type="button" onClick={finishVideo} className="min-h-14 rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                    Concluir vídeo
-                  </button>
+                  <>
+                    <button type="button" onClick={() => finishVideo("publicar")} className="min-h-14 rounded-full bg-primary text-lg font-bold text-primary-foreground">
+                      Ver a publicação
+                    </button>
+                    <button type="button" onClick={() => finishVideo("visao")} className="min-h-11 text-sm text-muted-foreground underline">
+                      Concluir sem publicar agora
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"
