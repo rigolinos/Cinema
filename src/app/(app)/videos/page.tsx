@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
 import { isEmptyDraft, videoTab, type VideoTab } from "@/lib/meus-videos";
@@ -20,7 +18,7 @@ const EMPTY: Record<VideoTab, string> = {
   arquivados: "Arquive pelo menu ⋯ de um vídeo para tirá-lo da frente sem apagar.",
 };
 
-// Meus vídeos: todos, separados por situação, com arquivar, apagar e limpar rascunhos vazios.
+// Vídeos (aba do menu): todos, separados por situação, com arquivar, apagar e limpar rascunhos vazios.
 export default function MeusVideosPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
   const [tab, setTab] = useState<VideoTab>("andamento");
@@ -57,12 +55,9 @@ export default function MeusVideosPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href="/inicio" aria-label="Voltar ao início" className="-ml-3 -mt-3 flex size-11 items-center justify-center">
-        <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
-      </Link>
-      <h1 className="font-display text-[32px]">Meus vídeos</h1>
+      <h1 className="font-display text-[32px]">Vídeos</h1>
 
-      <div role="tablist" aria-label="Situação dos vídeos" className="grid grid-cols-3 gap-1 rounded-full bg-card p-1">
+      <div role="tablist" aria-label="Situação dos vídeos" className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
         {TABS.map(([t, label]) => (
           <button
             key={t}
@@ -70,10 +65,14 @@ export default function MeusVideosPage() {
             type="button"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={cn("min-h-11 rounded-full px-1 text-sm font-semibold", tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+            className={cn(
+              "flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-input bg-card px-4 text-sm font-semibold",
+              tab === t && "border-foreground bg-foreground text-background",
+            )}
           >
             {label}
-            {videos ? ` · ${counts[t]}` : ""}
+            {/* O número fica mais claro que o nome; aba vazia não mostra "0". */}
+            {videos && counts[t] > 0 && <span className={cn("font-normal", tab === t ? "opacity-70" : "text-muted-foreground")}>{counts[t]}</span>}
           </button>
         ))}
       </div>
