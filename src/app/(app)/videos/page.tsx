@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
 import { isEmptyDraft, videoTab, type VideoTab } from "@/lib/meus-videos";
-import { cn } from "@/lib/utils";
+import { SlateTabs } from "@/components/gravai/slate-tabs";
 
 const TABS: [VideoTab, string][] = [
-  ["andamento", "Em andamento"],
+  ["andamento", "Andamento"],
   ["prontos", "Prontos"],
-  ["arquivados", "Arquivados"],
+  ["arquivados", "Arquivo"],
 ];
 
 const EMPTY: Record<VideoTab, string> = {
@@ -57,25 +57,12 @@ export default function MeusVideosPage() {
     <div className="flex flex-col gap-5">
       <h1 className="font-display text-[32px]">Vídeos</h1>
 
-      <div role="tablist" aria-label="Situação dos vídeos" className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
-        {TABS.map(([t, label]) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-input bg-card px-4 text-sm font-semibold",
-              tab === t && "border-foreground bg-foreground text-background",
-            )}
-          >
-            {label}
-            {/* O número fica mais claro que o nome; aba vazia não mostra "0". */}
-            {videos && counts[t] > 0 && <span className={cn("font-normal", tab === t ? "opacity-70" : "text-muted-foreground")}>{counts[t]}</span>}
-          </button>
-        ))}
-      </div>
+      <SlateTabs
+        label="Situação dos vídeos"
+        items={TABS.map(([t, label]) => ({ id: t, label, count: videos ? counts[t] : undefined }))}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === "andamento" && empties > 0 && (
         <button type="button" onClick={cleanEmpty} disabled={cleaning} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">
