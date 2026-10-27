@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useConfirm } from "@/components/gravai/confirm";
 import { Check, ChevronLeft, Copy } from "lucide-react";
 import { useFirstTime } from "@/components/gravai/explain";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
@@ -43,6 +44,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
   const [tagsText, setTagsText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, sheet } = useConfirm();
   const [copiedAll, setCopiedAll] = useState(false);
   // As dicas de cada campo aparecem só na primeira publicação.
   const tips = useFirstTime("publicar");
@@ -70,7 +72,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
   }
 
   async function prepare() {
-    if (posts.length > 0 && !window.confirm("Preparar de novo substitui a legenda, o título, as hashtags e a capa, inclusive o que você mudou. Continuar?")) return;
+    if (posts.length > 0 && !(await confirm({ title: "Preparar a publicação de novo?", text: "Isso substitui a legenda, o título, as hashtags e a capa, inclusive o que você mudou.", action: "Preparar de novo" }))) return;
     setBusy(true);
     setError(null);
     const res = await fetch("/api/publicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId: id }) }).catch(() => null);
@@ -106,6 +108,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 px-5 pb-16 pt-3">
+      {sheet}
       <Link href={`/video/${id}`} aria-label="Voltar ao vídeo" className="-ml-3 flex size-11 items-center justify-center">
         <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
       </Link>

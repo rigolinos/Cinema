@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useConfirm } from "@/components/gravai/confirm";
 import { Archive, ArchiveRestore, MoreHorizontal, Trash2 } from "lucide-react";
 import { READY_STAGES, STAGES, Trail, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +21,7 @@ export function videoHref(v: Video): string {
 export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: VideoRow | null) => void }) {
   const [menu, setMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, sheet } = useConfirm();
 
   async function toggleArchive() {
     const archived_at = video.archived_at ? null : new Date().toISOString();
@@ -31,7 +33,13 @@ export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: 
 
   async function remove() {
     setMenu(false);
-    if (!window.confirm(`Apagar “${video.title || "Vídeo sem ideia ainda"}”? A ideia, o roteiro, os planos e os links das pessoas somem. Isso não tem volta.`)) return;
+    const ok = await confirm({
+      title: `Apagar “${video.title || "Vídeo sem ideia ainda"}”?`,
+      text: "A ideia, o roteiro, os planos e os links das pessoas somem. Isso não tem volta. Se só quiser tirar da frente, use Arquivar.",
+      action: "Apagar para sempre",
+      danger: true,
+    });
+    if (!ok) return;
     const { error } = await createClient().from("videos").delete().eq("id", video.id);
     if (error) setError("Não deu para apagar. Tente de novo.");
     else onChange(null);
@@ -39,6 +47,7 @@ export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: 
 
   return (
     <div className="relative">
+      {sheet}
       <Link href={videoHref(video)} className="flex flex-col gap-3 rounded-2xl bg-card p-4 pr-14">
         <span className="flex items-baseline justify-between gap-3">
           <span className="text-[17px] font-bold leading-snug">{video.title || "Vídeo sem ideia ainda"}</span>

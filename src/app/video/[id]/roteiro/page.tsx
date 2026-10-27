@@ -3,6 +3,7 @@
 import { use, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/gravai/confirm";
 import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
@@ -228,6 +229,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [review, setReview] = useState<{ note: string; suggestions: BlockSuggestion[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null); // "rascunho", id de um bloco ou "seguir"
   const [error, setError] = useState<string | null>(null);
+  const { confirm, sheet } = useConfirm();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -244,7 +246,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   }, [id]);
 
   async function draft() {
-    if (blocks.length > 0 && !window.confirm("Escrever um rascunho novo substitui o roteiro atual, inclusive o que você editou. Continuar?")) return;
+    if (blocks.length > 0 && !(await confirm({ title: "Escrever outro rascunho?", text: "O rascunho novo substitui o roteiro atual, inclusive o que você editou.", action: "Escrever de novo" }))) return;
     setBusy("rascunho");
     setError(null);
     try {
@@ -344,6 +346,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {sheet}
       <StepHeader step="roteiro" backHref={`/video/${id}/ideia`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-40 pt-5">

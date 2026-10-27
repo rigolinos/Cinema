@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/gravai/confirm";
 import { Check, Copy, Link2Off, MessageCircle, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { nextReadyStage } from "@/components/gravai/trail";
@@ -37,6 +38,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   const [newRole, setNewRole] = useState<Exclude<PersonRole, "eu">>("ator");
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, sheet } = useConfirm();
   const creatingEu = useRef(false);
   // Nome completo do criador: vai no termo de imagem. Sem ele, os links não saem.
   const [myName, setMyName] = useState("");
@@ -123,7 +125,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   }
 
   async function removePerson(person: Person) {
-    if (!window.confirm(`Tirar ${person.name} do vídeo? O link dela para de funcionar.`)) return;
+    if (!(await confirm({ title: `Tirar ${person.name} do vídeo?`, text: "O link dela para de funcionar. A autorização de imagem que ela já deu continua guardada.", action: "Tirar do vídeo", danger: true }))) return;
     const { error } = await createClient().from("video_people").delete().eq("id", person.id);
     if (error) setError("Não deu para tirar a pessoa.");
     else {
@@ -156,6 +158,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {sheet}
       <StepHeader step="pessoas" backHref={`/video/${id}/roteiro`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-5 pb-36 pt-5">
