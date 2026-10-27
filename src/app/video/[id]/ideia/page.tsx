@@ -120,6 +120,16 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const autoAsked = useRef(false);
+  // Campo do nicho: ao mudar a resposta ou tocar numa sugestão, o cursor fica piscando no fim,
+  // para mostrar que dá para escrever com as próprias palavras.
+  const nicheInput = useRef<HTMLInputElement>(null);
+  const focusNiche = () =>
+    setTimeout(() => {
+      const el = nicheInput.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 0);
   // Rodada nova de ideias: a tela para no começo dela, não no fim da página.
   const jumpToRound = useRef<number | null>(null);
 
@@ -261,7 +271,10 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
   function edit(q: QuestionId) {
     if (busy) return;
-    if (q === "niche") setNicheDraft(answers.niche ?? "");
+    if (q === "niche") {
+      setNicheDraft(answers.niche ?? "");
+      focusNiche();
+    }
     if (q === "resources") setResourcesDraft(answers.resources);
     if (q === "platform") setPlatformsDraft(answers.platforms);
     if (q === "produto") setProductDraft({ product: answers.product ?? "", edge: answers.productEdge ?? "" });
@@ -337,7 +350,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               >
                 <div className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
                   {NICHE_EXAMPLES.map((n) => (
-                    <button key={n} type="button" className={chip} onClick={() => setNicheDraft(n)}>
+                    <button key={n} type="button" className={chip} onClick={() => {
+                        setNicheDraft(n);
+                        focusNiche();
+                      }}
+                    >
                       {n}
                     </button>
                   ))}
@@ -347,6 +364,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 </label>
                 <div className="flex gap-2">
                   <input
+                    ref={nicheInput}
                     id="nicho"
                     value={nicheDraft}
                     onChange={(e) => setNicheDraft(e.target.value)}
