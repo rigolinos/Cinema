@@ -343,7 +343,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                   if (nicheDraft.trim()) save("niche", { niche: nicheDraft.trim().slice(0, 120) });
                 }}
               >
-                <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+                <div className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
                   {NICHE_EXAMPLES.map((n) => (
                     <button key={n} type="button" className={chip} onClick={() => setNicheDraft(n)}>
                       {n}
@@ -580,7 +580,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           ))}
 
         {door === "zero" && !question && rounds.length > 0 && (
-          <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
+          <div className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
             {QUICK_IDEAS[answers.objective ?? "crescer"].map((r) => (
               <button key={r} type="button" disabled={busy !== null} className={chip} onClick={() => requestIdeas(r)}>
                 {r}

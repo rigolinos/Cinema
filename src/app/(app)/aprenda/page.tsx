@@ -120,7 +120,7 @@ export default function AprendaPage() {
         <p className="leading-relaxed text-muted-foreground">Os termos que aparecem no caminho, sem complicação.</p>
       </header>
 
-      <nav aria-label="Assuntos" className="-mx-5 flex gap-2 overflow-x-auto px-5">
+      <nav aria-label="Assuntos" className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
         {SECTIONS.map((s) => (
           <a key={s.id} href={`#${s.id}`} className="flex min-h-11 items-center rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap">
             {s.title}
