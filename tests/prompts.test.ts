@@ -20,6 +20,7 @@ import {
   shotsTask,
 } from "@/lib/prompts/tarefas";
 import { normalizeDraft } from "@/lib/roteiro";
+import { completeItems } from "@/lib/stream-json";
 
 // Um caso realista: a criadora de humor, com briefing próprio e memória.
 const person = {
@@ -206,5 +207,17 @@ describe("prompts montados", () => {
         `# Prompts montados (v3)\n\nGerado pelo teste tests/prompts.test.ts com o mesmo código das rotas. Caso: criadora de humor, objetivo Crescer, com briefing e memória.\n\n${show("Ideias do zero", ideas)}\n${show("Rascunho do roteiro", draft)}`,
       );
     }
+  });
+});
+
+describe("ideias chegando aos poucos", () => {
+  it("pega só os objetos completos da lista, mesmo com texto pela metade", () => {
+    const partial = '{"ideas":[{"title":"Um {com chave} e \\"aspas\\"","hook":"g1"},{"title":"Dois","hook":"g2"},{"title":"Trê';
+    expect(completeItems(partial, "ideas")).toEqual([
+      { title: 'Um {com chave} e "aspas"', hook: "g1" },
+      { title: "Dois", hook: "g2" },
+    ]);
+    expect(completeItems('{"ide', "ideas")).toEqual([]);
+    expect(completeItems('{"ideas":[]}', "ideas")).toEqual([]);
   });
 });

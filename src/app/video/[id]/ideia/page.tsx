@@ -2,12 +2,12 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Pencil } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { BriefBox, OwnIdeaBox, PasteBox } from "@/components/gravai/portas";
 import { SaveButton } from "@/components/gravai/guardar";
 import { StepHeader } from "@/components/gravai/step-header";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import {
@@ -15,6 +15,8 @@ import {
   OBJECTIVES,
   PLATFORMS,
   QUESTION_ORDER,
+  NICHE_EXAMPLES,
+  nicheInSentence,
   QUICK_IDEAS,
   RESOURCES,
   durationLabel,
@@ -40,25 +42,6 @@ const QUESTIONS: Record<QuestionId, string> = {
   duration: "E quanto tempo, mais ou menos?",
   resources: "Com o que você conta hoje? Pode marcar mais de um.",
 };
-
-const NICHE_EXAMPLES = [
-  "Humor",
-  "Treino em casa",
-  "Receitas",
-  "Maquiagem",
-  "Moda",
-  "Finanças",
-  "Meu negócio",
-  "Games",
-  "Viagem",
-  "Pets",
-  "Maternidade",
-  "Estudos",
-  "Música",
-  "Decoração",
-  "Tecnologia",
-  "Bem-estar",
-];
 
 const chip =
   "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap transition-colors";
@@ -93,18 +76,30 @@ function Assistant({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Resposta da pessoa. Tocar nela reabre a pergunta.
-function Mine({ text, onClick }: { text: string; onClick?: () => void }) {
+// Resposta da pessoa. Tocar nela (ou em "Mudar", ao lado) reabre a pergunta no mesmo lugar.
+// A nota explica o que já veio preenchido (ex.: o nicho, que vem do perfil).
+function Mine({ text, onClick, note }: { text: string; onClick?: () => void; note?: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      aria-label={onClick ? `Mudar resposta: ${text}` : undefined}
-      className="max-w-[85%] self-end rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-3 text-left text-[15px] leading-snug text-primary-foreground"
-    >
-      {text}
-    </button>
+    <div className="flex max-w-[92%] flex-col items-end gap-1 self-end">
+      <div className="flex items-center gap-2.5">
+        {onClick && (
+          <button type="button" onClick={onClick} className="flex min-h-11 items-center gap-1 text-sm text-muted-foreground">
+            <Pencil className="size-3.5" strokeWidth={2} aria-hidden="true" />
+            Mudar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={!onClick}
+          aria-label={onClick ? `Mudar resposta: ${text}` : undefined}
+          className="rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-3 text-left text-[15px] leading-snug text-primary-foreground"
+        >
+          {text}
+        </button>
+      </div>
+      {note && onClick && <span className="text-xs text-muted-foreground">{note}</span>}
+    </div>
   );
 }
 
@@ -123,6 +118,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [door, setDoor] = useState<"zero" | "ideia" | "roteiro">("zero");
   const [brief, setBrief] = useState("");
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
+  // Ideias chegando, ainda sem id: aparecem uma a uma enquanto a IA escreve, sem botões ativos.
+  const [incoming, setIncoming] = useState<Pick<VideoIdea, "title" | "hook" | "situation" | "format_slug">[]>([]);
   const [requests, setRequests] = useState<Record<number, string>>({});
   const [ask, setAsk] = useState("");
   const [knowsYou, setKnowsYou] = useState(false);
@@ -130,6 +127,16 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const autoAsked = useRef(false);
+  // Campo do nicho: ao mudar a resposta ou tocar numa sugestão, o cursor fica piscando no fim,
+  // para mostrar que dá para escrever com as próprias palavras.
+  const nicheInput = useRef<HTMLInputElement>(null);
+  const focusNiche = () =>
+    setTimeout(() => {
+      const el = nicheInput.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 0);
   // Rodada nova de ideias: a tela para no começo dela, não no fim da página.
   const jumpToRound = useRef<number | null>(null);
 
@@ -171,22 +178,49 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     async (request?: string, like?: string) => {
       setBusy("ideas");
       setError(null);
+      setIncoming([]);
       const res = await fetch("/api/ideias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoId: id, request, like }),
       }).catch(() => null);
-      const body = await res?.json().catch(() => null);
-      if (!res?.ok) {
+      if (!res?.ok || !res.body) {
+        const body = await res?.json().catch(() => null);
         setError(body?.error ?? "Sem conexão. Tente de novo.");
-      } else {
-        const fresh = body.ideas as VideoIdea[];
-        const said = like ? `Mais assim: ${like}` : request;
-        if (said && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: said }));
-        if (fresh[0]) jumpToRound.current = fresh[0].round;
-        setIdeas((prev) => [...prev, ...fresh]);
-        setAsk("");
+        setBusy(null);
+        return;
       }
+      // Linhas de JSON: "idea" a cada ideia pronta, "done" com as guardadas, ou "error".
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finished = false;
+      while (!finished) {
+        const { value, done } = await reader.read().catch(() => ({ value: undefined, done: true }));
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as { type: string; idea?: VideoIdea; ideas?: VideoIdea[]; error?: string };
+          if (event.type === "idea" && event.idea) setIncoming((list) => [...list, event.idea!]);
+          if (event.type === "error") {
+            setError(event.error ?? "A IA não respondeu direito desta vez. Tente de novo.");
+            finished = true;
+          }
+          if (event.type === "done" && event.ideas) {
+            const fresh = event.ideas;
+            const said = like ? `Mais assim: ${like}` : request;
+            if (said && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: said }));
+            if (fresh[0]) jumpToRound.current = fresh[0].round;
+            setIdeas((prev) => [...prev, ...fresh]);
+            setAsk("");
+            finished = true;
+          }
+        }
+      }
+      setIncoming([]);
       setBusy(null);
     },
     [id],
@@ -244,7 +278,10 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
 
   function edit(q: QuestionId) {
     if (busy) return;
-    if (q === "niche") setNicheDraft(answers.niche ?? "");
+    if (q === "niche") {
+      setNicheDraft(answers.niche ?? "");
+      focusNiche();
+    }
     if (q === "resources") setResourcesDraft(answers.resources);
     if (q === "platform") setPlatformsDraft(answers.platforms);
     if (q === "produto") setProductDraft({ product: answers.product ?? "", edge: answers.productEdge ?? "" });
@@ -273,7 +310,6 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     router.push(`/video/${id}/roteiro`);
   }
 
-  const answered = QUESTION_ORDER.filter((q) => q !== question && answerText(q, answers));
   const rounds = [...new Set(ideas.map((i) => i.round))];
 
   return (
@@ -295,15 +331,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           </Assistant>
         )}
 
-        {answered.map((q) => (
-          <div key={q} className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">{QUESTIONS[q]}</p>
-            <Mine text={answerText(q, answers)} onClick={busy ? undefined : () => edit(q)} />
-          </div>
-        ))}
-
-        {loaded && question && (
-          <div className="flex flex-col gap-3">
+        {loaded &&
+          QUESTION_ORDER.map((q) => {
+            if (q === question) {
+              return (
+                <div key={q} className="flex flex-col gap-3">
             <Assistant>{QUESTIONS[question]}</Assistant>
 
             {question === "niche" && (
@@ -314,9 +346,18 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                   if (nicheDraft.trim()) save("niche", { niche: nicheDraft.trim().slice(0, 120) });
                 }}
               >
-                <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+                <div className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
                   {NICHE_EXAMPLES.map((n) => (
-                    <button key={n} type="button" className={chip} onClick={() => setNicheDraft(n)}>
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={nicheDraft.trim().toLowerCase() === n.toLowerCase()}
+                      className={cn(chip, nicheDraft.trim().toLowerCase() === n.toLowerCase() && chipOn)}
+                      onClick={() => {
+                        setNicheDraft(n);
+                        focusNiche();
+                      }}
+                    >
                       {n}
                     </button>
                   ))}
@@ -326,6 +367,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 </label>
                 <div className="flex gap-2">
                   <input
+                    ref={nicheInput}
                     id="nicho"
                     value={nicheDraft}
                     onChange={(e) => setNicheDraft(e.target.value)}
@@ -463,8 +505,27 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 </button>
               </div>
             )}
-          </div>
-        )}
+
+              {editing === q && (
+                <button type="button" onClick={() => setEditing(null)} className="flex min-h-11 items-center self-start text-sm text-muted-foreground underline">
+                  Manter como estava
+                </button>
+              )}
+                </div>
+              );
+            }
+            if (!answerText(q, answers)) return null;
+            return (
+              <div key={q} className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground">{QUESTIONS[q]}</p>
+                <Mine
+                  text={answerText(q, answers)}
+                  onClick={busy ? undefined : () => edit(q)}
+                  note={q === "niche" || q === "produto" ? "Veio do seu perfil" : undefined}
+                />
+              </div>
+            );
+          })}
 
         {loaded && !question && door === "ideia" && <OwnIdeaBox videoId={id} initial={brief} />}
         {loaded && !question && door === "roteiro" && <PasteBox videoId={id} initial="" />}
@@ -475,7 +536,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         {door === "zero" && !question && rounds.length > 0 && (
           <div className="flex flex-col gap-1">
             <Assistant>
-              Separei estas para quem fala de <strong>{answers.niche}</strong>. Escolha uma ou peça outras.
+              Separei estas para quem fala de <strong>{nicheInSentence(answers.niche ?? "")}</strong>. Escolha uma ou peça outras.
             </Assistant>
             <Explain id="gancho" question="O que é o gancho?" learn="gancho">
               É o que você fala ou mostra nos 3 primeiros segundos. É ali que a pessoa decide se fica ou rola o feed.
@@ -490,12 +551,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               {requests[round] && <Mine text={requests[round]} />}
               {ideas
                 .filter((i) => i.round === round)
-                .map((idea) => {
+                .map((idea, i) => {
                   const format = findFormat(idea.format_slug);
+                  const best = i === 0;
                   return (
-                    <article key={idea.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
+                    <article key={idea.id} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", best && "border-[1.5px] border-foreground")}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="label-set text-muted-foreground">{format ? `Formato · ${format.name}` : ""}</span>
+                        <span className="label-set text-muted-foreground">
+                          {[best ? "Mais forte" : "", format?.name ?? ""].filter(Boolean).join(" · ")}
+                        </span>
                         <SaveButton
                           idea={{
                             source: "video",
@@ -529,7 +593,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                         type="button"
                         disabled={busy !== null}
                         onClick={() => choose(idea)}
-                        className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                        className="min-h-12 rounded-full border-[1.5px] border-foreground font-bold disabled:opacity-40"
                       >
                         {idea.chosen ? "Seguir com esta" : "Quero essa"}
                       </button>
@@ -548,7 +612,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           ))}
 
         {door === "zero" && !question && rounds.length > 0 && (
-          <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
+          <div className="scroll-row -mx-5 flex gap-2 overflow-x-auto px-5 py-1">
             {QUICK_IDEAS[answers.objective ?? "crescer"].map((r) => (
               <button key={r} type="button" disabled={busy !== null} className={chip} onClick={() => requestIdeas(r)}>
                 {r}
@@ -557,7 +621,28 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
-        {busy === "ideas" && <p className="label-set text-muted-foreground"><Thinking label="Pensando nas ideias" /></p>}
+        {busy === "ideas" && (
+          <div className="flex flex-col gap-3.5">
+            {incoming.map((idea, i) => (
+              <article key={`${i}-${idea.title}`} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", i === 0 && "border-[1.5px] border-foreground")}>
+                <span className="label-set text-muted-foreground">{i === 0 ? "Mais forte" : findFormat(idea.format_slug)?.name ?? ""}</span>
+                <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
+                <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
+                  <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
+                  <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
+                </div>
+                {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+              </article>
+            ))}
+            <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-input p-4">
+              <p className="label-set text-muted-foreground">
+                <Thinking label="Pensando nas ideias" steps={STEPS.ideias} />
+              </p>
+              <span className="h-2 w-3/4 rounded-full bg-input" aria-hidden="true" />
+              <span className="h-2 w-1/2 rounded-full bg-input" aria-hidden="true" />
+            </div>
+          </div>
+        )}
         {error && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
             {error}

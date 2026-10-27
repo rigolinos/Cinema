@@ -215,3 +215,12 @@
 @media (prefers-reduced-motion: reduce) {
   .thinking-dot { animation: none; opacity: 0.6; }
 }
+
+/* Faixas que deslizam para o lado (assuntos, nichos, botões rápidos): sem barra de rolagem por cima dos botões. */
+.scroll-row {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}

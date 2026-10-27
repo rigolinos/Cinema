@@ -43,6 +43,7 @@ const IDEAS_TEXT = `TAREFA: sugerir 5 ideias de vídeo para esta pessoa, prontas
 - "Outras ideias": as 5 são diferentes de todas as que a pessoa já viu, não versões delas.
 - No objetivo Vender, toda ideia usa o produto e o diferencial que a pessoa contou.
 - Formatos e tendências são sugestão. Uma ótima ideia fora de formato vale mais que uma fraca dentro de um.
+- Entregue da mais forte para a menos forte: a primeira é a sua melhor aposta para esta pessoa.
 
 Cada ideia traz:
 - title: curto, para a pessoa lembrar (até 8 palavras);
@@ -71,6 +72,7 @@ const FORTNIGHT_TEXT = `TAREFA: sugerir 6 ideias para as próximas duas semanas 
 - Pelo menos 3 dão para gravar com os recursos de sempre dela.
 - Cada ideia é julgada pelos critérios do objetivo dela e diz qual é em objective.
 - Não repita nem disfarce ideias que a pessoa já viu.
+- Entregue da mais forte para a menos forte: a primeira é a sua melhor aposta para esta pessoa.
 
 Cada ideia traz os mesmos campos das ideias do zero, mais objective (divertir, vender, ensinar ou crescer):
 - title: curto (até 8 palavras); situation: a cena em 1 ou 2 frases concretas; hook: os primeiros 3 segundos (até 12 palavras); payoff: o desfecho exato, vazio só se não houver; why: por que funciona, em uma frase; format_slug: um formato da lista, se servir; senão, vazio.`;
@@ -264,15 +266,17 @@ Por plataforma (os números já têm folga; não passe deles):
 - Shorts: título de até 60 caracteres e descrição de 1 ou 2 frases.
 - YouTube: título de até 60 caracteres e descrição de 2 ou 3 frases.
 
-Hashtags específicas do assunto e do nicho, nunca genéricas (#viral, #fyp). A capa é uma só para todas as plataformas: cover_text (até 5 palavras) e cover_idea (a imagem, em uma frase).`;
+Hashtags específicas do assunto e do nicho, nunca genéricas (#viral, #fyp). A capa é uma só para todas as plataformas: cover_text (até 5 palavras) e cover_idea (a imagem, em uma frase).
+
+closing: uma frase curta e calorosa para a pessoa, que acabou de gravar este vídeo. Cite algo concreto do roteiro (a virada, o produto, a dica) e diga por que vai funcionar, como alguém da equipe falaria. Sem exagero, sem emoji, sem "parabéns" vazio. Ex.: "Ficou com a sua cara: a virada da marmita vai pegar todo mundo que tem mãe assim."`;
 
 export function postTask(o: { objective: Objective | null; platforms: Platform[] }): Task {
   const platforms: Platform[] = o.platforms.length ? o.platforms : ["reels"];
   const post = obj({ caption: STR, title: STR, hashtags: strs });
   return {
     system: buildSystem({ objective: o.objective, task: POST_TEXT }),
-    schema: obj({ cover_text: STR, cover_idea: STR, posts: obj(Object.fromEntries(platforms.map((p) => [p, post]))) }),
-    example: `{"cover_text":"","cover_idea":"","posts":{${platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",")}}}`,
+    schema: obj({ cover_text: STR, cover_idea: STR, closing: STR, posts: obj(Object.fromEntries(platforms.map((p) => [p, post]))) }),
+    example: `{"cover_text":"","cover_idea":"","closing":"","posts":{${platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",")}}}`,
     thinking: "baixo",
     temperature: 0.8,
   };

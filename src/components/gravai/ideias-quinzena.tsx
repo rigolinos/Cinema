@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
-import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, type Objective, type Platform, type Resource } from "@/lib/ideas";
+import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, nicheInSentence, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
 import { SaveButton } from "@/components/gravai/guardar";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
 
@@ -200,12 +200,12 @@ export function IdeiasQuinzena() {
 
   return (
     <section aria-labelledby="quinzena" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 border-b-2 border-foreground pb-4">
+      <div className="flex flex-col gap-2 pb-1">
         <p id="quinzena" className="label-set flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
           Ideias da quinzena
         </p>
-        <h2 className="font-display text-[26px]">{niche ? <>Para quem fala de {niche}</> : "Feitas para o seu perfil"}</h2>
+        <h2 className="font-display text-[26px]">{niche ? <>Para quem fala de {nicheInSentence(niche)}</> : "Feitas para o seu perfil"}</h2>
         {period && (
           <p className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-sm text-muted-foreground">
             <span>{periodLabel(period)}</span>
@@ -213,7 +213,7 @@ export function IdeiasQuinzena() {
             <span>{daysUntilNext() === 1 ? "NOVAS AMANHÃ" : `NOVAS EM ${daysUntilNext()} DIAS`}</span>
           </p>
         )}
-        {niche && <p className="text-sm leading-relaxed text-muted-foreground">Quanto mais a gente cria junto, mais estas ideias ficam com a sua cara.</p>}
+        {niche && <p className="text-sm leading-relaxed text-muted-foreground">Ficam mais com a sua cara a cada vídeo.</p>}
       </div>
 
       {niche === null && (
@@ -237,7 +237,7 @@ export function IdeiasQuinzena() {
         </form>
       )}
 
-      {niche && !ideas && !error && <p className="label-set text-muted-foreground"><Thinking label="Separando suas ideias" /></p>}
+      {niche && !ideas && !error && <p className="label-set text-muted-foreground"><Thinking label="Separando suas ideias" steps={STEPS.ideias} /></p>}
 
       {error && (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">

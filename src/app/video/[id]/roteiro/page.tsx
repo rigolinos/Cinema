@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { nextReadyStage } from "@/components/gravai/trail";
 import { isSolo } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
@@ -390,7 +390,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                   disabled={busy !== null}
                   className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                 >
-                  {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" /> : "Escrever o rascunho"}
+                  {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Escrever o rascunho"}
                 </button>
               </div>
             )}
@@ -421,7 +421,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 )}
               >
                 <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
-                {busy === "revisar" ? <Thinking label="Lendo o seu roteiro" /> : "Quero sugestões do Gravaí"}
+                {busy === "revisar" ? <Thinking label="Lendo o seu roteiro" steps={STEPS.sugestoes} /> : "Quero sugestões do Gravaí"}
               </button>
             )}
             {review && (
@@ -463,7 +463,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
             {blocks.length > 0 && video.start_door !== "roteiro" && (
               <button type="button" onClick={draft} disabled={busy !== null} className="min-h-11 self-start text-sm font-semibold underline disabled:opacity-40">
-                {busy === "rascunho" ? <Thinking label="Escrevendo" /> : "Escrever outro rascunho"}
+                {busy === "rascunho" ? <Thinking label="Escrevendo" steps={STEPS.roteiro} /> : "Escrever outro rascunho"}
               </button>
             )}
           </>

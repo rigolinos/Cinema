@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { AiError, generateJsonStream, hasAiProvider } from "@/lib/ai";
 import { radarSince } from "@/lib/radar";
 import { normalizeIdeas, videoPlatforms, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { memoryLines } from "@/lib/memoria";
+import { completeItems } from "@/lib/stream-json";
 import { ideasRequest } from "@/lib/prompts/montagem";
 
 function fail(message: string, status: number) {
@@ -58,29 +59,43 @@ export async function POST(request: NextRequest) {
     trends: (radar ?? []) as { title: string; what: string }[],
   });
 
-  let ideas;
-  try {
-    ideas = normalizeIdeas(await generateJson(call));
-  } catch (err) {
-    if (err instanceof AiError && err.kind === "limit") {
-      return fail("A IA está no limite de uso agora. Tente de novo em alguns minutos.", 503);
-    }
-    if (err instanceof AiError && err.kind === "config") {
-      return fail("As sugestões ainda não estão configuradas no servidor.", 503);
-    }
-    return fail("A IA não respondeu direito desta vez. Tente de novo.", 502);
-  }
-
-  if (ideas.length === 0) return fail("A IA não trouxe ideias desta vez. Tente de novo.", 502);
-
   const round = (previous?.[0]?.round ?? 0) + 1;
-  const { data: saved, error } = await supabase
-    .from("video_ideas")
-    .insert(ideas.map((i) => ({ title: i.title, format_slug: i.format_slug, hook: i.hook, situation: i.situation, payoff: i.payoff, why: i.why, video_id: videoId, round })))
-    .select("id, round, title, format_slug, hook, situation, payoff, why, chosen");
-  if (error) return fail("Não foi possível guardar as ideias.", 500);
   const signal = like ? `mais assim: ${like}` : ask;
-  if (signal) await supabase.from("creator_signals").insert({ kind: "pedido_ideia", video_id: videoId, detail: { pedido: signal.slice(0, 160) } });
 
-  return NextResponse.json({ ideas: saved });
+  // Resposta em linhas de JSON: cada ideia vai para a tela assim que fica completa ("idea"),
+  // e no fim chegam as ideias guardadas, com id ("done"), ou o erro ("error").
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: object) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      let shown = 0;
+      try {
+        const raw = await generateJsonStream(call, (sofar) => {
+          const ready = normalizeIdeas({ ideas: completeItems(sofar, "ideas") });
+          for (const idea of ready.slice(shown)) send({ type: "idea", idea });
+          shown = Math.max(shown, ready.length);
+        });
+        const ideas = normalizeIdeas(raw);
+        if (ideas.length === 0) throw new AiError("A IA não trouxe ideias desta vez. Tente de novo.", "format");
+        const { data: saved, error } = await supabase
+          .from("video_ideas")
+          .insert(ideas.map((i) => ({ title: i.title, format_slug: i.format_slug, hook: i.hook, situation: i.situation, payoff: i.payoff, why: i.why, video_id: videoId, round })))
+          .select("id, round, title, format_slug, hook, situation, payoff, why, chosen");
+        if (error) throw new Error("Não foi possível guardar as ideias.");
+        if (signal) await supabase.from("creator_signals").insert({ kind: "pedido_ideia", video_id: videoId, detail: { pedido: signal.slice(0, 160) } });
+        send({ type: "done", ideas: saved });
+      } catch (err) {
+        const message =
+          err instanceof AiError && err.kind === "limit"
+            ? "A IA está no limite de uso agora. Tente de novo em alguns minutos."
+            : err instanceof AiError && err.kind === "config"
+              ? "As sugestões ainda não estão configuradas no servidor."
+              : "A IA não respondeu direito desta vez. Tente de novo.";
+        send({ type: "error", error: message });
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });
 }

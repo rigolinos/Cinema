@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, Copy } from "lucide-react";
 import { useFirstTime } from "@/components/gravai/explain";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, platformsLabel, videoPlatforms, type Platform } from "@/lib/ideas";
 import { POST_PARTS, captionWithTags, cleanHashtags, needsTitle, type PlatformPost, type Post } from "@/lib/publicar";
@@ -130,7 +130,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                 Eu preparo a legenda, as hashtags{withTitle ? ", o título" : ""} e a capa a partir do seu roteiro. Você ajusta e copia.
               </p>
               <button type="button" onClick={prepare} disabled={busy} className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
-                {busy ? <Thinking label="Preparando" /> : "Preparar a publicação"}
+                {busy ? <Thinking label="Preparando" steps={STEPS.publicar} /> : "Preparar a publicação"}
               </button>
             </div>
           )}
@@ -255,7 +255,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                   {video.published_at ? `Publicado em ${new Date(video.published_at).toLocaleDateString("pt-BR")} · desfazer` : "Já publiquei"}
                 </button>
                 <button type="button" onClick={prepare} disabled={busy} className="min-h-11 self-center text-sm font-semibold underline disabled:opacity-40">
-                  {busy ? <Thinking label="Preparando" /> : "Preparar de novo"}
+                  {busy ? <Thinking label="Preparando" steps={STEPS.publicar} /> : "Preparar de novo"}
                 </button>
               </div>
             </div>

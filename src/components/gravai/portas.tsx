@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import type { OwnIdea } from "@/lib/ideia-propria";
@@ -148,7 +148,7 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
           className={cn(box, "resize-none")}
         />
         <button type="button" onClick={sharpen} disabled={busy !== null || text.trim().length < 8} className={primary}>
-          {busy === "ia" ? <Thinking label="Organizando a sua ideia" /> : "Organizar minha ideia"}
+          {busy === "ia" ? <Thinking label="Organizando a sua ideia" steps={STEPS.ideiaPropria} /> : "Organizar minha ideia"}
         </button>
         <button type="button" onClick={() => save(true)} disabled={busy !== null || text.trim().length < 8} className={quiet}>
           Usar exatamente como escrevi
@@ -297,7 +297,7 @@ export function PasteBox({ videoId, initial }: { videoId: string; initial: strin
         className={cn(box, "resize-y font-mono text-[15px]")}
       />
       <button type="button" onClick={organize} disabled={busy || !text.trim()} className={primary}>
-        {busy ? <Thinking label="Organizando o seu roteiro" /> : "Organizar meu roteiro"}
+        {busy ? <Thinking label="Organizando o seu roteiro" steps={STEPS.organizar} /> : "Organizar meu roteiro"}
       </button>
       <Problem text={error} />
     </div>
