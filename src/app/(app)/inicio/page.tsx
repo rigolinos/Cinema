@@ -11,10 +11,11 @@ import { createClient } from "@/lib/supabase/client";
 import { FORMATS } from "@/lib/formats";
 import { daysUntilNext, periodLabel, periodStart } from "@/lib/quinzena";
 
-// O formato muda toda semana (semanas contadas desde 01/01/2026).
-function formatOfTheWeek() {
-  const week = Math.floor((Date.now() - Date.UTC(2026, 0, 1)) / (7 * 24 * 60 * 60 * 1000));
-  return FORMATS[((week % FORMATS.length) + FORMATS.length) % FORMATS.length];
+// O formato muda todo dia, à meia-noite de Brasília (dias contados desde 01/01/2026). Hora fixa, para servidor e celular
+// escolherem o mesmo.
+function formatOfTheDay() {
+  const day = Math.floor((Date.now() - 3 * 60 * 60 * 1000 - Date.UTC(2026, 0, 1)) / (24 * 60 * 60 * 1000));
+  return FORMATS[((day % FORMATS.length) + FORMATS.length) % FORMATS.length];
 }
 
 const SHOW = 5;
@@ -23,7 +24,7 @@ export default function InicioPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const week = formatOfTheWeek();
+  const today = formatOfTheDay();
   const radar = useRadar();
 
   useEffect(() => {
@@ -82,12 +83,12 @@ export default function InicioPage() {
       </Link>
 
       <section className="flex flex-col gap-2.5" aria-labelledby="andamento">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between">
           <h2 id="andamento" className="label-set text-muted-foreground">
             Em andamento
           </h2>
-          <Link href="/videos" className="flex min-h-11 items-center text-sm font-semibold underline">
-            Meus vídeos
+          <Link href="/videos" className="flex min-h-11 items-center rounded-full bg-card px-4 text-sm font-semibold">
+            Ver todos{total > SHOW ? ` (${total})` : ""}
           </Link>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -107,20 +108,15 @@ export default function InicioPage() {
             }}
           />
         ))}
-        {total > SHOW && (
-          <Link href="/videos" className="flex min-h-11 items-center justify-center text-sm font-semibold underline">
-            Ver todos ({total} em andamento)
-          </Link>
-        )}
       </section>
 
       {radar?.[0] ? (
         <RadarCard item={radar[0]} />
       ) : (
-        <Link href={`/ideias#${week.slug}`} className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-foreground p-4">
-          <span className="label-set text-muted-foreground">Formato da semana</span>
-          <span className="text-lg font-bold">{week.name}</span>
-          <span className="text-sm leading-relaxed text-muted-foreground">{week.summary}</span>
+        <Link href={`/ideias/formatos#${today.slug}`} className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-foreground p-4">
+          <span className="label-set text-muted-foreground">Formato do dia</span>
+          <span className="text-lg font-bold">{today.name}</span>
+          <span className="text-sm leading-relaxed text-muted-foreground">{today.summary}</span>
         </Link>
       )}
     </div>

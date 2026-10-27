@@ -166,8 +166,8 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
       {idea.note && <Gravai>{idea.note}</Gravai>}
       <article className="flex flex-col gap-3 rounded-2xl bg-card p-4">
         {format && <span className="label-set text-muted-foreground">Formato · {format.name}</span>}
-        <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
-        {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+        <h2 className="idea-title">{idea.title}</h2>
+        {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
         {idea.payoff && (
           <p className="text-sm leading-relaxed text-muted-foreground">
             <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}

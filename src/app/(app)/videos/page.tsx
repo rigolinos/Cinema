@@ -1,17 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
 import { isEmptyDraft, videoTab, type VideoTab } from "@/lib/meus-videos";
-import { cn } from "@/lib/utils";
+import { SlateTabs } from "@/components/gravai/slate-tabs";
 
 const TABS: [VideoTab, string][] = [
-  ["andamento", "Em andamento"],
+  ["andamento", "Andamento"],
   ["prontos", "Prontos"],
-  ["arquivados", "Arquivados"],
+  ["arquivados", "Arquivo"],
 ];
 
 const EMPTY: Record<VideoTab, string> = {
@@ -20,7 +18,7 @@ const EMPTY: Record<VideoTab, string> = {
   arquivados: "Arquive pelo menu ⋯ de um vídeo para tirá-lo da frente sem apagar.",
 };
 
-// Meus vídeos: todos, separados por situação, com arquivar, apagar e limpar rascunhos vazios.
+// Vídeos (aba do menu): todos, separados por situação, com arquivar, apagar e limpar rascunhos vazios.
 export default function MeusVideosPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
   const [tab, setTab] = useState<VideoTab>("andamento");
@@ -57,26 +55,14 @@ export default function MeusVideosPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href="/inicio" aria-label="Voltar ao início" className="-ml-3 -mt-3 flex size-11 items-center justify-center">
-        <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
-      </Link>
-      <h1 className="font-display text-[32px]">Meus vídeos</h1>
+      <h1 className="font-display text-[32px]">Vídeos</h1>
 
-      <div role="tablist" aria-label="Situação dos vídeos" className="grid grid-cols-3 gap-1 rounded-full bg-card p-1">
-        {TABS.map(([t, label]) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={cn("min-h-11 rounded-full px-1 text-sm font-semibold", tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
-          >
-            {label}
-            {videos ? ` · ${counts[t]}` : ""}
-          </button>
-        ))}
-      </div>
+      <SlateTabs
+        label="Situação dos vídeos"
+        items={TABS.map(([t, label]) => ({ id: t, label, count: videos ? counts[t] : undefined }))}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === "andamento" && empties > 0 && (
         <button type="button" onClick={cleanEmpty} disabled={cleaning} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">

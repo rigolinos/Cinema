@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useConfirm } from "@/components/gravai/confirm";
 import { Check, ChevronLeft, Copy } from "lucide-react";
 import { useFirstTime } from "@/components/gravai/explain";
+import { SlateTabs } from "@/components/gravai/slate-tabs";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, platformsLabel, videoPlatforms, type Platform } from "@/lib/ideas";
@@ -145,28 +146,15 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
           )}
 
           {posts.length > 1 && (
-            <div className="flex flex-col gap-2">
-              <span className="label-set text-muted-foreground">Texto para</span>
-              <div className="flex flex-wrap gap-2">
-                {posts.map((p) => (
-                  <button
-                    key={p.platform}
-                    type="button"
-                    aria-pressed={p.platform === active}
-                    onClick={() => {
-                      setActive(p.platform);
-                      setTagsText(p.hashtags.join(" "));
-                    }}
-                    className={cn(
-                      "min-h-11 rounded-full border border-input px-4 text-sm font-semibold",
-                      p.platform === active && "border-foreground bg-foreground text-background",
-                    )}
-                  >
-                    {PLATFORMS[p.platform]}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SlateTabs
+              label="Texto para"
+              items={posts.map((p) => ({ id: p.platform, label: PLATFORMS[p.platform] }))}
+              value={active ?? posts[0].platform}
+              onChange={(platform) => {
+                setActive(platform);
+                setTagsText(posts.find((p) => p.platform === platform)?.hashtags.join(" ") ?? "");
+              }}
+            />
           )}
 
           {post && (

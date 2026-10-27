@@ -573,12 +573,12 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                           }}
                         />
                       </div>
-                      <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
+                      <h2 className="idea-title">{idea.title}</h2>
                       <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
                         <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-                        <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
+                        <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
                       </div>
-                      {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+                      {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
                       {(idea.payoff || idea.why) && (
                         <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
                           {idea.payoff && (
@@ -626,12 +626,12 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             {incoming.map((idea, i) => (
               <article key={`${i}-${idea.title}`} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", i === 0 && "border-[1.5px] border-foreground")}>
                 <span className="label-set text-muted-foreground">{i === 0 ? "Mais forte" : findFormat(idea.format_slug)?.name ?? ""}</span>
-                <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
+                <h2 className="idea-title">{idea.title}</h2>
                 <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
                   <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-                  <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
+                  <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
                 </div>
-                {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+                {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
               </article>
             ))}
             <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-input p-4">

@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, House, Lightbulb, UserRound } from "lucide-react";
+import { Film, House, Lightbulb, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/inicio", label: "Início", icon: House },
   { href: "/ideias", label: "Ideias", icon: Lightbulb },
   { href: "/novo", label: "Novo vídeo", icon: null, main: true },
-  { href: "/aprenda", label: "Aprenda", icon: BookOpen },
+  { href: "/videos", label: "Vídeos", icon: Film },
   { href: "/perfil", label: "Perfil", icon: UserRound },
 ];
 

@@ -35,7 +35,7 @@ export function RadarCard({ item }: { item: RadarItem }) {
         <strong className="font-semibold text-foreground">Como adaptar:</strong> {item.how_to_adapt}
       </p>
       {format && (
-        <Link href={`/ideias#${format.slug}`} className="flex min-h-11 items-center self-start text-sm font-semibold underline">
+        <Link href={`/ideias/formatos#${format.slug}`} className="flex min-h-11 items-center self-start text-sm font-semibold underline">
           Formato: {format.name}
         </Link>
       )}

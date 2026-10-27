@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, Bookmark, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, nicheInSentence, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
-import { SaveButton } from "@/components/gravai/guardar";
+import { SaveButton, useSavedIdeas } from "@/components/gravai/guardar";
+import { OpenVideoLink, UseIdeaButton } from "@/components/gravai/idea-action";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,7 @@ export function StartSheet({
 }
 
 export function IdeiasQuinzena() {
+  const savedCount = useSavedIdeas()?.length ?? 0;
   const [niche, setNiche] = useState<string | null | undefined>(undefined);
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [nicheDraft, setNicheDraft] = useState("");
@@ -213,7 +215,15 @@ export function IdeiasQuinzena() {
             <span>{daysUntilNext() === 1 ? "NOVAS AMANHÃ" : `NOVAS EM ${daysUntilNext()} DIAS`}</span>
           </p>
         )}
-        {niche && <p className="text-sm leading-relaxed text-muted-foreground">Ficam mais com a sua cara a cada vídeo.</p>}
+        <div className="flex items-center justify-between gap-3">
+          {niche && <p className="text-sm leading-relaxed text-muted-foreground">Ficam mais com a sua cara a cada vídeo.</p>}
+          {savedCount > 0 && (
+            <Link href="/ideias/guardadas" className="ml-auto flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-semibold">
+              <Bookmark className="size-4" strokeWidth={1.5} fill="currentColor" aria-hidden="true" />
+              Guardadas {savedCount}
+            </Link>
+          )}
+        </div>
       </div>
 
       {niche === null && (
@@ -272,31 +282,27 @@ export function IdeiasQuinzena() {
                 }}
               />
             </div>
-            <h3 className="text-lg font-bold leading-snug">{idea.title}</h3>
+            <h3 className="idea-title">{idea.title}</h3>
             <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
               <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-              <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
+              <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
             </div>
-            {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
-            {(idea.payoff || idea.why) && (
-              <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
-                {idea.payoff && (
-                  <>
-                    <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
-                  </>
-                )}
-                {idea.why}
-              </Explain>
-            )}
-            {idea.video_id ? (
-              <Link href={`/video/${idea.video_id}`} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
-                Abrir o vídeo
-              </Link>
-            ) : (
-              <button type="button" onClick={() => setPicked(idea)} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
-                Gravar esta ideia
-              </button>
-            )}
+            {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
+            <div className="flex items-end justify-between gap-3">
+              {(idea.payoff || idea.why) && (
+                <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho" : "Por que funciona?"} closed className="min-w-0 flex-1">
+                  {idea.payoff && (
+                    <>
+                      <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
+                    </>
+                  )}
+                  {idea.why}
+                </Explain>
+              )}
+              <span className="ml-auto">
+                {idea.video_id ? <OpenVideoLink href={`/video/${idea.video_id}`} /> : <UseIdeaButton onClick={() => setPicked(idea)} ariaLabel={`Usar a ideia: ${idea.title}`} />}
+              </span>
+            </div>
           </article>
         );
       })}

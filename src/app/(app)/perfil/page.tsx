@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Clapperboard, LogOut } from "lucide-react";
+import { BookOpen, Check, Clapperboard, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, type Platform } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
@@ -129,6 +129,14 @@ export default function PerfilPage() {
           </p>
         )}
       </form>
+
+      <Link href="/aprenda" className="flex min-h-14 items-center gap-3 rounded-2xl border border-border p-4">
+        <BookOpen className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+        <span className="flex flex-col">
+          <span className="font-bold">Aprenda o básico do set</span>
+          <span className="text-sm text-muted-foreground">Gancho, planos, ângulos e as regras que fazem diferença</span>
+        </span>
+      </Link>
 
       <Link href="/dashboard" className="flex min-h-14 items-center gap-3 rounded-2xl border border-border p-4">
         <Clapperboard className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
