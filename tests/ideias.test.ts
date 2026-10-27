@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel, mainPlatform, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, videoPlatforms, type Answers } from "@/lib/ideas";
+import { durationLabel, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, videoPlatforms, type Answers } from "@/lib/ideas";
 import { parseJson } from "@/lib/ai";
 
 const full: Answers = { niche: "treino em casa", objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho"] };
@@ -75,5 +75,14 @@ describe("durationLabel", () => {
     expect(durationLabel(15)).toBe("15 s");
     expect(durationLabel(60)).toBe("1 min");
     expect(durationLabel(90)).toBe("1 min 30 s");
+  });
+});
+
+describe("nicho no meio da frase", () => {
+  it("baixa a inicial só das sugestões do app; o que a pessoa digitou fica igual", () => {
+    expect(nicheInSentence("Humor")).toBe("humor");
+    expect(nicheInSentence("Treino em casa")).toBe("treino em casa");
+    expect(nicheInSentence("Minecraft")).toBe("Minecraft");
+    expect(nicheInSentence("receitas baratas")).toBe("receitas baratas");
   });
 });

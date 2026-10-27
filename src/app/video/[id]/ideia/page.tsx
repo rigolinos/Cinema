@@ -15,6 +15,8 @@ import {
   OBJECTIVES,
   PLATFORMS,
   QUESTION_ORDER,
+  NICHE_EXAMPLES,
+  nicheInSentence,
   QUICK_IDEAS,
   RESOURCES,
   durationLabel,
@@ -40,25 +42,6 @@ const QUESTIONS: Record<QuestionId, string> = {
   duration: "E quanto tempo, mais ou menos?",
   resources: "Com o que você conta hoje? Pode marcar mais de um.",
 };
-
-const NICHE_EXAMPLES = [
-  "Humor",
-  "Treino em casa",
-  "Receitas",
-  "Maquiagem",
-  "Moda",
-  "Finanças",
-  "Meu negócio",
-  "Games",
-  "Viagem",
-  "Pets",
-  "Maternidade",
-  "Estudos",
-  "Música",
-  "Decoração",
-  "Tecnologia",
-  "Bem-estar",
-];
 
 const chip =
   "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap transition-colors";
@@ -504,7 +487,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         {door === "zero" && !question && rounds.length > 0 && (
           <div className="flex flex-col gap-1">
             <Assistant>
-              Separei estas para quem fala de <strong>{answers.niche}</strong>. Escolha uma ou peça outras.
+              Separei estas para quem fala de <strong>{nicheInSentence(answers.niche ?? "")}</strong>. Escolha uma ou peça outras.
             </Assistant>
             <Explain id="gancho" question="O que é o gancho?" learn="gancho">
               É o que você fala ou mostra nos 3 primeiros segundos. É ali que a pessoa decide se fica ou rola o feed.

@@ -133,3 +133,30 @@ export const QUICK_BLOCK: Record<Objective, string[]> = {
   ensinar: ["Mais curto", "Mais simples", "Mostrar em vez de falar"],
   crescer: ["Mais curto", "Mais direto", "Puxar comentário"],
 };
+
+// Sugestões de nicho que o app oferece (com maiúscula, porque aparecem como botões).
+export const NICHE_EXAMPLES = [
+  "Humor",
+  "Treino em casa",
+  "Receitas",
+  "Maquiagem",
+  "Moda",
+  "Finanças",
+  "Meu negócio",
+  "Games",
+  "Viagem",
+  "Pets",
+  "Maternidade",
+  "Estudos",
+  "Música",
+  "Decoração",
+  "Tecnologia",
+  "Bem-estar",
+];
+
+// O nicho no meio de uma frase ("Para quem fala de humor"). Só baixa a inicial das sugestões do app;
+// o que a pessoa digitou fica como ela escreveu (nomes como "TikTok" ou "Minecraft" não mudam).
+export function nicheInSentence(niche: string): string {
+  const n = niche.trim();
+  return NICHE_EXAMPLES.includes(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n;
+}
