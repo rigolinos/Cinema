@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/gravai/confirm";
 import { ArrowRight, Check, ChevronLeft, Lock, Share2, Trash2 } from "lucide-react";
 import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
@@ -23,6 +24,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   const { id } = use(params);
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const { confirm, sheet } = useConfirm();
   const router = useRouter();
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   }
 
   async function removeVideo() {
-    if (!window.confirm("Apagar este vídeo? A ideia, o roteiro, os planos e os links das pessoas somem. Isso não tem volta.")) return;
+    if (!(await confirm({ title: "Apagar este vídeo?", text: "A ideia, o roteiro, os planos e os links das pessoas somem. Isso não tem volta.", action: "Apagar para sempre", danger: true }))) return;
     setDeleteError(null);
     const { error } = await createClient().from("videos").delete().eq("id", id);
     if (error) setDeleteError("Não deu para apagar o vídeo. Tente de novo.");
@@ -55,6 +57,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-5 pb-16 pt-3">
+      {sheet}
       <Link href="/inicio" aria-label="Voltar ao início" className="-ml-3 flex size-11 items-center justify-center">
         <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
       </Link>

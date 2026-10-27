@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/gravai/confirm";
 import { Plus, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { Explain } from "@/components/gravai/explain";
@@ -156,6 +157,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
   const [shots, setShots] = useState<SavedShot[]>([]);
   const [busy, setBusy] = useState<"decupar" | "seguir" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, sheet } = useConfirm();
 
   useEffect(() => {
     const db = createClient();
@@ -171,7 +173,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
   }, [id]);
 
   async function decupar() {
-    if (shots.length > 0 && !window.confirm("Dividir de novo troca todos os planos, inclusive o que você mudou. Continuar?")) return;
+    if (shots.length > 0 && !(await confirm({ title: "Dividir em planos de novo?", text: "Isso troca todos os planos, inclusive o que você mudou.", action: "Dividir de novo" }))) return;
     setBusy("decupar");
     setError(null);
     const res = await fetch("/api/planos", {
@@ -251,6 +253,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {sheet}
       <StepHeader step="planos" backHref={`/video/${id}/${video && isSolo(video.resources ?? []) ? "roteiro" : "pessoas"}`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-36 pt-5">
