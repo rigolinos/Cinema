@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { captionWithTags, cleanHashtag, cleanHashtags, needsTitle, normalizePosts, postPrompt } from "@/lib/publicar";
+import { captionWithTags, cleanHashtag, cleanHashtags, cutAtSentence, needsTitle, normalizePosts } from "@/lib/publicar";
 
 describe("hashtags", () => {
   it("limpa, põe # e descarta o que não serve", () => {
@@ -34,15 +34,13 @@ describe("publicação", () => {
     expect(captionWithTags({ caption: "Só legenda", hashtags: [] })).toBe("Só legenda");
   });
 
-  it("o prompt leva roteiro, planos e a regra do título da plataforma", () => {
-    const base = { niche: "treino", title: "3 erros", hook: "Você erra isso.", blocks: [{ kind: "gancho" as const, label: null, speech: "Você erra isso." }], shots: [{ description: "Close no rosto" }] };
-    expect(postPrompt({ ...base, platforms: ["reels"] })).toContain("- reels (Reels):");
-    expect(postPrompt({ ...base, platforms: ["reels"] })).toContain("sem título");
-    expect(postPrompt({ ...base, platforms: ["youtube"] })).toContain("título de até 70 caracteres");
-    expect(postPrompt({ ...base, platforms: ["reels"] })).toContain("1. Close no rosto");
-    const both = postPrompt({ ...base, platforms: ["reels", "tiktok"] });
-    expect(both).toContain("Onde vai sair: Reels, TikTok");
-    expect(both).toContain('"posts":{"reels":{"caption":"","title":"","hashtags":[]},"tiktok":');
+  it("legenda que passa do limite é cortada na última frase completa, nunca no meio", () => {
+    const long = `${"Frase um completa. ".repeat(6)}Frase final que estoura o limite do TikTok por muito.`;
+    const cut = cutAtSentence(long, 150);
+    expect(cut.length).toBeLessThanOrEqual(150);
+    expect(cut.endsWith(".")).toBe(true);
+    expect(cutAtSentence("curta", 150)).toBe("curta");
+    expect(normalizePosts({ posts: { tiktok: { caption: long } } }, ["tiktok"])[0].caption.length).toBeLessThanOrEqual(150);
   });
 
   it("um texto por plataforma, com a mesma capa", () => {

@@ -1,5 +1,4 @@
-import { PLATFORMS, type Platform } from "./ideas";
-import { BLOCK_KINDS, type ScriptBlock } from "./roteiro";
+import type { Platform } from "./ideas";
 
 export interface Post {
   caption: string; // legenda (Reels, TikTok, Shorts) ou descrição (YouTube)
@@ -67,51 +66,18 @@ export function captionWithTags(post: Pick<Post, "caption" | "hashtags">): strin
   return [post.caption.trim(), post.hashtags.join(" ")].filter(Boolean).join("\n\n");
 }
 
-// ── IA ──────────────────────────────────────────────────────────────────
+// Limite de verdade de cada texto. O prompt pede uns 15% abaixo; se a IA passar daqui,
+// o app corta na última frase completa, nunca no meio.
+export const CAPTION_MAX: Record<Platform, number> = { reels: 300, tiktok: 150, shorts: 1000, youtube: 1000 };
+const TITLE_MAX = 70;
 
-export const POST_SYSTEM = `Você é o Gravaí, e ajuda criadores de conteúdo brasileiros a publicar o vídeo que acabaram de gravar.
-Escreva em português do Brasil, natural, sem exagero e sem emoji em excesso (no máximo dois na legenda).
-Não prometa resultado, não invente números nem fatos e não use hashtags genéricas como #viral ou #fyp.`;
-
-// Como cada plataforma pede o texto.
-const PLATFORM_RULES: Record<Platform, string> = {
-  reels: "legenda de até 300 caracteres; a primeira linha prende antes do “mais”; 3 a 5 hashtags; sem título",
-  tiktok: "legenda curta, de até 150 caracteres, direta e no tom do TikTok; 3 a 5 hashtags; sem título",
-  shorts: "título de até 70 caracteres e descrição curta de 1 ou 2 frases; 3 hashtags",
-  youtube: "título de até 70 caracteres que diga o que a pessoa ganha assistindo e descrição de 2 ou 3 frases; 3 hashtags",
-};
-
-export function postPrompt(ctx: {
-  niche: string;
-  title: string;
-  hook: string;
-  platforms: Platform[];
-  blocks: Pick<ScriptBlock, "kind" | "label" | "speech">[];
-  shots: { description: string }[];
-}): string {
-  const roteiro = ctx.blocks.map((b) => `- ${b.label || BLOCK_KINDS[b.kind].label}: ${b.speech}`).join("\n");
-  const planos = ctx.shots.map((s, i) => `${i + 1}. ${s.description}`).join("\n");
-  const platforms: Platform[] = ctx.platforms.length ? ctx.platforms : ["reels"];
-  const shape = platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",");
-  return `Nicho: ${ctx.niche}
-Vídeo: ${ctx.title}
-Gancho: "${ctx.hook}"
-Onde vai sair: ${platforms.map((p) => PLATFORMS[p]).join(", ")}
-
-Roteiro:
-${roteiro}
-
-Planos gravados:
-${planos || "(sem lista de planos)"}
-
-Prepare a publicação de cada plataforma, com um texto próprio para cada uma (não copie a mesma legenda):
-${platforms.map((p) => `- ${p} (${PLATFORMS[p]}): ${PLATFORM_RULES[p]}.`).join("\n")}
-Em todas, a última frase repete a chamada final do roteiro. Hashtags específicas do nicho e do assunto, sem espaço. Onde não há título, deixe "title" vazio.
-A capa é a mesma para todas:
-- "cover_text": texto da capa com até 5 palavras.
-- "cover_idea": qual dos planos gravados usar como capa e por quê, em uma frase.
-Responda só com JSON:
-{"cover_text":"","cover_idea":"","posts":{${shape}}}`;
+export function cutAtSentence(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const head = text.slice(0, max);
+  const end = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "), head.lastIndexOf("\n"));
+  if (end > max * 0.4) return head.slice(0, end + 1).trim();
+  const space = head.lastIndexOf(" ");
+  return (space > 0 ? head.slice(0, space) : head).trim();
 }
 
 function clip(value: unknown, max: number): string {
@@ -129,8 +95,8 @@ export function normalizePosts(raw: unknown, platforms: Platform[]): PlatformPos
     const p = byPlatform[platform] ?? r;
     const post: PlatformPost = {
       platform,
-      caption: clip(p.caption, 2200),
-      title: needsTitle(platform) ? clip(p.title, 100) : "",
+      caption: cutAtSentence(clip(p.caption, 2200), CAPTION_MAX[platform]),
+      title: needsTitle(platform) ? cutAtSentence(clip(p.title, 100), TITLE_MAX) : "",
       hashtags: cleanHashtags(p.hashtags),
       cover_text: clip(r.cover_text, 60),
       cover_idea: clip(r.cover_idea, 300),

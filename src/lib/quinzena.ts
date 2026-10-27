@@ -1,5 +1,5 @@
 import { DURATIONS, PLATFORMS, type Objective, type Platform, type Resource } from "./ideas";
-import { FORMATS, findFormat } from "./formats";
+import { findFormat } from "./formats";
 
 // Ideias da quinzena: a cada 15 dias, ideias novas para o nicho de cada criador.
 
@@ -50,30 +50,34 @@ export interface QuickStart {
   resources: Resource[];
 }
 
-export function quickStartDefaults(formatSlug: string | null, platforms: string[]): QuickStart {
+export function quickStartDefaults(formatSlug: string | null, platforms: string[], objective: Objective = "crescer"): QuickStart {
   const known = platforms.filter((p): p is Platform => p in PLATFORMS);
   const format = findFormat(formatSlug);
   const ideal = format ? (format.idealSeconds[0] + format.idealSeconds[1]) / 2 : 30;
   const durationS = [...DURATIONS].sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal))[0];
   return {
-    objective: "crescer",
+    objective,
     platforms: known.length ? known : ["reels"],
     durationS,
     resources: format?.needsSomeone ? ["com_alguem", "em_casa"] : ["sozinho", "em_casa"],
   };
 }
 
-export function fortnightPrompt(ctx: { niche: string; platforms: string[]; trends: { title: string; what: string }[]; recentTitles: string[] }): string {
-  const formats = FORMATS.map((f) => `- ${f.slug}: ${f.name}. ${f.summary}`).join("\n");
-  const where = ctx.platforms.filter((p): p is Platform => p in PLATFORMS).map((p) => PLATFORMS[p]);
-  return `Nicho do criador: ${ctx.niche}
-Onde posta: ${where.join(", ") || "Reels e TikTok"}
-${ctx.recentTitles.length ? `Ideias que ele já recebeu (não repita): ${ctx.recentTitles.join(" | ")}\n` : ""}${ctx.trends.length ? `Trends desta semana (use no máximo duas, e só se combinarem com o nicho): ${ctx.trends.map((t) => `${t.title}: ${t.what}`).join(" | ")}\n` : ""}
-Formatos que você pode usar (use o slug):
-${formats}
+// A mistura da quinzena, calculada pelo app (o modelo deduz mal números a partir de frases soltas).
+// objectives = objetivos dos vídeos da pessoa, do mais recente para o mais antigo.
+// Sem vídeo: Crescer e Divertir. Com 1 ou 2: o principal é o do mais recente. Com 3 ou mais: o mais usado.
+export function fortnightMix(objectives: Objective[]): { main: Objective; second: Objective } {
+  const fallback = (not: Objective): Objective => (not === "divertir" ? "crescer" : "divertir");
+  if (objectives.length === 0) return { main: "crescer", second: "divertir" };
+  const counts = new Map<Objective, number>();
+  objectives.forEach((o) => counts.set(o, (counts.get(o) ?? 0) + 1));
+  // Empate: ganha o que apareceu mais recentemente (a ordem da lista já é do mais recente).
+  const ranked = [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)! || objectives.indexOf(a) - objectives.indexOf(b));
+  const main = objectives.length < 3 ? objectives[0] : ranked[0];
+  const second = ranked.find((o) => o !== main) ?? fallback(main);
+  return { main, second };
+}
 
-Sugira ${IDEAS_PER_PERIOD} ideias de vídeo curto para as próximas duas semanas, variadas entre si e em formatos diferentes.
-Misture ideias fáceis de gravar sozinho com uma ou duas mais elaboradas.
-Responda só com JSON:
-{"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho, até 10 palavras","why":"por que funciona, em uma frase; se houver virada ou final inesperado, conte qual é"}]}`;
+export function mixText(mix: { main: Objective; second: Objective }): string {
+  return `${IDEAS_PER_PERIOD - 2} ideias de ${mix.main}, 1 de ${mix.second} e 1 fora do padrão.`;
 }

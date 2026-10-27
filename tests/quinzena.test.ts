@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntilNext, fortnightPrompt, periodEnd, periodLabel, periodStart, quickStartDefaults } from "@/lib/quinzena";
+import { daysUntilNext, fortnightMix, mixText, periodEnd, periodLabel, periodStart, quickStartDefaults } from "@/lib/quinzena";
 
 const day = (s: string) => new Date(`${s}T15:00:00`);
 
@@ -34,13 +34,13 @@ describe("começar com um toque", () => {
   });
 });
 
-describe("pedido à IA", () => {
-  it("leva nicho, plataformas, ideias já recebidas e trends", () => {
-    const p = fortnightPrompt({ niche: "receitas baratas", platforms: ["tiktok"], trends: [{ title: "POV de segunda", what: "Sobre a segunda-feira." }], recentTitles: ["Arroz de 3 jeitos"] });
-    expect(p).toContain("Nicho do criador: receitas baratas");
-    expect(p).toContain("Onde posta: TikTok");
-    expect(p).toContain("não repita): Arroz de 3 jeitos");
-    expect(p).toContain("POV de segunda: Sobre a segunda-feira.");
-    expect(p).toContain("Sugira 6 ideias");
+describe("mistura da quinzena", () => {
+  it("sem vídeo: Crescer e Divertir; com 1 ou 2: o mais recente; com 3 ou mais: o mais usado", () => {
+    expect(fortnightMix([])).toEqual({ main: "crescer", second: "divertir" });
+    expect(fortnightMix(["vender"])).toEqual({ main: "vender", second: "divertir" });
+    expect(fortnightMix(["divertir"])).toEqual({ main: "divertir", second: "crescer" });
+    expect(fortnightMix(["ensinar", "vender"])).toEqual({ main: "ensinar", second: "vender" });
+    expect(fortnightMix(["vender", "divertir", "divertir", "ensinar"])).toEqual({ main: "divertir", second: "vender" });
+    expect(mixText({ main: "divertir", second: "vender" })).toBe("4 ideias de divertir, 1 de vender e 1 fora do padrão.");
   });
 });

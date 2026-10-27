@@ -1,4 +1,4 @@
-import { FORMATS, findFormat } from "./formats";
+import { findFormat } from "./formats";
 
 export const OBJECTIVES = {
   crescer: "Crescer",
@@ -51,40 +51,36 @@ export function videoPlatforms(v: { platform: Platform | null; platforms?: reado
   return v.platforms?.length ? [...v.platforms] : v.platform ? [v.platform] : [];
 }
 
-export interface IdeaBrief {
-  niche: string;
-  objective: Objective;
-  platforms: Platform[];
-  durationS: number;
-  resources: Resource[];
-  request?: string; // "outras", "mais engraçado" ou o que a pessoa escreveu
-  previousTitles?: string[]; // para não repetir
-  trends?: { title: string; what: string }[]; // radar da semana, escolhido pela equipe
-}
-
 export interface Idea {
   title: string;
   format_slug: string | null;
   hook: string;
+  situation: string; // a cena, em 1 ou 2 frases
+  payoff: string; // o desfecho exato: a virada, o resultado, a dica ou a oferta
   why: string;
+  objective?: Objective; // só nas ideias da quinzena, que misturam objetivos
 }
 
-export type QuestionId = "niche" | "objective" | "platform" | "duration" | "resources";
+export type QuestionId = "niche" | "objective" | "produto" | "platform" | "duration" | "resources";
 
-export const QUESTION_ORDER: QuestionId[] = ["niche", "objective", "platform", "duration", "resources"];
+export const QUESTION_ORDER: QuestionId[] = ["niche", "objective", "produto", "platform", "duration", "resources"];
 
 export interface Answers {
   niche: string | null;
   objective: Objective | null;
+  product?: string | null; // só no objetivo Vender: o que vende
+  productEdge?: string | null; // e por que comprar dali
   platforms: Platform[];
   durationS: number | null;
   resources: Resource[];
 }
 
 // A primeira pergunta ainda sem resposta; null quando dá para pedir ideias.
+// Quem vende conta o produto e o diferencial: sem isso, nenhum prompt faz anúncio bom.
 export function nextQuestion(a: Answers): QuestionId | null {
   if (!a.niche?.trim()) return "niche";
   if (!a.objective) return "objective";
+  if (a.objective === "vender" && (!a.product?.trim() || !a.productEdge?.trim())) return "produto";
   if (a.platforms.length === 0) return "platform";
   if (!a.durationS) return "duration";
   if (a.resources.length === 0) return "resources";
@@ -95,36 +91,12 @@ export function durationLabel(seconds: number): string {
   return seconds < 60 ? `${seconds} s` : seconds % 60 === 0 ? `${seconds / 60} min` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
 }
 
-export const IDEA_SYSTEM = `Você é o Gravaí, um parceiro de set que ajuda criadores de conteúdo brasileiros a ter ideias de vídeos curtos.
-Fale português do Brasil, direto e moderno, sem jargão solto e sem emoji.
-Toda ideia precisa ser gravável com os recursos que a pessoa tem.
-O gancho é o que a pessoa fala ou mostra nos 3 primeiros segundos: tem que prender quem está rolando o feed e ter no máximo 10 palavras.
-Seja concreto: nada de promessa vaga. Se a ideia depende de uma virada, um final inesperado, uma piada ou um "plot twist", diga qual é a virada de verdade (no "why" ou no título), em vez de só dizer que vai ter uma.
-Não invente números, estudos ou fatos sobre pessoas reais.`;
-
-export function ideaPrompt(b: IdeaBrief): string {
-  const sozinho = b.resources.includes("sozinho") && !b.resources.includes("com_alguem");
-  const formats = FORMATS.filter((f) => !(sozinho && f.needsSomeone))
-    .map((f) => `- ${f.slug}: ${f.name}. ${f.summary} Estrutura: ${f.structure.join(" → ")}.`)
-    .join("\n");
-
-  return `Nicho do criador: ${b.niche}
-Objetivo do vídeo: ${OBJECTIVES[b.objective]}
-Onde vai postar: ${platformsLabel(b.platforms)}, com cerca de ${durationLabel(b.durationS)}
-Recursos: ${b.resources.map((r) => RESOURCES[r]).join(", ") || "não informado"}
-${b.previousTitles?.length ? `Ideias que a pessoa já viu (não repita): ${b.previousTitles.join(" | ")}\n` : ""}${b.request ? `Pedido da pessoa: ${b.request}\n` : ""}${b.trends?.length ? `Trends desta semana (use no máximo uma, e só se combinar com o nicho): ${b.trends.map((t) => `${t.title}: ${t.what}`).join(" | ")}\n` : ""}
-Formatos que você pode usar (use o slug):
-${formats}
-
-Sugira 5 ideias diferentes entre si, em formatos variados. Responda só com JSON:
-{"ideas":[{"title":"título curto da ideia","format_slug":"slug de um formato acima","hook":"a frase exata do gancho","why":"por que funciona, em uma frase; se houver virada ou final inesperado, conte qual é"}]}`;
-}
-
 function clip(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, max) : "";
 }
 
 // Confere a resposta da IA: só ideias completas, formato conhecido, no máximo 5.
+// Gancho que passa muito do limite (12 palavras) é sinal de resposta quebrada: a ideia sai.
 export function normalizeIdeas(raw: unknown, max = 5): Idea[] {
   const list = (raw as { ideas?: unknown })?.ideas;
   if (!Array.isArray(list)) return [];
@@ -132,13 +104,32 @@ export function normalizeIdeas(raw: unknown, max = 5): Idea[] {
     .map((item) => {
       const i = (item ?? {}) as Record<string, unknown>;
       const slug = clip(i.format_slug, 60);
+      const objective = typeof i.objective === "string" && i.objective in OBJECTIVES ? (i.objective as Objective) : undefined;
       return {
         title: clip(i.title, 140),
         format_slug: findFormat(slug) ? slug : null,
         hook: clip(i.hook, 300).replace(/^["“]|["”]$/g, ""),
+        situation: clip(i.situation, 600),
+        payoff: clip(i.payoff, 600),
         why: clip(i.why, 400),
+        ...(objective ? { objective } : {}),
       };
     })
-    .filter((i) => i.title && i.hook)
+    .filter((i) => i.title && i.hook && i.hook.split(/\s+/).length <= 20)
     .slice(0, max);
 }
+
+// Botões rápidos: mudam conforme o objetivo ("Mais engraçado" não serve para quem vende).
+export const QUICK_IDEAS: Record<Objective, string[]> = {
+  divertir: ["Outras ideias", "Mais engraçado", "Mais absurdo", "Mais fácil de gravar"],
+  vender: ["Outras ideias", "Mostrar o produto antes", "Com prova", "Mais fácil de gravar"],
+  ensinar: ["Outras ideias", "Mais simples", "Com exemplo", "Mais fácil de gravar"],
+  crescer: ["Outras ideias", "Virar série", "Mais polêmico", "Mais fácil de gravar"],
+};
+
+export const QUICK_BLOCK: Record<Objective, string[]> = {
+  divertir: ["Mais curto", "Mais engraçado", "Virada mais forte"],
+  vender: ["Mais curto", "Mais direto", "Chamada mais clara"],
+  ensinar: ["Mais curto", "Mais simples", "Mostrar em vez de falar"],
+  crescer: ["Mais curto", "Mais direto", "Puxar comentário"],
+};

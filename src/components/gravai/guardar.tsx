@@ -16,12 +16,14 @@ export interface SavedIdea {
   title: string;
   format_slug: string | null;
   hook: string;
+  situation: string;
+  payoff: string;
   why: string | null;
   video_id: string | null;
   created_at: string;
 }
 
-export type IdeaToSave = Pick<SavedIdea, "source" | "source_id" | "title" | "format_slug" | "hook" | "why">;
+export type IdeaToSave = Pick<SavedIdea, "source" | "source_id" | "title" | "format_slug" | "hook" | "why"> & { situation?: string; payoff?: string };
 
 let items: SavedIdea[] | null = null;
 let loading = false;

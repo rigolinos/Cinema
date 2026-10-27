@@ -514,6 +514,31 @@ ok(r.err, 'visitante não usa a função');
 r = await as('authenticated', A, 'DELETE FROM public.saved_ideas WHERE id = $1 RETURNING id', [salva]);
 ok(r.rows?.length === 1, 'pessoa tira a ideia guardada');
 
+console.log('Prompts v3:');
+r = await as('authenticated', A, `INSERT INTO public.videos (objective) VALUES ('divertir') RETURNING id`);
+const vidV3 = r.rows?.[0]?.id;
+ok(vidV3, 'vídeo para os testes da v3' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `INSERT INTO public.video_ideas (video_id, title, hook, situation, payoff) VALUES ($1, 'Mãe e a marmita', 'Ela pergunta de novo', 'A mãe liga três vezes', 'Na terceira ela está na porta') RETURNING id`, [vidV3]);
+const ideiaV3 = r.rows?.[0]?.id;
+ok(ideiaV3, 'ideia guarda situação e desfecho' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, 'SELECT public.choose_idea($1)', [ideiaV3]);
+const v3 = await one('SELECT title, situation, payoff FROM public.videos WHERE id = $1', [vidV3]);
+ok(!r.err && v3.situation === 'A mãe liga três vezes' && v3.payoff === 'Na terceira ela está na porta', 'escolher a ideia leva a cena e o desfecho para o vídeo');
+r = await as('authenticated', A, `UPDATE public.videos SET brief = 'meu roteiro', start_door = 'roteiro' WHERE id = $1 RETURNING start_door`, [vidV3]);
+ok(r.rows?.[0]?.start_door === 'roteiro', 'o vídeo guarda o que a pessoa trouxe e a porta de entrada');
+r = await as('authenticated', A, `UPDATE public.videos SET start_door = 'janela' WHERE id = $1`, [vidV3]);
+ok(r.err, 'porta desconhecida é recusada');
+r = await as('authenticated', A, `INSERT INTO public.creator_profiles (user_id, product, product_edge) VALUES ($1, 'Bolo de pote', 'Feito no dia') ON CONFLICT (user_id) DO UPDATE SET product = excluded.product, product_edge = excluded.product_edge RETURNING product`, [A]);
+ok(r.rows?.[0]?.product === 'Bolo de pote', 'quem vende guarda o produto e o diferencial' + (r.err ? ': ' + r.err : ''));
+for (const kind of ['roteiro_colado', 'sugestao_aceita', 'sugestao_recusada', 'porta_entrada']) {
+  r = await as('authenticated', A, `INSERT INTO public.creator_signals (kind, detail) VALUES ($1, '{}') RETURNING id`, [kind]);
+  ok(!r.err, `sinal novo da memória: ${kind}` + (r.err ? ': ' + r.err : ''));
+}
+r = await as('authenticated', A, `INSERT INTO public.creator_ideas (period_start, position, title, hook, objective) VALUES ('2026-11-02', 0, 'Q', 'G', 'vender') RETURNING objective`);
+ok(r.rows?.[0]?.objective === 'vender', 'ideia da quinzena diz o objetivo dela' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `INSERT INTO public.creator_ideas (period_start, position, title, hook, objective) VALUES ('2026-11-02', 1, 'Q', 'G', 'viralizar')`);
+ok(r.err, 'objetivo desconhecido é recusado');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

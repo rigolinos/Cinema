@@ -11,10 +11,19 @@ export class AiError extends Error {
   }
 }
 
+export type Thinking = "zero" | "baixo" | "medio";
+
+// Orçamento de pensamento do Gemini 2.5 Flash, por tarefa: as criativas pensam mais (geram muitas e escolhem).
+// Os tokens de pensamento contam nos limites do plano gratuito.
+export const THINKING_BUDGET: Record<Thinking, number> = { zero: 0, baixo: 512, medio: 2048 };
+
 export interface AiRequest {
   system: string;
   prompt: string;
   temperature?: number;
+  schema?: object; // formato da resposta, por configuração (Gemini)
+  example?: string; // o mesmo formato em JSON de exemplo, só para quem não aceita schema (Groq)
+  thinking?: Thinking;
 }
 
 type Provider = (req: AiRequest) => Promise<string>;
@@ -35,7 +44,7 @@ export function geminiModel(): string {
   return key("GEMINI_MODEL") ?? "gemini-2.5-flash";
 }
 
-const gemini: Provider = async ({ system, prompt, temperature = 0.9 }) => {
+const gemini: Provider = async ({ system, prompt, temperature = 0.9, schema, example, thinking }) => {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,
     {
@@ -43,8 +52,14 @@ const gemini: Provider = async ({ system, prompt, temperature = 0.9 }) => {
       headers: { "Content-Type": "application/json", "x-goog-api-key": key("GEMINI_API_KEY")! },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", temperature },
+        // Com schema, o formato vai por configuração e não se repete no texto.
+        contents: [{ role: "user", parts: [{ text: schema ? prompt : withExample(prompt, example) }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature,
+          ...(schema ? { responseSchema: schema } : {}),
+          ...(thinking ? { thinkingConfig: { thinkingBudget: THINKING_BUDGET[thinking] } } : {}),
+        },
       }),
     },
   );
@@ -58,7 +73,7 @@ export function groqModel(): string {
   return key("GROQ_MODEL") ?? "openai/gpt-oss-120b";
 }
 
-const groq: Provider = async ({ system, prompt, temperature = 0.9 }) => {
+const groq: Provider = async ({ system, prompt, temperature = 0.9, example }) => {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key("GROQ_API_KEY")}` },
@@ -68,7 +83,7 @@ const groq: Provider = async ({ system, prompt, temperature = 0.9 }) => {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
-        { role: "user", content: prompt },
+        { role: "user", content: withExample(prompt, example) },
       ],
     }),
   });
@@ -76,6 +91,11 @@ const groq: Provider = async ({ system, prompt, temperature = 0.9 }) => {
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? "";
 };
+
+// O Groq não aceita schema: o formato vai como exemplo no fim do pedido.
+export function withExample(prompt: string, example?: string): string {
+  return example ? `${prompt}\n\nResponda só com JSON: ${example}` : prompt;
+}
 
 export function parseJson(text: string): unknown {
   const clean = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");

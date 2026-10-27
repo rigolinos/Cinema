@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel, ideaPrompt, mainPlatform, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, videoPlatforms, type Answers } from "@/lib/ideas";
+import { durationLabel, mainPlatform, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, videoPlatforms, type Answers } from "@/lib/ideas";
 import { parseJson } from "@/lib/ai";
 
 const full: Answers = { niche: "treino em casa", objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho"] };
@@ -34,26 +34,6 @@ describe("várias plataformas", () => {
   });
 });
 
-describe("ideaPrompt", () => {
-  it("leva o contexto da pessoa e não oferece formato que precisa de outra pessoa a quem grava sozinho", () => {
-    const solo = ideaPrompt({ niche: "receitas", objective: "vender", platforms: ["tiktok"], durationS: 60, resources: ["sozinho"], previousTitles: ["Ideia velha"], request: "Mais engraçado" });
-    expect(solo).toContain("receitas");
-    expect(solo).toContain("Vender");
-    expect(solo).toContain("TikTok, com cerca de 1 min");
-    expect(solo).toContain("Ideia velha");
-    expect(solo).toContain("Mais engraçado");
-    expect(solo).not.toContain("- dialogo:");
-
-    const junto = ideaPrompt({ niche: "humor", objective: "divertir", platforms: ["reels", "tiktok"], durationS: 30, resources: ["com_alguem"] });
-    expect(junto).toContain("- dialogo:");
-    expect(junto).toContain("Onde vai postar: Reels e TikTok");
-    expect(junto).not.toContain("Trends desta semana");
-
-    const comRadar = ideaPrompt({ niche: "humor", objective: "divertir", platforms: ["reels"], durationS: 30, resources: ["sozinho"], trends: [{ title: "POV de segunda", what: "Vídeos sobre a segunda-feira." }] });
-    expect(comRadar).toContain("Trends desta semana (use no máximo uma, e só se combinar com o nicho): POV de segunda: Vídeos sobre a segunda-feira.");
-  });
-});
-
 describe("normalizeIdeas", () => {
   it("guarda só ideias completas, com formato conhecido, no máximo 5", () => {
     const ideas = normalizeIdeas({
@@ -65,7 +45,7 @@ describe("normalizeIdeas", () => {
       ],
     });
     expect(ideas).toHaveLength(5);
-    expect(ideas[0]).toEqual({ title: "3 erros no treino", format_slug: "tres-erros", hook: "Você erra isso.", why: "Lista curta." });
+    expect(ideas[0]).toEqual({ title: "3 erros no treino", format_slug: "tres-erros", hook: "Você erra isso.", situation: "", payoff: "", why: "Lista curta." });
     expect(ideas[1].format_slug).toBeNull();
     expect(normalizeIdeas(null)).toEqual([]);
     expect(normalizeIdeas({ ideas: "nada" })).toEqual([]);

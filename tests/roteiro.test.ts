@@ -2,17 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   blockSeconds,
   checkScript,
-  draftPrompt,
+  maxWords,
+  normalizeSuggestions,
+  scriptForPrompt,
   speakerOf,
   normalizeDraft,
   normalizeRewrite,
-  rewritePrompt,
   scriptAsText,
   timeline,
   totalSeconds,
   wordCount,
   type ScriptBlock,
-  type ScriptBrief,
 } from "@/lib/roteiro";
 
 const b = (kind: ScriptBlock["kind"], speech: string, extra: Partial<ScriptBlock> = {}): ScriptBlock => ({
@@ -90,30 +90,42 @@ describe("normalizeDraft", () => {
   });
 });
 
-describe("prompts", () => {
-  const brief: ScriptBrief = {
-    niche: "treino em casa",
-    title: "3 erros no treino",
-    hook: "Você erra isso.",
-    formatSlug: "tres-erros",
-    objective: "crescer",
-    platform: "reels",
-    durationS: 30,
-    resources: ["sozinho"],
-  };
+describe("sugestões e contexto", () => {
+  const blocks = [b("gancho", "Oi gente, hoje vou falar"), b("conteudo", "Erro 1"), b("chamada", "Segue aí")];
 
-  it("o rascunho leva a ideia, a estrutura do formato e o orçamento de palavras", () => {
-    const p = draftPrompt(brief);
-    expect(p).toContain('Gancho escolhido: "Você erra isso."');
-    expect(p).toContain("Erro 1 e a correção");
-    expect(p).toContain("NO MÁXIMO 70 palavras");
+  it("no máximo 4 sugestões, 1 por bloco, só em blocos que existem e só se mudarem algo", () => {
+    const r = normalizeSuggestions(
+      {
+        note: " Bom roteiro ",
+        suggestions: [
+          { block: 1, speech: "Você erra isso todo dia", reason: "Prende antes." },
+          { block: 1, speech: "Outra", reason: "Repetida." },
+          { block: 9, speech: "Fora", reason: "Não existe." },
+          { block: 2, speech: "Erro 1", reason: "Igual ao original." },
+          { block: 3, speech: "Me segue para a parte 2", reason: "" },
+        ],
+      },
+      blocks,
+    );
+    expect(r.note).toBe("Bom roteiro");
+    expect(r.suggestions).toEqual([{ block: 1, speech: "Você erra isso todo dia", on_screen: "", action: "", reason: "Prende antes." }]);
   });
 
-  it("a reescrita marca só o bloco pedido", () => {
-    const p = rewritePrompt(brief, [b("gancho", "A"), b("conteudo", "B")], 1, "mais engraçado");
-    expect(p).toContain(">>> 2. [conteudo]");
-    expect(p).not.toContain(">>> 1.");
-    expect(p).toContain("Pedido da pessoa: mais engraçado");
+  it("o roteiro vai numerado a partir de 1, com o bloco a mudar marcado", () => {
+    const text = scriptForPrompt(blocks, 1);
+    expect(text).toContain("1. [gancho] FALA: Oi gente");
+    expect(text).toContain(">>> 2. [conteudo]");
+    expect(text).not.toContain(">>> 1.");
+  });
+
+  it("limite de palavras do rascunho pela duração", () => {
+    expect(maxWords(30)).toBe(70);
+    expect(maxWords(15)).toBe(35);
+  });
+
+  it("em Divertir a chamada final é opcional", () => {
+    const checks = checkScript([b("gancho", words(8)), b("virada", words(30))], 15, "divertir");
+    expect(checks.map((c) => c.text).join(" ")).not.toMatch(/Sem chamada final/);
   });
 });
 
