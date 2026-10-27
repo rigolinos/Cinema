@@ -112,7 +112,7 @@ export default function InicioPage() {
       {radar?.[0] ? (
         <RadarCard item={radar[0]} />
       ) : (
-        <Link href={`/ideias#${week.slug}`} className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-foreground p-4">
+        <Link href={`/ideias/formatos#${week.slug}`} className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-foreground p-4">
           <span className="label-set text-muted-foreground">Formato da semana</span>
           <span className="text-lg font-bold">{week.name}</span>
           <span className="text-sm leading-relaxed text-muted-foreground">{week.summary}</span>
