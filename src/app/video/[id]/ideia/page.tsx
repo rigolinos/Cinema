@@ -7,7 +7,7 @@ import { Explain } from "@/components/gravai/explain";
 import { BriefBox, OwnIdeaBox, PasteBox } from "@/components/gravai/portas";
 import { SaveButton } from "@/components/gravai/guardar";
 import { StepHeader } from "@/components/gravai/step-header";
-import { Thinking } from "@/components/gravai/thinking";
+import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import {
@@ -123,6 +123,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [door, setDoor] = useState<"zero" | "ideia" | "roteiro">("zero");
   const [brief, setBrief] = useState("");
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
+  // Ideias chegando, ainda sem id: aparecem uma a uma enquanto a IA escreve, sem botões ativos.
+  const [incoming, setIncoming] = useState<Pick<VideoIdea, "title" | "hook" | "situation" | "format_slug">[]>([]);
   const [requests, setRequests] = useState<Record<number, string>>({});
   const [ask, setAsk] = useState("");
   const [knowsYou, setKnowsYou] = useState(false);
@@ -171,22 +173,49 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     async (request?: string, like?: string) => {
       setBusy("ideas");
       setError(null);
+      setIncoming([]);
       const res = await fetch("/api/ideias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoId: id, request, like }),
       }).catch(() => null);
-      const body = await res?.json().catch(() => null);
-      if (!res?.ok) {
+      if (!res?.ok || !res.body) {
+        const body = await res?.json().catch(() => null);
         setError(body?.error ?? "Sem conexão. Tente de novo.");
-      } else {
-        const fresh = body.ideas as VideoIdea[];
-        const said = like ? `Mais assim: ${like}` : request;
-        if (said && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: said }));
-        if (fresh[0]) jumpToRound.current = fresh[0].round;
-        setIdeas((prev) => [...prev, ...fresh]);
-        setAsk("");
+        setBusy(null);
+        return;
       }
+      // Linhas de JSON: "idea" a cada ideia pronta, "done" com as guardadas, ou "error".
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finished = false;
+      while (!finished) {
+        const { value, done } = await reader.read().catch(() => ({ value: undefined, done: true }));
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as { type: string; idea?: VideoIdea; ideas?: VideoIdea[]; error?: string };
+          if (event.type === "idea" && event.idea) setIncoming((list) => [...list, event.idea!]);
+          if (event.type === "error") {
+            setError(event.error ?? "A IA não respondeu direito desta vez. Tente de novo.");
+            finished = true;
+          }
+          if (event.type === "done" && event.ideas) {
+            const fresh = event.ideas;
+            const said = like ? `Mais assim: ${like}` : request;
+            if (said && fresh[0]) setRequests((r) => ({ ...r, [fresh[0].round]: said }));
+            if (fresh[0]) jumpToRound.current = fresh[0].round;
+            setIdeas((prev) => [...prev, ...fresh]);
+            setAsk("");
+            finished = true;
+          }
+        }
+      }
+      setIncoming([]);
       setBusy(null);
     },
     [id],
@@ -490,12 +519,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               {requests[round] && <Mine text={requests[round]} />}
               {ideas
                 .filter((i) => i.round === round)
-                .map((idea) => {
+                .map((idea, i) => {
                   const format = findFormat(idea.format_slug);
+                  const best = i === 0;
                   return (
-                    <article key={idea.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
+                    <article key={idea.id} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", best && "border-[1.5px] border-foreground")}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="label-set text-muted-foreground">{format ? `Formato · ${format.name}` : ""}</span>
+                        <span className="label-set text-muted-foreground">
+                          {[best ? "Mais forte" : "", format?.name ?? ""].filter(Boolean).join(" · ")}
+                        </span>
                         <SaveButton
                           idea={{
                             source: "video",
@@ -529,7 +561,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                         type="button"
                         disabled={busy !== null}
                         onClick={() => choose(idea)}
-                        className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                        className="min-h-12 rounded-full border-[1.5px] border-foreground font-bold disabled:opacity-40"
                       >
                         {idea.chosen ? "Seguir com esta" : "Quero essa"}
                       </button>
@@ -557,7 +589,28 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
-        {busy === "ideas" && <p className="label-set text-muted-foreground"><Thinking label="Pensando nas ideias" /></p>}
+        {busy === "ideas" && (
+          <div className="flex flex-col gap-3.5">
+            {incoming.map((idea, i) => (
+              <article key={`${i}-${idea.title}`} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", i === 0 && "border-[1.5px] border-foreground")}>
+                <span className="label-set text-muted-foreground">{i === 0 ? "Mais forte" : findFormat(idea.format_slug)?.name ?? ""}</span>
+                <h2 className="text-lg font-bold leading-snug">{idea.title}</h2>
+                <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
+                  <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
+                  <p className="text-[15px] font-semibold leading-snug">“{idea.hook}”</p>
+                </div>
+                {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+              </article>
+            ))}
+            <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-input p-4">
+              <p className="label-set text-muted-foreground">
+                <Thinking label="Pensando nas ideias" steps={STEPS.ideias} />
+              </p>
+              <span className="h-2 w-3/4 rounded-full bg-input" aria-hidden="true" />
+              <span className="h-2 w-1/2 rounded-full bg-input" aria-hidden="true" />
+            </div>
+          </div>
+        )}
         {error && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
             {error}
