@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Pencil } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { BriefBox, OwnIdeaBox, PasteBox } from "@/components/gravai/portas";
 import { SaveButton } from "@/components/gravai/guardar";
@@ -76,18 +76,23 @@ function Assistant({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Resposta da pessoa. Tocar nela reabre a pergunta.
-function Mine({ text, onClick }: { text: string; onClick?: () => void }) {
+// Resposta da pessoa. Tocar nela reabre a pergunta: o lápis mostra que dá para mudar,
+// e a nota explica o que já veio preenchido (ex.: o nicho, que vem do perfil).
+function Mine({ text, onClick, note }: { text: string; onClick?: () => void; note?: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      aria-label={onClick ? `Mudar resposta: ${text}` : undefined}
-      className="max-w-[85%] self-end rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-3 text-left text-[15px] leading-snug text-primary-foreground"
-    >
-      {text}
-    </button>
+    <div className="flex max-w-[85%] flex-col items-end gap-1 self-end">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!onClick}
+        aria-label={onClick ? `Mudar resposta: ${text}` : undefined}
+        className="flex items-center gap-2 rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-3 text-left text-[15px] leading-snug text-primary-foreground"
+      >
+        {text}
+        {onClick && <Pencil className="size-3.5 shrink-0 opacity-60" strokeWidth={2} aria-hidden="true" />}
+      </button>
+      {note && onClick && <span className="text-xs text-muted-foreground">{note}</span>}
+    </div>
   );
 }
 
@@ -310,7 +315,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         {answered.map((q) => (
           <div key={q} className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">{QUESTIONS[q]}</p>
-            <Mine text={answerText(q, answers)} onClick={busy ? undefined : () => edit(q)} />
+            <Mine
+              text={answerText(q, answers)}
+              onClick={busy ? undefined : () => edit(q)}
+              note={q === "niche" || q === "produto" ? "Veio do seu perfil · toque para mudar" : undefined}
+            />
           </div>
         ))}
 
