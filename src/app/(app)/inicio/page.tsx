@@ -82,12 +82,12 @@ export default function InicioPage() {
       </Link>
 
       <section className="flex flex-col gap-2.5" aria-labelledby="andamento">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between">
           <h2 id="andamento" className="label-set text-muted-foreground">
             Em andamento
           </h2>
-          <Link href="/videos" className="flex min-h-11 items-center text-sm font-semibold underline">
-            Meus vídeos
+          <Link href="/videos" className="flex min-h-11 items-center rounded-full bg-card px-4 text-sm font-semibold">
+            Ver todos{total > SHOW ? ` (${total})` : ""}
           </Link>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -107,11 +107,6 @@ export default function InicioPage() {
             }}
           />
         ))}
-        {total > SHOW && (
-          <Link href="/videos" className="flex min-h-11 items-center justify-center text-sm font-semibold underline">
-            Ver todos ({total} em andamento)
-          </Link>
-        )}
       </section>
 
       {radar?.[0] ? (
