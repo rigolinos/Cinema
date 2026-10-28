@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { InstallItem } from "@/components/gravai/instalar";
 import { MemorySection } from "@/components/gravai/memoria";
 import { PrivacySection } from "@/components/gravai/privacy-section";
+import { ReportAi } from "@/components/gravai/denunciar";
 
 const field =
   "min-h-12 w-full rounded-xl border border-input bg-card px-4 text-base outline-none focus:border-foreground";
@@ -151,6 +152,8 @@ export default function PerfilPage() {
       <InstallItem />
 
       <PrivacySection />
+
+      <ReportAi area="outro" content="" label="Denunciar uma resposta da IA" />
 
       <button type="button" onClick={logout} className="flex min-h-12 items-center gap-2 self-start font-semibold text-muted-foreground">
         <LogOut className="size-5" strokeWidth={1.75} aria-hidden="true" />

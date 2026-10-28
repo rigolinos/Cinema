@@ -9,6 +9,7 @@ import { findFormat } from "@/lib/formats";
 import { DURATIONS, OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, mainPlatform, nicheInSentence, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { daysUntilNext, periodLabel, quickStartDefaults, type QuickStart } from "@/lib/quinzena";
 import { Explain } from "@/components/gravai/explain";
+import { ReportAi } from "@/components/gravai/denunciar";
 import { SaveButton, useSavedIdeas } from "@/components/gravai/guardar";
 import { OpenVideoLink, UseIdeaButton } from "@/components/gravai/idea-action";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
@@ -297,6 +298,7 @@ export function IdeiasQuinzena() {
                     </>
                   )}
                   {idea.why}
+                  <ReportAi area="ideia" content={[idea.title, idea.hook, idea.situation, idea.payoff].filter(Boolean).join("\n")} refId={idea.id} label="Denunciar esta ideia" />
                 </Explain>
               )}
               <span className="ml-auto">

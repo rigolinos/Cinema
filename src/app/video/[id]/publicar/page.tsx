@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useConfirm } from "@/components/gravai/confirm";
+import { ReportAi } from "@/components/gravai/denunciar";
 import { Check, ChevronLeft, Copy } from "lucide-react";
 import { useFirstTime } from "@/components/gravai/explain";
 import { SlateTabs } from "@/components/gravai/slate-tabs";
@@ -188,6 +189,7 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
                   className={cn(field, "resize-none")}
                 />
                 {tips && <p className="text-sm text-muted-foreground">{POST_PARTS.caption.why}</p>}
+                <ReportAi area="publicar" content={post.caption} refId={id} label="Denunciar este texto" className="-mt-1" />
               </section>
 
               <section className="flex flex-col gap-2">
