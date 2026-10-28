@@ -4,6 +4,7 @@ import { use, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
+import { ReportAi } from "@/components/gravai/denunciar";
 import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
@@ -154,6 +155,12 @@ function BlockCard({
           {suggestion.on_screen && <p className="text-sm text-muted-foreground">Na tela: {suggestion.on_screen}</p>}
           {suggestion.action && <p className="text-sm text-muted-foreground">Cena: {suggestion.action}</p>}
           <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>
+          <ReportAi
+            area="roteiro"
+            content={[suggestion.speech, suggestion.on_screen && `Na tela: ${suggestion.on_screen}`, suggestion.action && `Cena: ${suggestion.action}`].filter(Boolean).join("\n")}
+            label="Denunciar esta sugestão"
+            className="-my-1.5"
+          />
           <div className="flex gap-2">
             <button type="button" disabled={busy} onClick={() => onSuggestion(true)} className="min-h-11 flex-1 rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-40">
               Usar sugestão

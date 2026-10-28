@@ -539,6 +539,20 @@ ok(r.rows?.[0]?.objective === 'vender', 'ideia da quinzena diz o objetivo dela' 
 r = await as('authenticated', A, `INSERT INTO public.creator_ideas (period_start, position, title, hook, objective) VALUES ('2026-11-02', 1, 'Q', 'G', 'viralizar')`);
 ok(r.err, 'objetivo desconhecido é recusado');
 
+console.log('Denúncias da IA:');
+r = await as('authenticated', A, `INSERT INTO public.ai_reports (area, reason, content, note) VALUES ('ideia', 'ofensivo', 'Gancho estranho', '') RETURNING id`);
+ok(r.rows?.[0]?.id, 'pessoa denuncia uma resposta da IA' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `INSERT INTO public.ai_reports (reporter_id, area, reason) VALUES ($1, 'ideia', 'ofensivo')`, [B]);
+ok(r.err, 'ninguém denuncia em nome de outra pessoa');
+r = await as('authenticated', A, `INSERT INTO public.ai_reports (area, reason) VALUES ('ideia', 'chato')`);
+ok(r.err, 'só os motivos conhecidos');
+r = await as('authenticated', B, 'SELECT id FROM public.ai_reports');
+ok(!r.err && r.rows.length === 0, 'ninguém vê a denúncia de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.ai_reports SET reason = 'outro' RETURNING id`);
+ok(r.err || r.rows.length === 0, 'denúncia enviada não muda');
+r = await as('anon', null, `INSERT INTO public.ai_reports (area, reason) VALUES ('ideia', 'ofensivo')`);
+ok(r.err, 'visitante não denuncia');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {

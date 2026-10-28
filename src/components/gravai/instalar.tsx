@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, Copy, EllipsisVertical, Share, Smartphone, SquarePlus, X } from "lucide-react";
 import { installMode, type InstallMode } from "@/lib/instalar";
+import { isTwaReferrer } from "@/lib/android";
 
 // O Chrome avisa que dá para instalar uma única vez, logo que a página carrega.
 // O aviso fica guardado aqui até a pessoa tocar em "Instalar o app no celular" no Perfil.
@@ -44,9 +45,21 @@ export function InstallCapture() {
   return null;
 }
 
+// Dentro do app da Google Play o Gravaí já está instalado. O Android só avisa na primeira página
+// (pelo endereço de origem); o aviso fica guardado para as próximas.
+function insideAndroidApp(): boolean {
+  try {
+    if (isTwaReferrer(document.referrer)) sessionStorage.setItem("gravai-android", "1");
+    return sessionStorage.getItem("gravai-android") === "1";
+  } catch {
+    return isTwaReferrer(document.referrer);
+  }
+}
+
 function currentMode(): InstallMode {
   const standalone =
     installed ||
+    insideAndroidApp() ||
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
   return installMode({ ua: navigator.userAgent, standalone, canPrompt: deferred !== null, touchPoints: navigator.maxTouchPoints });

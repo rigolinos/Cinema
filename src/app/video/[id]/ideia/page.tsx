@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp, Pencil } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
+import { ReportAi } from "@/components/gravai/denunciar";
 import { BriefBox, OwnIdeaBox, PasteBox } from "@/components/gravai/portas";
 import { SaveButton } from "@/components/gravai/guardar";
 import { StepHeader } from "@/components/gravai/step-header";
@@ -587,6 +588,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                             </>
                           )}
                           {idea.why}
+                          <ReportAi area="ideia" content={[idea.title, idea.hook, idea.situation, idea.payoff].filter(Boolean).join("\n")} refId={id} label="Denunciar esta ideia" />
                         </Explain>
                       )}
                       <button
