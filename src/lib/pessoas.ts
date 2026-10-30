@@ -26,9 +26,26 @@ export function shareUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, "")}/p/${token}`;
 }
 
+// Uma pessoa pode ter mais de um papel (atua e filma). O primeiro, nesta ordem, é o principal.
+export type GuestRole = Exclude<PersonRole, "eu">;
+export const GUEST_ROLES: GuestRole[] = ["ator", "filma", "equipe"];
+
+export function sortRoles(roles: readonly GuestRole[]): GuestRole[] {
+  return GUEST_ROLES.filter((r) => roles.includes(r));
+}
+
+// "para aparecer no vídeo e filmar"
+const VERBS: Record<GuestRole, string> = { ator: "aparecer no vídeo", filma: "filmar", equipe: "ajudar no set" };
+export function rolesAs(roles: readonly GuestRole[]): string {
+  const v = sortRoles(roles).map((r) => VERBS[r]);
+  return `para ${v.length > 1 ? `${v.slice(0, -1).join(", ")} e ${v.at(-1)}` : (v[0] ?? "ajudar")}`;
+}
+
 // Mensagem pronta para mandar pelo WhatsApp (a pessoa escolhe o contato no próprio WhatsApp).
-export function inviteMessage(name: string, role: PersonRole, title: string, url: string): string {
-  const what = role === "ator" ? "suas falas e cenas" : "o roteiro e os planos";
+export function inviteMessage(name: string, roles: readonly GuestRole[], title: string, url: string): string {
+  const acts = roles.includes("ator");
+  const crew = roles.some((r) => r !== "ator");
+  const what = acts && crew ? "suas falas, o roteiro e os planos" : acts ? "suas falas e cenas" : "o roteiro e os planos";
   return `Oi, ${name.trim().split(/\s+/)[0]}! Vou gravar “${title}” e você está no time. Aqui estão ${what}: ${url}`;
 }
 
