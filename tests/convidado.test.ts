@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMe, myLines, speechLines, type GuestBlock } from "@/lib/convidado";
+import { cueParts, isMe, myLines, speechLines, splitAction, type GuestBlock } from "@/lib/convidado";
 
 const blocks: GuestBlock[] = [
   {
@@ -35,5 +35,21 @@ describe("falas do convidado", () => {
       { block: 3, cue: "Kira: Mentiraaa, kkkk!", text: "Juro que não conto pra ninguém." },
       { block: 4, cue: "Kira: Juro que não conto pra ninguém.", text: "Eu vou contar pra todo mundo." },
     ]);
+  });
+});
+
+describe("tela do convidado", () => {
+  it("deixa curta: quem fala e as últimas palavras", () => {
+    expect(cueParts("Natasha: Amiga, nem sabe o que eu vi agora!")).toEqual({ speaker: "Natasha", tail: "…nem sabe o que eu vi agora!" });
+    expect(cueParts("Natasha: Oi!")).toEqual({ speaker: "Natasha", tail: "Oi!" });
+    expect(cueParts("Como as notícias correm")).toEqual({ speaker: null, tail: "Como as notícias correm" });
+  });
+
+  it("separa a câmera da ação", () => {
+    expect(splitAction("Manu e Lorenzo discutindo. (plano aberto) Natasha sai de trás de um banco.")).toEqual({
+      text: "Manu e Lorenzo discutindo. Natasha sai de trás de um banco.",
+      camera: ["plano aberto"],
+    });
+    expect(splitAction("Sem câmera.")).toEqual({ text: "Sem câmera.", camera: [] });
   });
 });

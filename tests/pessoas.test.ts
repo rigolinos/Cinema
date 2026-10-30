@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONSENT_VERSION, consentText, formatShootDate, inviteMessage, rolesAs, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
+import { CONSENT_VERSION, consentText, formatShootDate, inviteMessage, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
 
 describe("termo de uso de imagem", () => {
   it("nomeia quem pediu e o vídeo, e a versão bate com o que o banco aceita", () => {
@@ -33,6 +33,7 @@ describe("convite", () => {
     expect(rolesAs(["filma", "ator"])).toBe("para aparecer no vídeo e filmar");
     expect(rolesAs(["equipe"])).toBe("para ajudar no set");
     expect(rolesAs(["ator", "filma", "equipe"])).toBe("para aparecer no vídeo, filmar e ajudar no set");
+    expect(rolesYou(["filma", "ator"])).toBe("você aparece e filma");
   });
 
   it("o WhatsApp recebe a mensagem codificada e sem número", () => {

@@ -76,7 +76,7 @@ export function Acompanhar({
     tag: s.mine ? "Você aparece" : undefined,
   }));
 
-  if (shots.length === 0) return null;
+  if (shots.length === 0) return <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">Os planos ainda não foram montados. Quando forem, a gravação aparece aqui.</p>;
 
   const shot = open === null ? null : shots[open];
   const shotLines = shot ? lines.filter((l) => l.block === shot.block) : [];
@@ -84,10 +84,7 @@ export function Acompanhar({
   const step = (d: number) => setOpen((i) => (i === null ? i : Math.min(shots.length - 1, Math.max(0, i + d))));
 
   return (
-    <section aria-labelledby="acompanhar" className="flex flex-col gap-4">
-      <h2 id="acompanhar" className="label-set">
-        Acompanhar a gravação
-      </h2>
+    <section aria-label="Acompanhar a gravação" className="flex flex-col gap-4">
 
       {done === shots.length && (
         <div className="flex flex-col items-center gap-3 rounded-2xl bg-card p-6 text-center">

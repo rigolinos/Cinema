@@ -52,3 +52,18 @@ export function myLines(blocks: GuestBlock[], name: string): CueLine[] {
   }
   return out;
 }
+
+// A deixa curta: quem fala e as últimas palavras ("…nem sabe o que eu vi agora!").
+export function cueParts(cue: string, words = 7): { speaker: string | null; tail: string } {
+  const [line] = speechLines(cue).slice(-1);
+  if (!line) return { speaker: null, tail: "" };
+  const all = line.text.split(/\s+/);
+  return { speaker: line.speaker, tail: all.length > words ? `…${all.slice(-words).join(" ")}` : line.text };
+}
+
+// "Manu e Lorenzo discutindo. (plano aberto) Natasha sai…": o que está entre parênteses é indicação
+// de câmera e vai numa linha própria; o resto é a rubrica.
+export function splitAction(action: string): { text: string; camera: string[] } {
+  const camera = [...action.matchAll(/\(([^)]+)\)/g)].map((m) => m[1].trim()).filter(Boolean);
+  return { text: action.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim(), camera };
+}

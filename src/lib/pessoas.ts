@@ -41,6 +41,13 @@ export function rolesAs(roles: readonly GuestRole[]): string {
   return `para ${v.length > 1 ? `${v.slice(0, -1).join(", ")} e ${v.at(-1)}` : (v[0] ?? "ajudar")}`;
 }
 
+// "você aparece e filma", para a linha de cima do link
+const YOU: Record<GuestRole, string> = { ator: "aparece", filma: "filma", equipe: "ajuda no set" };
+export function rolesYou(roles: readonly GuestRole[]): string {
+  const v = sortRoles(roles).map((r) => YOU[r]);
+  return `você ${v.length > 1 ? `${v.slice(0, -1).join(", ")} e ${v.at(-1)}` : (v[0] ?? "ajuda")}`;
+}
+
 // Mensagem pronta para mandar pelo WhatsApp (a pessoa escolhe o contato no próprio WhatsApp).
 export function inviteMessage(name: string, roles: readonly GuestRole[], title: string, url: string): string {
   const acts = roles.includes("ator");
