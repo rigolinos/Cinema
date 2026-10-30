@@ -1,29 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { createClient } from "@/lib/supabase/server";
-import { ANGLES, FRAMINGS, MOVEMENTS, type Angle, type Framing, type Movement } from "@/lib/planos";
-import { BLOCK_KINDS, type BlockKind } from "@/lib/roteiro";
-import { ROLES, formatShootDate, type PersonRole } from "@/lib/pessoas";
+import { cn } from "@/lib/utils";
+import { cueParts, isMe, myLines, speechLines, splitAction } from "@/lib/convidado";
+import { BLOCK_KINDS } from "@/lib/roteiro";
+import { formatShootDate, rolesYou } from "@/lib/pessoas";
+import { Abas } from "./abas";
+import { Acompanhar } from "./acompanhar";
 import { PartActions } from "./actions";
+import { firstNameOf, getPart, partRoles, signupUrl } from "./dados";
 
-// Link pessoal: ninguém deve achar por busca.
-export const metadata: Metadata = {
-  title: "Seu convite para gravar · Gravaí",
-  robots: { index: false, follow: false },
-  referrer: "no-referrer",
-};
-
-interface Part {
-  person: { name: string; role: PersonRole; confirmed: boolean };
-  video: { title: string; shoot_date: string | null; shoot_place: string | null; platform: string | null };
-  creator: string | null; // nome completo de quem convidou; sem ele, o termo de imagem não pode ser aceito
-  consented: boolean;
-  blocks: { number: number; kind: BlockKind; label: string | null; speech: string; on_screen: string; action: string; mine: boolean }[];
-  shots: { block: number; framing: Framing; angle: Angle; movement: Movement; orientation: string; description: string; location: string; wardrobe: string; why: string }[];
+// Link pessoal: ninguém deve achar por busca. A prévia (WhatsApp) chama a pessoa pelo nome.
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const part = await getPart((await params).token);
+  const base = { robots: { index: false, follow: false }, referrer: "no-referrer" as const };
+  if (!part) return { ...base, title: "Convite para gravar · Gravaí" };
+  const title = `${firstNameOf(part.person.name)}, você está no time de “${part.video.title}”`;
+  const description = "Suas falas, o dia e o lugar da gravação. Feito no Gravaí.";
+  return { ...base, title, description, openGraph: { title, description, siteName: "Gravaí", locale: "pt_BR", type: "website" } };
 }
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function NotFound() {
   return (
@@ -39,107 +34,119 @@ function NotFound() {
 
 export default async function SharedPartPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  if (!UUID.test(token)) return <NotFound />;
-
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("shared_part", { p_token: token });
-  const part = data as Part | null;
+  const part = await getPart(token);
   if (!part) return <NotFound />;
 
-  const isCrew = part.person.role !== "ator";
+  const roles = partRoles(part);
+  const appears = roles.includes("ator");
+  const films = roles.includes("filma");
+  const isCrew = roles.some((r) => r !== "ator");
   const date = formatShootDate(part.video.shoot_date);
-  const firstName = part.person.name.trim().split(/\s+/)[0];
+  const firstName = firstNameOf(part.person.name);
+  const lines = appears ? myLines(part.blocks.map((b) => ({ ...b, cue: b.cue ?? null })), part.person.name) : [];
+  const scenes = Object.fromEntries(part.blocks.map((b) => [b.number, speechLines(b.speech).map((l) => l.raw)]));
+
+  const when = [date, part.video.shoot_place].filter(Boolean).join(" · ") || null;
+  const signup = signupUrl(firstName);
+
+  const falas = (
+    <div className="flex flex-col gap-3">
+      {lines.length === 0 && <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">Ainda não tem fala sua no roteiro. Quando tiver, aparece aqui.</p>}
+      {lines.map((l, i) => {
+        const cue = l.cue ? cueParts(l.cue) : null;
+        return (
+          <article key={i} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
+            <p className="label-set text-muted-foreground">
+              Parte {String(l.block).padStart(2, "0")} · {cue ? `deixa${cue.speaker ? ` de ${cue.speaker}` : ""}` : "você começa"}
+            </p>
+            {cue?.tail && <p className="text-sm text-muted-foreground">{cue.tail}</p>}
+            <p className="text-xl font-semibold leading-snug">{l.text}</p>
+          </article>
+        );
+      })}
+    </div>
+  );
+
+  // Formato de roteiro: quem fala numa coluna, a ação em itálico (rubrica), a câmera numa linha própria.
+  const roteiro = (
+    <div className="flex flex-col gap-3">
+      {part.blocks.map((b) => {
+        const action = splitAction(b.action);
+        return (
+          <article key={b.number} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
+            <h3 className="label-set text-muted-foreground">
+              {String(b.number).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
+            </h3>
+            {b.on_screen && (
+              <p className="text-sm">
+                <span className="label-set mr-2 text-muted-foreground">Tela</span>
+                {b.on_screen}
+              </p>
+            )}
+            {action.text && <p className="text-sm italic leading-relaxed text-muted-foreground">{action.text}</p>}
+            {action.camera.map((c) => (
+              <p key={c} className="label-set text-muted-foreground">
+                Câmera · {c}
+              </p>
+            ))}
+            {speechLines(b.speech).map((l, i) => {
+              const mine = appears && l.speaker !== null && isMe(l.speaker, part.person.name);
+              return l.speaker ? (
+                <p key={i} className={cn("grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2 rounded-lg px-2 py-1 leading-relaxed", mine && "bg-muted font-semibold")}>
+                  <span className={cn("label-set pt-1", mine ? "text-foreground" : "text-muted-foreground")}>{mine ? "Você" : l.speaker}</span>
+                  <span>{l.text}</span>
+                </p>
+              ) : (
+                <p key={i} className="leading-relaxed">
+                  {l.text}
+                </p>
+              );
+            })}
+          </article>
+        );
+      })}
+    </div>
+  );
+
+  const gravacao = <Acompanhar shots={part.shots} lines={lines} scenes={isCrew ? scenes : {}} appears={appears} films={films} loadedAt={new Date().toISOString()} signup={signup} />;
+
+  // No dia, com algo já gravado, o link abre na Gravação; antes, nas falas (ou no roteiro, para quem não atua).
+  const tabs = [
+    appears && { id: "falas", label: `Falas · ${lines.length}`, content: falas },
+    isCrew && { id: "roteiro", label: "Roteiro", content: roteiro },
+    { id: "gravacao", label: "Gravação", content: gravacao },
+  ].filter((t): t is { id: string; label: string; content: React.ReactElement } => Boolean(t));
+  const initial = part.shots.some((s) => s.recorded) ? "gravacao" : appears ? "falas" : "roteiro";
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 px-5 pb-16 pt-6">
-      <Logo className="text-2xl" />
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-5 pb-12 pt-6">
+      {/* A porta do app para quem foi chamado: a marca se apresenta numa linha e o nome da pessoa vem grande. */}
+      <div className="flex flex-col gap-1.5 border-b border-border pb-4">
+        <Logo className="text-[34px]" />
+        <p className="text-sm text-muted-foreground">Da ideia ao vídeo gravado.</p>
+      </div>
 
       <header className="flex flex-col gap-2">
         <p className="label-set text-muted-foreground">{part.creator ? `Convite de ${part.creator}` : "Convite para gravar"}</p>
-        <h1 className="font-display text-[30px]">Oi, {firstName}.</h1>
-        <p className="leading-relaxed">
-          Te chamaram {ROLES[part.person.role].as} em <strong>“{part.video.title}”</strong>.{" "}
-          {isCrew ? "Aqui estão o roteiro e os planos, na ordem de gravação." : "Aqui estão as suas falas e cenas, para você treinar."}
+        <h1 className="font-display text-[52px] leading-[0.95]">
+          Oi,
+          <br />
+          {firstName}.
+        </h1>
+        <p className="text-lg leading-snug">
+          Você está no time de <strong className="font-semibold">“{part.video.title}”</strong>: {rolesYou(roles)}.
         </p>
       </header>
 
-      {(date || part.video.shoot_place) && (
-        <section aria-label="Quando e onde" className="flex flex-col gap-1 rounded-2xl border-[1.5px] border-foreground p-4">
-          <span className="label-set text-muted-foreground">Gravação</span>
-          {date && <p className="text-lg font-bold first-letter:uppercase">{date}</p>}
-          {part.video.shoot_place && <p className="leading-relaxed">{part.video.shoot_place}</p>}
-        </section>
-      )}
+      <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={appears} when={when} signup={signup} />
 
-      <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={part.person.role === "ator"} />
+      <Abas tabs={tabs} initial={initial} />
 
-      {!isCrew && (
-        <section aria-labelledby="falas" className="flex flex-col gap-3">
-          <h2 id="falas" className="label-set">
-            Suas falas
-          </h2>
-          {part.blocks.length === 0 && (
-            <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">Ainda não tem fala sua marcada no roteiro. Quando tiver, aparece aqui.</p>
-          )}
-          {part.blocks.map((b) => (
-            <article key={b.number} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
-              <span className="label-set text-muted-foreground">
-                Parte {String(b.number).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
-              </span>
-              {b.speech && <p className="text-xl font-semibold leading-snug">{b.speech}</p>}
-              {b.action && <p className="text-sm leading-relaxed text-muted-foreground">O que acontece: {b.action}</p>}
-            </article>
-          ))}
-        </section>
-      )}
-
-      {isCrew && (
-        <>
-          <section aria-labelledby="planos" className="flex flex-col gap-3">
-            <h2 id="planos" className="label-set">
-              Planos, na ordem de gravação
-            </h2>
-            {part.shots.length === 0 && <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">Os planos ainda não foram montados.</p>}
-            {part.shots.map((s, i) => (
-              <article key={i} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
-                <span className="font-mono text-xs text-muted-foreground">
-                  {String(i + 1).padStart(2, "0")} · PARTE {String(s.block).padStart(2, "0")}
-                  {s.location ? ` · ${s.location.toUpperCase()}` : ""}
-                </span>
-                <p className="font-bold leading-snug">{s.description || FRAMINGS[s.framing]?.label}</p>
-                <p className="font-mono text-xs uppercase">
-                  {[FRAMINGS[s.framing]?.label, ANGLES[s.angle]?.label, MOVEMENTS[s.movement]?.label, s.orientation].join(" · ")}
-                </p>
-                {s.why && <p className="text-sm leading-relaxed text-muted-foreground">Por quê: {s.why}</p>}
-              </article>
-            ))}
-          </section>
-          <section aria-labelledby="roteiro" className="flex flex-col gap-3">
-            <h2 id="roteiro" className="label-set">
-              Roteiro
-            </h2>
-            {part.blocks.map((b) => (
-              <article key={b.number} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
-                <span className="label-set text-muted-foreground">
-                  Parte {String(b.number).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
-                </span>
-                {b.speech && <p className="leading-relaxed">{b.speech}</p>}
-                {b.on_screen && <p className="text-sm text-muted-foreground">Na tela: {b.on_screen}</p>}
-              </article>
-            ))}
-          </section>
-        </>
-      )}
-
-      <footer className="flex flex-col gap-2 pt-4 text-center text-xs leading-relaxed text-muted-foreground">
-        <p>
-          Seus dados aqui: só o seu nome, a confirmação e, se você autorizar, o registro da autorização de imagem. Usamos para
-          organizar a gravação e mais nada.{" "}
-          <Link href="/privacidade" className="font-semibold underline">
-            Política de Privacidade
-          </Link>
-        </p>
-        <p>Feito com o Gravaí · este link é só seu, não compartilhe</p>
+      <footer className="pt-4 text-center text-xs leading-relaxed text-muted-foreground">
+        Este link é só seu. Seu nome, a confirmação e a autorização servem só para organizar a gravação.{" "}
+        <Link href="/privacidade" className="font-semibold underline">
+          Privacidade
+        </Link>
       </footer>
     </div>
   );

@@ -17,7 +17,11 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+// Endereço do site para as prévias de link (WhatsApp, Instagram): a imagem precisa de URL completa.
+const SITE = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : `http://localhost:${process.env.PORT ?? 3000}`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE),
   title: "Gravaí: da ideia ao vídeo gravado",
   description:
     "Crie a ideia, escreva o roteiro, planeje cada plano e grave com um parceiro de set que explica cada passo.",

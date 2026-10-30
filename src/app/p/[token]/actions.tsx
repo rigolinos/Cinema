@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check } from "lucide-react";
+import { Folha } from "@/components/gravai/folha";
 import { createClient } from "@/lib/supabase/client";
 import { CONSENT_VERSION, consentText, validConsentName } from "@/lib/pessoas";
+import { cn } from "@/lib/utils";
 
-// O que a pessoa faz pelo link: confirmar presença e, se aparece no vídeo, autorizar o uso de imagem.
+// O que a pessoa faz pelo link, como uma lista curta: confirmar presença e, se aparece no vídeo,
+// autorizar o uso de imagem (o termo abre numa folha que sobe).
 export function PartActions({
   token,
   creator,
@@ -13,6 +17,8 @@ export function PartActions({
   confirmed: initiallyConfirmed,
   consented: initiallyConsented,
   needsConsent,
+  when,
+  signup,
 }: {
   token: string;
   creator: string | null;
@@ -20,6 +26,8 @@ export function PartActions({
   confirmed: boolean;
   consented: boolean;
   needsConsent: boolean;
+  when: string | null; // dia e lugar da gravação, numa linha
+  signup: string; // cadastro já com o nome da pessoa
 }) {
   const [confirmed, setConfirmed] = useState(initiallyConfirmed);
   const [consented, setConsented] = useState(initiallyConsented);
@@ -27,6 +35,7 @@ export function PartActions({
   const [adult, setAdult] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false); // o termo aberto na folha
 
   async function confirm() {
     setBusy(true);
@@ -43,43 +52,67 @@ export function PartActions({
     setError(null);
     const { data, error } = await createClient().rpc("accept_image_use", { p_token: token, p_name: name.trim(), p_version: CONSENT_VERSION });
     if (error || !data) setError("Não deu para registrar a autorização. Tente de novo.");
-    else setConsented(true);
+    else {
+      setConsented(true);
+      setReading(false);
+    }
     setBusy(false);
   }
 
+  const step = "flex min-h-12 items-center gap-3";
+  const dot = (done: boolean) => (
+    <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", done ? "bg-foreground text-background" : "border-[1.5px] border-input")} aria-hidden="true">
+      {done && <Check className="size-3.5" strokeWidth={3} />}
+    </span>
+  );
+
   return (
-    <div className="flex flex-col gap-3">
-      {confirmed ? (
-        <p className="flex items-center gap-2 rounded-2xl bg-card p-4 font-semibold">
-          <Check className="size-5 text-success" strokeWidth={2.5} aria-hidden="true" />
-          Presença confirmada
-        </p>
-      ) : (
-        <button type="button" onClick={confirm} disabled={busy} className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
-          Confirmar que vou
-        </button>
+    <section aria-label="O que fazer" className="flex flex-col gap-1 rounded-2xl bg-card px-4 py-3">
+      {when && <p className="pb-1 text-sm font-semibold first-letter:uppercase">{when}</p>}
+      <div className={step}>
+        {dot(confirmed)}
+        <span className={cn("flex-1", confirmed && "font-semibold")}>{confirmed ? "Pronto, você está no time." : "Confirmar presença"}</span>
+        {!confirmed && (
+          <button type="button" onClick={confirm} disabled={busy} className="min-h-11 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-40">
+            Confirmar
+          </button>
+        )}
+      </div>
+      {needsConsent && (
+        <div className={step}>
+          {dot(consented)}
+          <span className="flex-1">{consented ? "Uso de imagem autorizado" : "Autorizar uso de imagem"}</span>
+          {!consented && creator && (
+            <button type="button" onClick={() => setReading(true)} className="min-h-11 px-1 text-sm font-semibold underline">
+              Ler e autorizar
+            </button>
+          )}
+        </div>
       )}
-
       {needsConsent && !consented && !creator && (
-        <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed">
-          <strong>Autorização de uso de imagem:</strong> quem te convidou ainda precisa colocar o nome completo no app. Assim que
-          fizer isso, a autorização aparece aqui.
+        <p className="pb-1 text-sm leading-relaxed text-muted-foreground">Quem te convidou ainda precisa colocar o nome completo no app. Depois disso, a autorização aparece aqui.</p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
         </p>
       )}
 
-      {needsConsent &&
-        creator &&
-        (consented ? (
-          <p className="flex items-center gap-2 rounded-2xl bg-card p-4 font-semibold">
-            <Check className="size-5 text-success" strokeWidth={2.5} aria-hidden="true" />
-            Uso de imagem autorizado
-          </p>
-        ) : (
-          <form onSubmit={accept} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
-            <h2 className="font-bold">Autorização de uso de imagem</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Como você aparece no vídeo, {creator} precisa da sua autorização para publicar. Leia com calma:
-            </p>
+      {/* Depois do sim, e só então: quem também cria vídeos pode fazer o seu do mesmo jeito. */}
+      {confirmed && (
+        <div className="mt-1 flex items-center gap-3 border-t border-border pt-2">
+          <span className="flex-1 text-sm leading-snug text-muted-foreground">Também cria vídeos? Monte o seu do mesmo jeito.</span>
+          <Link href={signup} className="flex min-h-11 shrink-0 items-center text-sm font-bold">
+            Fazer o meu →
+          </Link>
+        </div>
+      )}
+
+      {/* O termo inteiro continua sendo lido antes de autorizar: só sai do meio da página. */}
+      {reading && creator && (
+        <Folha title="Autorização de uso de imagem" onClose={() => setReading(false)}>
+          <form onSubmit={accept} className="flex flex-col gap-3 px-2 pb-2">
+            <p className="text-sm leading-relaxed text-muted-foreground">Como você aparece no vídeo, {creator} precisa da sua autorização para publicar. Leia com calma:</p>
             <div className="flex flex-col gap-2 rounded-xl bg-muted p-3.5 text-sm leading-relaxed">
               {consentText(creator, title).map((p) => (
                 <p key={p}>{p}</p>
@@ -99,6 +132,11 @@ export function PartActions({
               <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} className="mt-1 size-5 shrink-0 accent-foreground" />
               Tenho 18 anos ou mais. (Com menos de 18, a autorização precisa ser do seu responsável: fale com quem te convidou.)
             </label>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
             <button
               type="submit"
               disabled={busy || !adult || !validConsentName(name)}
@@ -107,13 +145,8 @@ export function PartActions({
               Autorizo
             </button>
           </form>
-        ))}
-
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+        </Folha>
       )}
-    </div>
+    </section>
   );
 }

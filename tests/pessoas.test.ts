@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONSENT_VERSION, consentText, formatShootDate, inviteMessage, shareUrl, validConsentName, whatsappLink } from "@/lib/pessoas";
+import { CONSENT_VERSION, consentText, formatShootDate, inviteMessage, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
 
 describe("termo de uso de imagem", () => {
   it("nomeia quem pediu e o vídeo, e a versão bate com o que o banco aceita", () => {
@@ -21,10 +21,19 @@ describe("convite", () => {
   it("monta o link e a mensagem pelo primeiro nome", () => {
     const url = shareUrl("https://gravai.app/", "abc");
     expect(url).toBe("https://gravai.app/p/abc");
-    expect(inviteMessage("Bruno Souza", "ator", "3 erros", url)).toBe(
+    expect(inviteMessage("Bruno Souza", ["ator"], "3 erros", url)).toBe(
       "Oi, Bruno! Vou gravar “3 erros” e você está no time. Aqui estão suas falas e cenas: https://gravai.app/p/abc",
     );
-    expect(inviteMessage("Carla", "filma", "3 erros", url)).toContain("o roteiro e os planos");
+    expect(inviteMessage("Carla", ["filma"], "3 erros", url)).toContain("o roteiro e os planos");
+    expect(inviteMessage("Kira", ["ator", "filma"], "3 erros", url)).toContain("suas falas, o roteiro e os planos");
+  });
+
+  it("mais de um papel: ordem fixa e frase natural", () => {
+    expect(sortRoles(["filma", "ator"])).toEqual(["ator", "filma"]);
+    expect(rolesAs(["filma", "ator"])).toBe("para aparecer no vídeo e filmar");
+    expect(rolesAs(["equipe"])).toBe("para ajudar no set");
+    expect(rolesAs(["ator", "filma", "equipe"])).toBe("para aparecer no vídeo, filmar e ajudar no set");
+    expect(rolesYou(["filma", "ator"])).toBe("você aparece e filma");
   });
 
   it("o WhatsApp recebe a mensagem codificada e sem número", () => {

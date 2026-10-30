@@ -8,7 +8,8 @@ import { StepHeader } from "@/components/gravai/step-header";
 import { nextReadyStage } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
-import { ROLES, inviteMessage, shareUrl, whatsappLink, type PersonRole } from "@/lib/pessoas";
+import { isMe } from "@/lib/convidado";
+import { GUEST_ROLES, ROLES, inviteMessage, shareUrl, sortRoles, whatsappLink, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -16,6 +17,7 @@ interface Person {
   id: string;
   name: string;
   role: PersonRole;
+  roles: GuestRole[]; // vazio no "eu"; quem atua e filma tem os dois
   share_token: string;
   share_enabled: boolean;
   confirmed_at: string | null;
@@ -35,7 +37,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   const [consents, setConsents] = useState<string[]>([]); // person_id de quem autorizou
   const [when, setWhen] = useState({ date: "", place: "" });
   const [newName, setNewName] = useState("");
-  const [newRole, setNewRole] = useState<Exclude<PersonRole, "eu">>("ator");
+  const [newRoles, setNewRoles] = useState<GuestRole[]>(["ator"]);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { confirm, sheet } = useConfirm();
@@ -48,7 +50,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     const db = createClient();
     Promise.all([
       db.from("videos").select("*").eq("id", id).maybeSingle(),
-      db.from("video_people").select("id, name, role, share_token, share_enabled, confirmed_at").eq("video_id", id).order("created_at"),
+      db.from("video_people").select("id, name, role, roles, share_token, share_enabled, confirmed_at").eq("video_id", id).order("created_at"),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("image_consents").select("person_id").eq("video_id", id),
       db.from("creator_profiles").select("display_name").maybeSingle(),
@@ -67,7 +69,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
         const { data } = await db
           .from("video_people")
           .insert({ video_id: id, name: profile.data?.display_name?.trim() || "Eu", role: "eu" })
-          .select("id, name, role, share_token, share_enabled, confirmed_at")
+          .select("id, name, role, roles, share_token, share_enabled, confirmed_at")
           .single();
         if (data) list = [data as Person, ...list];
       }
@@ -108,8 +110,8 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     setError(null);
     const { data, error } = await createClient()
       .from("video_people")
-      .insert({ video_id: id, name: newName.trim().slice(0, 80), role: newRole })
-      .select("id, name, role, share_token, share_enabled, confirmed_at")
+      .insert({ video_id: id, name: newName.trim().slice(0, 80), role: sortRoles(newRoles)[0], roles: sortRoles(newRoles) })
+      .select("id, name, role, roles, share_token, share_enabled, confirmed_at")
       .single();
     if (error) setError("Não deu para adicionar a pessoa.");
     else {
@@ -153,7 +155,9 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     router.push(`/video/${id}/${nextReadyStage("pessoas")}`);
   }
 
-  const onCamera = people.filter((p) => p.role === "eu" || p.role === "ator");
+  const onCamera = people.filter((p) => p.role === "eu" || p.roles.includes("ator"));
+  // Nomes que a leitura do roteiro achou e que ainda não estão no vídeo: um toque preenche o nome.
+  const suggested = (video?.script_reading?.people ?? []).filter((n) => !people.some((p) => isMe(n, p.name))).slice(0, 6);
   const title = video?.title ?? "o vídeo";
 
   return (
@@ -222,7 +226,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                 <article key={p.id} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
                   <div className="flex items-baseline justify-between gap-3">
                     <h3 className="text-lg font-bold">{p.role === "eu" ? `${p.name} (você)` : p.name}</h3>
-                    <span className="label-set shrink-0 text-muted-foreground">{ROLES[p.role].label}</span>
+                    <span className="label-set shrink-0 text-right text-muted-foreground">{p.role === "eu" ? ROLES.eu.label : sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
                   </div>
 
                   {p.role !== "eu" && (
@@ -231,7 +235,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                         <span className={cn("rounded-md px-2 py-1 font-mono text-xs uppercase", p.confirmed_at ? "bg-foreground text-background" : "bg-muted")}>
                           {p.confirmed_at ? "Confirmou" : "Não confirmou ainda"}
                         </span>
-                        {p.role === "ator" && (
+                        {p.roles.includes("ator") && (
                           <span className={cn("rounded-md px-2 py-1 font-mono text-xs uppercase", consents.includes(p.id) ? "bg-foreground text-background" : "bg-muted")}>
                             {consents.includes(p.id) ? "Autorizou a imagem" : "Falta autorizar a imagem"}
                           </span>
@@ -242,7 +246,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                       {p.share_enabled && nameSaved && (
                         <div className="flex gap-2">
                           <a
-                            href={whatsappLink(inviteMessage(p.name, p.role, title, shareUrl(typeof window === "undefined" ? "" : window.location.origin, p.share_token)))}
+                            href={whatsappLink(inviteMessage(p.name, p.roles, title, shareUrl(typeof window === "undefined" ? "" : window.location.origin, p.share_token)))}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary font-bold text-primary-foreground"
@@ -273,18 +277,39 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
 
               <form onSubmit={addPerson} className="flex flex-col gap-3 rounded-2xl border border-border p-4">
                 <span className="font-bold">Chamar alguém</span>
+                {suggested.length > 0 && (
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Pessoas do roteiro">
+                    {suggested.map((n) => (
+                      <button key={n} type="button" onClick={() => setNewName(n)} className={cn(chip, "font-medium")}>
+                        + {n}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <label className="flex flex-col gap-1.5">
                   <span className="text-sm font-semibold">Nome</span>
                   <input value={newName} maxLength={80} onChange={(e) => setNewName(e.target.value)} placeholder="Como você chama a pessoa" className={field} />
                 </label>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Função">
-                  {(["ator", "filma", "equipe"] as const).map((r) => (
-                    <button key={r} type="button" aria-pressed={newRole === r} onClick={() => setNewRole(r)} className={cn(chip, newRole === r && chipOn)}>
-                      {ROLES[r].label}
-                    </button>
-                  ))}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Função: pode marcar mais de uma">
+                    {GUEST_ROLES.map((r) => {
+                      const on = newRoles.includes(r);
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setNewRoles((l) => (on ? l.filter((x) => x !== r) : [...l, r]))}
+                          className={cn(chip, on && chipOn)}
+                        >
+                          {ROLES[r].label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-xs text-muted-foreground">Pode marcar mais de uma</span>
                 </div>
-                <button type="submit" disabled={!newName.trim()} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
+                <button type="submit" disabled={!newName.trim() || newRoles.length === 0} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
                   Adicionar
                 </button>
               </form>
