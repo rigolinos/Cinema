@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { readingLines } from "@/lib/leitura";
 import { defaultOrientation, isSolo, maxShots, normalizeShots } from "@/lib/planos";
 import { context, line, tag } from "@/lib/prompts/base";
 import { shotsTask, termsTag, videoTag } from "@/lib/prompts/tarefas";
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
           tag("limite", `No máximo ${maxShots(v.duration_s)} planos no total.`),
           videoTag({ objective: v.objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: v.resources ?? [] }),
           tag("orientacao", line("Orientação padrão", defaultOrientation(v.platform))),
+          tag("leitura", readingLines(v.script_reading)),
           termsTag(),
         ]),
       }),

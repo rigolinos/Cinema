@@ -149,6 +149,10 @@ r = await as('authenticated', B, `UPDATE public.videos SET title = 'invadido' WH
 ok(!r.err && r.rows.length === 0, 'ninguém edita o vídeo de outra pessoa');
 r = await as('authenticated', B, `INSERT INTO public.videos (owner_id) VALUES ($1)`, [A]);
 ok(r.err, 'ninguém cria vídeo no nome de outra pessoa');
+r = await as('authenticated', A, `UPDATE public.videos SET script_reading = $2::jsonb WHERE id = $1 RETURNING script_reading->>'tone' AS tone`, [vidA, JSON.stringify({ tone: 'humor', items: [] })]);
+ok(!r.err && r.rows[0]?.tone === 'humor', 'dono guarda a leitura do roteiro colado' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `UPDATE public.videos SET script_reading = '["lista"]'::jsonb WHERE id = $1`, [vidA]);
+ok(r.err, 'leitura do roteiro precisa ser um objeto');
 
 const idea = async (uid, title, extra = '') =>
   as('authenticated', uid, `INSERT INTO public.video_ideas (video_id, title, hook, format_slug ${extra ? ', chosen' : ''}) VALUES ($1, $2, 'Gancho', 'tres-erros' ${extra ? ', ' + extra : ''}) RETURNING id`, [vidA, title]);

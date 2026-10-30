@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
+import { readingLines } from "@/lib/leitura";
 import { memoryLines } from "@/lib/memoria";
 import { context, tag } from "@/lib/prompts/base";
 import { personTag, postTask, productTag, videoTag } from "@/lib/prompts/tarefas";
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
     videoTag({ objective, platforms, durationS: v.duration_s, resources: (v.resources ?? []) as Resource[] }),
     productTag(objective, { product: profile?.product, edge: profile?.product_edge }),
     personTag({ niche: profile?.niche, memory: memoryLines(memory?.items) }),
+    tag("leitura", readingLines(v.script_reading)),
   ]);
 
   let posts;

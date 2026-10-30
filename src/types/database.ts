@@ -1,3 +1,5 @@
+import type { Reading } from "@/lib/leitura";
+
 // Tipos do banco. Gravaí (criador): CreatorProfile, Video, VideoIdea.
 // Modo produção (filmes): o restante.
 
@@ -26,6 +28,7 @@ export interface Video {
   payoff?: string; // o desfecho exato da ideia escolhida
   brief?: string; // o que a pessoa trouxe: briefing, ideia ou roteiro colado
   start_door?: "zero" | "ideia" | "roteiro" | null; // por onde a pessoa começou
+  script_reading?: Reading | null; // roteiro colado: a leitura estruturada da IA, para os outros passos entenderem o roteiro
   published_at?: string | null;
   created_at: string;
   updated_at: string;
