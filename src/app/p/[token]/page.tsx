@@ -124,10 +124,10 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
 
   // No dia, com algo já gravado, o link abre na Gravação; antes, nas falas (ou no roteiro, para quem não atua).
   const tabs = [
-    appears && { id: "falas", label: `Falas · ${lines.length}`, content: falas },
+    appears && { id: "falas", label: "Falas", count: lines.length, content: falas },
     isCrew && { id: "roteiro", label: "Roteiro", content: roteiro },
     { id: "gravacao", label: "Gravação", content: gravacao },
-  ].filter((t): t is { id: string; label: string; content: React.ReactElement } => Boolean(t));
+  ].filter((t): t is { id: string; label: string; count?: number; content: React.ReactElement } => Boolean(t));
   const initial = part.shots.some((s) => s.recorded) ? "gravacao" : appears ? "falas" : "roteiro";
 
   return (
