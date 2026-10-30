@@ -9,7 +9,9 @@ import {
   normalizeShots,
   normalizeWardrobe,
   setupChanges,
+  setupLabel,
   shootingOrder,
+  shotTags,
   shotsPrompt,
 } from "@/lib/planos";
 
@@ -126,5 +128,22 @@ describe("vocabulário e prompt", () => {
     expect(solo).toContain("grava SOZINHA");
     expect(solo).toContain("por_cima_ombro");
     expect(shotsPrompt(blocks, { title: "x", platform: "reels", resources: ["com_alguem"], durationS: 60 })).not.toContain("SOZINHA");
+  });
+});
+
+describe("cartão do plano", () => {
+  it("mostra o enquadramento e só o que foge do padrão", () => {
+    expect(shotTags({ framing: "close", angle: "altura_olhos", movement: "parado" })).toEqual(["Close"]);
+    expect(shotTags({ framing: "detalhe", angle: "de_cima", movement: "aproximando" })).toEqual(["Detalhe", "De cima", "Aproximando"]);
+  });
+
+  it("lugar e roupa só quando mudam, e sempre no primeiro", () => {
+    const list = [
+      { location: "Quarto", wardrobe: "" },
+      { location: " quarto ", wardrobe: "" },
+      { location: "Sala", wardrobe: "Camiseta" },
+      { location: "", wardrobe: "" },
+    ];
+    expect([0, 1, 2, 3].map((i) => setupLabel(list, i))).toEqual(["Quarto", "", "Sala · Camiseta", ""]);
   });
 });
