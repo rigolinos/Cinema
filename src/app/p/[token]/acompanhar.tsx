@@ -38,6 +38,7 @@ export function Acompanhar({
   appears,
   films,
   loadedAt,
+  signup,
 }: {
   shots: GuestShot[];
   lines: CueLine[];
@@ -45,6 +46,7 @@ export function Acompanhar({
   appears: boolean;
   films: boolean;
   loadedAt: string;
+  signup: string; // cadastro já com o nome da pessoa
 }) {
   const router = useRouter();
   const [open, setOpen] = useState<number | null>(null); // índice do plano aberto
@@ -93,7 +95,7 @@ export function Acompanhar({
           </span>
           <p className="font-display text-2xl">Gravação feita.</p>
           <p className="text-sm leading-relaxed text-muted-foreground">Deu para ver como é gravar com roteiro e planos prontos.</p>
-          <Link href="/register" className="flex min-h-13 w-full items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
+          <Link href={signup} className="flex min-h-13 w-full items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
             Fazer o meu vídeo
           </Link>
           <p className="label-set text-muted-foreground">Grátis · sem baixar nada para começar</p>

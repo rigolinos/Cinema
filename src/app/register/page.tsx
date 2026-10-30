@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth-errors";
@@ -13,8 +13,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 
+// Quem chega pelo convite de outra pessoa já encontra o nome preenchido.
 export default function RegisterPage() {
-  const [name, setName] = useState("");
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
+  const params = useSearchParams();
+  const fromInvite = params.get("origem") === "convite";
+  const [name, setName] = useState(() => (params.get("nome") ?? "").slice(0, 80));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +50,8 @@ export default function RegisterPage() {
           org_name: `Estúdio de ${name.trim().split(/\s+/)[0] || "você"}`,
           // Versões aceitas: o banco registra o aceite junto com a criação da conta.
           legal: LEGAL_VERSIONS,
+          // De onde veio: só "convite", quando chegou pelo link de quem a chamou para gravar.
+          ...(fromInvite ? { origem: "convite" } : {}),
         },
       },
     });

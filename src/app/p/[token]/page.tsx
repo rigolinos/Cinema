@@ -2,32 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/server";
 import { cueParts, isMe, myLines, speechLines, splitAction } from "@/lib/convidado";
-import { BLOCK_KINDS, type BlockKind } from "@/lib/roteiro";
-import { formatShootDate, rolesYou, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import { BLOCK_KINDS } from "@/lib/roteiro";
+import { formatShootDate, rolesYou } from "@/lib/pessoas";
 import { Abas } from "./abas";
-import { Acompanhar, type GuestShot } from "./acompanhar";
+import { Acompanhar } from "./acompanhar";
 import { PartActions } from "./actions";
+import { firstNameOf, getPart, partRoles, signupUrl } from "./dados";
 
-// Link pessoal: ninguém deve achar por busca.
-export const metadata: Metadata = {
-  title: "Seu convite para gravar · Gravaí",
-  robots: { index: false, follow: false },
-  referrer: "no-referrer",
-};
-
-interface Part {
-  person: { name: string; role: PersonRole; roles?: GuestRole[]; confirmed: boolean };
-  video: { title: string; shoot_date: string | null; shoot_place: string | null; platform: string | null };
-  creator: string | null; // nome completo de quem convidou; sem ele, o termo de imagem não pode ser aceito
-  consented: boolean;
-  // Quem só atua recebe só as partes em que aparece, com a deixa (última fala da parte anterior).
-  blocks: { number: number; kind: BlockKind; label: string | null; speech: string; on_screen: string; action: string; mine: boolean; cue?: string | null }[];
-  shots: GuestShot[]; // todos os planos, na ordem de gravação, com o que já foi gravado
+// Link pessoal: ninguém deve achar por busca. A prévia (WhatsApp) chama a pessoa pelo nome.
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const part = await getPart((await params).token);
+  const base = { robots: { index: false, follow: false }, referrer: "no-referrer" as const };
+  if (!part) return { ...base, title: "Convite para gravar · Gravaí" };
+  const title = `${firstNameOf(part.person.name)}, você está no time de “${part.video.title}”`;
+  const description = "Suas falas, o dia e o lugar da gravação. Feito no Gravaí.";
+  return { ...base, title, description, openGraph: { title, description, siteName: "Gravaí", locale: "pt_BR", type: "website" } };
 }
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function NotFound() {
   return (
@@ -43,23 +34,20 @@ function NotFound() {
 
 export default async function SharedPartPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  if (!UUID.test(token)) return <NotFound />;
-
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("shared_part", { p_token: token });
-  const part = data as Part | null;
+  const part = await getPart(token);
   if (!part) return <NotFound />;
 
-  const roles: GuestRole[] = part.person.roles?.length ? part.person.roles : [part.person.role as GuestRole];
+  const roles = partRoles(part);
   const appears = roles.includes("ator");
   const films = roles.includes("filma");
   const isCrew = roles.some((r) => r !== "ator");
   const date = formatShootDate(part.video.shoot_date);
-  const firstName = part.person.name.trim().split(/\s+/)[0];
+  const firstName = firstNameOf(part.person.name);
   const lines = appears ? myLines(part.blocks.map((b) => ({ ...b, cue: b.cue ?? null })), part.person.name) : [];
   const scenes = Object.fromEntries(part.blocks.map((b) => [b.number, speechLines(b.speech).map((l) => l.raw)]));
 
   const when = [date, part.video.shoot_place].filter(Boolean).join(" · ") || null;
+  const signup = signupUrl(firstName);
 
   const falas = (
     <div className="flex flex-col gap-3">
@@ -120,7 +108,7 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
     </div>
   );
 
-  const gravacao = <Acompanhar shots={part.shots} lines={lines} scenes={isCrew ? scenes : {}} appears={appears} films={films} loadedAt={new Date().toISOString()} />;
+  const gravacao = <Acompanhar shots={part.shots} lines={lines} scenes={isCrew ? scenes : {}} appears={appears} films={films} loadedAt={new Date().toISOString()} signup={signup} />;
 
   // No dia, com algo já gravado, o link abre na Gravação; antes, nas falas (ou no roteiro, para quem não atua).
   const tabs = [
@@ -132,17 +120,25 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-5 pb-12 pt-6">
-      <Logo className="text-2xl" />
+      {/* A porta do app para quem foi chamado: a marca se apresenta numa linha e o nome da pessoa vem grande. */}
+      <div className="flex flex-col gap-1.5 border-b border-border pb-4">
+        <Logo className="text-[34px]" />
+        <p className="text-sm text-muted-foreground">Da ideia ao vídeo gravado.</p>
+      </div>
 
-      <header className="flex flex-col gap-1.5">
+      <header className="flex flex-col gap-2">
         <p className="label-set text-muted-foreground">{part.creator ? `Convite de ${part.creator}` : "Convite para gravar"}</p>
-        <h1 className="font-display text-[30px]">Oi, {firstName}.</h1>
-        <p className="leading-relaxed">
-          “{part.video.title}” · {rolesYou(roles)}
+        <h1 className="font-display text-[52px] leading-[0.95]">
+          Oi,
+          <br />
+          {firstName}.
+        </h1>
+        <p className="text-lg leading-snug">
+          Você está no time de <strong className="font-semibold">“{part.video.title}”</strong>: {rolesYou(roles)}.
         </p>
       </header>
 
-      <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={appears} when={when} />
+      <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={appears} when={when} signup={signup} />
 
       <Abas tabs={tabs} initial={initial} />
 
