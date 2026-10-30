@@ -96,9 +96,18 @@ export interface Answers {
   resources: Resource[];
 }
 
-// A primeira pergunta ainda sem resposta; null quando dá para pedir ideias.
+export type StartDoor = "zero" | "ideia" | "roteiro";
+
+// Quem chega com o roteiro pronto só diz onde o vídeo sai (define em pé ou deitado e a publicação).
+// Duração e quem aparece saem do próprio roteiro; o assunto, do perfil.
+export function questionsFor(door: StartDoor): QuestionId[] {
+  return door === "roteiro" ? ["platform"] : QUESTION_ORDER;
+}
+
+// A primeira pergunta ainda sem resposta; null quando dá para seguir.
 // Quem vende conta o produto e o diferencial: sem isso, nenhum prompt faz anúncio bom.
-export function nextQuestion(a: Answers): QuestionId | null {
+export function nextQuestion(a: Answers, door: StartDoor = "zero"): QuestionId | null {
+  if (door === "roteiro") return a.platforms.length === 0 ? "platform" : null;
   if (!a.niche?.trim()) return "niche";
   if (!a.objective) return "objective";
   if (a.objective === "vender" && (!a.product?.trim() || !a.productEdge?.trim())) return "produto";

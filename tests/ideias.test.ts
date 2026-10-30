@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, samePlaces, videoPlatforms, withPlaces, withWho, type Answers } from "@/lib/ideas";
+import { durationLabel, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, questionsFor, samePlaces, videoPlatforms, withPlaces, withWho, type Answers } from "@/lib/ideas";
 import { parseJson } from "@/lib/ai";
 
 const full: Answers = { niche: "treino em casa", objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho"] };
@@ -13,6 +13,14 @@ describe("nextQuestion", () => {
     expect(nextQuestion({ ...full, durationS: null })).toBe("duration");
     expect(nextQuestion({ ...full, resources: [] })).toBe("resources");
     expect(nextQuestion(full)).toBeNull();
+  });
+
+  it("roteiro pronto: só pergunta onde o vídeo sai", () => {
+    const empty: Answers = { niche: null, objective: null, platforms: [], durationS: null, resources: [] };
+    expect(nextQuestion(empty, "roteiro")).toBe("platform");
+    expect(nextQuestion({ ...empty, platforms: ["reels"] }, "roteiro")).toBeNull();
+    expect(questionsFor("roteiro")).toEqual(["platform"]);
+    expect(questionsFor("zero")).toContain("resources");
   });
 });
 

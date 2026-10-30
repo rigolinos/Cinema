@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
 import { memoryLines } from "@/lib/memoria";
-import { PASTE_MAX_CHARS, assembleBlocks, fallbackBlocks, segmentScript, segmentsText } from "@/lib/organizar";
+import { PASTE_MAX_CHARS, assembleBlocks, fallbackBlocks, scriptFacts, segmentScript, segmentsText } from "@/lib/organizar";
 import { context, tag, usesHumor } from "@/lib/prompts/base";
 import { draftRequest } from "@/lib/prompts/montagem";
 import { organizerTask, personTag, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
@@ -160,13 +160,17 @@ async function organize(supabase: Awaited<ReturnType<typeof createClient>>, v: V
   const { data: saved, error } = await supabase.rpc("replace_script", { p_video_id: v.id, p_blocks: final });
   if (error) return fail("Não foi possível guardar o roteiro.", 500);
 
-  // O vídeo ganha título e gancho a partir do próprio roteiro, para seguir pelos passos.
+  // O vídeo ganha título, gancho, duração e "com mais gente" a partir do próprio roteiro:
+  // quem colou o roteiro só respondeu onde ele vai sair.
   const firstWords = (final[0].speech || final[0].on_screen || final[0].action).replace(/\s+/g, " ").trim();
+  const facts = scriptFacts(final);
   await supabase
     .from("videos")
     .update({
       title: v.title || title || firstWords.split(" ").slice(0, 6).join(" "),
       hook: v.hook || firstWords.slice(0, 300),
+      duration_s: v.duration_s ?? facts.durationS,
+      resources: v.resources?.length ? v.resources : facts.resources,
       brief: pasted,
       start_door: "roteiro",
       stage: v.stage === "ideia" ? "roteiro" : v.stage,
