@@ -4,10 +4,11 @@ import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Minus, Plus, Star, X } from "lucide-react";
+import { FramingIcon } from "@/components/gravai/framing-icon";
 import { durationLabel } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
-import { ANGLES, FRAMINGS, MOVEMENTS, isSolo, shotTerms, type Shot } from "@/lib/planos";
+import { FRAMINGS, isSolo, shotTags, shotTerms, type Shot } from "@/lib/planos";
 import { BLOCK_KINDS, speakerOf, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
 import { firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
 import { cn } from "@/lib/utils";
@@ -213,20 +214,19 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
             <>
               {change && <p className="rounded-xl border border-rec/50 px-4 py-3 text-sm font-semibold">{change}</p>}
 
-              <div className="flex flex-col gap-2">
-                <p className="font-mono text-sm tracking-wide text-muted-foreground">
-                  PARTE {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
-                  {shot.takes > 0 ? ` · TAKE ${shot.takes + 1}` : ""}
-                </p>
-                <h1 className="font-display text-[26px]">{shot.description || FRAMINGS[shot.framing].label}</h1>
-                <div className="flex flex-wrap gap-1.5">
-                  {[FRAMINGS[shot.framing].label, ANGLES[shot.angle].label, MOVEMENTS[shot.movement].label, shot.orientation === "vertical" ? "Vertical" : "Horizontal"].map((t) => (
-                    <span key={t} className="rounded-md border border-input px-2 py-1 font-mono text-xs uppercase">
-                      {t}
-                    </span>
-                  ))}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-4">
+                  <FramingIcon framing={shot.framing} orientation={shot.orientation} large />
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <p className="font-mono text-sm tracking-wide text-muted-foreground">
+                      PARTE {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
+                      {shot.takes > 0 ? ` · TAKE ${shot.takes + 1}` : ""}
+                    </p>
+                    <p className="label-set">{shotTags(shot).join(" · ")}</p>
+                    {(shot.location || shot.wardrobe) && <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>}
+                  </div>
                 </div>
-                {(shot.location || shot.wardrobe) && <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>}
+                <h1 className="font-display text-[26px]">{shot.description || FRAMINGS[shot.framing].label}</h1>
               </div>
 
               {block && (block.speech || block.on_screen) && (

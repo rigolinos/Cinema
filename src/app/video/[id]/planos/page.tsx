@@ -4,9 +4,10 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
-import { Plus, Trash2 } from "lucide-react";
+import { MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { Explain } from "@/components/gravai/explain";
+import { FramingIcon } from "@/components/gravai/framing-icon";
 import { Thinking } from "@/components/gravai/thinking";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
@@ -17,7 +18,9 @@ import {
   defaultOrientation,
   isSolo,
   setupChanges,
+  setupLabel,
   shootingOrder,
+  shotTags,
   shotTerms,
   type Angle,
   type Framing,
@@ -71,11 +74,13 @@ function Choice<K extends string>({
 function ShotCard({
   shot,
   number,
+  setup,
   onChange,
   onDelete,
 }: {
   shot: SavedShot;
   number: number;
+  setup: string; // lugar e roupa, só quando mudam em relação ao plano anterior
   onChange: (patch: Partial<Shot>) => void;
   onDelete: () => void;
 }) {
@@ -87,37 +92,36 @@ function ShotCard({
 
   return (
     <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Plano ${number}`}>
-      <div className="flex gap-3.5">
-        <div className="relative flex h-[72px] w-12 shrink-0 items-center justify-center font-mono text-[15px] font-semibold" aria-hidden="true">
-          <span className="absolute left-0 top-0 size-2.5 border-l-2 border-t-2 border-foreground" />
-          <span className="absolute right-0 top-0 size-2.5 border-r-2 border-t-2 border-foreground" />
-          <span className="absolute bottom-0 left-0 size-2.5 border-b-2 border-l-2 border-foreground" />
-          <span className="absolute bottom-0 right-0 size-2.5 border-b-2 border-r-2 border-foreground" />
-          {String(number).padStart(2, "0")}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <h3 className="text-[17px] font-bold leading-snug">{shot.description || FRAMINGS[shot.framing].label}</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {[FRAMINGS[shot.framing].label, ANGLES[shot.angle].label, MOVEMENTS[shot.movement].label, ORIENTATIONS[shot.orientation].label].map((t) => (
-              <span key={t} className="rounded-md bg-muted px-2 py-1 font-mono text-xs uppercase">
-                {t}
-              </span>
-            ))}
-          </div>
+      {/* Preto só na descrição, que é o que a pessoa vai filmar; o resto em cinza. */}
+      <div className="flex items-start gap-3.5">
+        <FramingIcon framing={shot.framing} orientation={shot.orientation} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <p className="label-set text-muted-foreground">
+            {[String(number).padStart(2, "0"), ...shotTags(shot)].join(" · ")}
+          </p>
+          <h3 className="text-[17px] font-semibold leading-snug">{shot.description || FRAMINGS[shot.framing].label}</h3>
+          {setup && (
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+              <MapPin className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              {setup}
+            </p>
+          )}
         </div>
       </div>
-      {shot.why && (
-        <Explain id="plano-porque" question="Por que este plano?" closed>
-          {shot.why}
-        </Explain>
-      )}
-      {(shot.location || shot.wardrobe) && (
-        <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>
-      )}
 
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="min-h-11 self-start text-sm font-semibold underline">
-        {open ? "Fechar" : "Mudar este plano"}
-      </button>
+      <div className="-mb-1.5 flex items-start justify-between gap-3 border-t border-border pt-1">
+        {shot.why ? (
+          <Explain id="plano-porque" question="Por quê?" closed className="min-w-0 flex-1 pt-1">
+            {shot.why}
+          </Explain>
+        ) : (
+          <span />
+        )}
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="-mr-2 flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-sm text-muted-foreground">
+          {open ? <X className="size-4" strokeWidth={1.75} aria-hidden="true" /> : <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />}
+          {open ? "Fechar" : "Mudar"}
+        </button>
+      </div>
 
       {open && (
         <div className="flex flex-col gap-5 border-t border-border pt-4">
@@ -305,7 +309,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
                   {byScript
                     .filter((s) => s.block_id === b.id)
                     .map((s) => (
-                      <ShotCard key={s.id} shot={s} number={number.get(s.id)!} onChange={(p) => update(s, p)} onDelete={() => remove(s)} />
+                      <ShotCard key={s.id} shot={s} number={number.get(s.id)!} setup={setupLabel(byScript, number.get(s.id)! - 1)} onChange={(p) => update(s, p)} onDelete={() => remove(s)} />
                     ))}
                   <button type="button" onClick={() => add(b)} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold">
                     <Plus className="size-4" strokeWidth={2} aria-hidden="true" />

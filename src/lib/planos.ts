@@ -99,6 +99,24 @@ export function defaultOrientation(platform: Platform | null): Orientation {
   return platform === "youtube" ? "horizontal" : "vertical";
 }
 
+// Etiquetas do cartão: o enquadramento sempre; ângulo e movimento só quando fogem do padrão.
+// A orientação já aparece no desenho do enquadramento.
+export function shotTags(shot: Pick<Shot, "framing" | "angle" | "movement">): string[] {
+  return [
+    FRAMINGS[shot.framing].label,
+    shot.angle !== "altura_olhos" ? ANGLES[shot.angle].label : "",
+    shot.movement !== "parado" ? MOVEMENTS[shot.movement].label : "",
+  ].filter(Boolean);
+}
+
+// Lugar e roupa só no plano em que mudam (o primeiro sempre mostra): repetir em todo cartão vira ruído.
+export function setupLabel(shots: Pick<Shot, "location" | "wardrobe">[], index: number): string {
+  const shot = shots[index];
+  const prev = shots[index - 1];
+  if (prev && norm(prev.location) === norm(shot.location) && norm(prev.wardrobe) === norm(shot.wardrobe)) return "";
+  return [shot.location, shot.wardrobe].map((x) => x.trim()).filter(Boolean).join(" · ");
+}
+
 // ── IA ──────────────────────────────────────────────────────────────────
 
 export const SHOTS_SYSTEM = `Você é o Gravaí, um diretor que ajuda criadores de conteúdo brasileiros a decupar o roteiro: dividir cada bloco nas tomadas que vão gravar com o celular.
