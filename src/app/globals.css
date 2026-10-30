@@ -238,6 +238,18 @@
   .set-look { animation: none; }
 }
 
+/* Folha que sobe de baixo: entra deslizando, como um pop-up de deslize. */
+@keyframes folhaSobe {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.folha-sobe {
+  animation: folhaSobe 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .folha-sobe { animation: none; }
+}
+
 /* Faixas que deslizam para o lado (assuntos, nichos, botões rápidos): sem barra de rolagem por cima dos botões. */
 .scroll-row {
   scrollbar-width: none;

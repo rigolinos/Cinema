@@ -206,7 +206,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 onClick={() => setListOpen(true)}
                 aria-haspopup="dialog"
                 aria-label={`${p.recorded} de ${p.total} planos gravados. Ver a lista de planos`}
-                className="-mr-2 flex min-h-11 items-center gap-1 rounded-full border border-input px-3 font-mono text-sm"
+                className="-mr-3 flex min-h-11 items-center gap-1 px-3 font-mono text-sm"
               >
                 {p.recorded} / {p.total}
                 <ChevronDown className="size-4" strokeWidth={1.75} aria-hidden="true" />
