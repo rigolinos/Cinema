@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
+import { assembleFromReading, faithful, normalizeReading, readingAsSegments, readingLines, readingSegments, type Reading } from "@/lib/leitura";
 import { memoryLines } from "@/lib/memoria";
 import { PASTE_MAX_CHARS, assembleBlocks, fallbackBlocks, scriptFacts, segmentScript, segmentsText } from "@/lib/organizar";
 import { context, tag, usesHumor } from "@/lib/prompts/base";
 import { draftRequest } from "@/lib/prompts/montagem";
-import { organizerTask, personTag, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
+import { assembleTask, organizerTask, personTag, readingTask, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
 import { normalizeDraft, normalizeRewrite, normalizeSuggestions, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
@@ -27,7 +28,7 @@ type Mode = "rascunho" | "bloco" | "sugestoes" | "organizar";
 // - "rascunho": escreve o roteiro inteiro a partir da ideia escolhida;
 // - "bloco": reescreve um bloco a pedido;
 // - "sugestoes": revisa o roteiro e sugere mudanças por bloco (nada muda sem a pessoa tocar);
-// - "organizar": a pessoa colou o próprio roteiro; o app divide em trechos e a IA só classifica.
+// - "organizar": a pessoa colou o próprio roteiro; a IA lê, estrutura e monta as partes (ver organize).
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
     videoTag({ objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: (v.resources ?? []) as Resource[] }),
     productTag(objective, { product: profile?.product, edge: profile?.product_edge }),
     personTag({ niche: profile?.niche, memory: memoryText }),
+    tag("leitura", readingLines(v.script_reading)),
   ];
 
   if (mode === "rascunho") {
@@ -134,20 +136,32 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ block: updated });
 }
 
-// "Já tenho o roteiro": divide em trechos, a IA classifica e o app remonta com o texto original.
-// Se a IA falhar, não houver chave ou a cota acabar, a divisão simples (sem IA) assume: o roteiro nunca se perde.
+// "Já tenho o roteiro", em duas chamadas que contam como uma na cota da pessoa:
+// 1. a leitura: a IA estrutura o texto para si mesma (quem fala; fala, tela, ação, câmera; ortografia corrigida);
+// 2. a montagem: com a leitura, a IA só diz a parte de cada item, e o app remonta.
+// Se a leitura falhar ou reescrever em vez de corrigir, volta o caminho antigo (trechos com o texto original).
+// Sem IA, sem chave ou sem cota, a divisão simples assume: o roteiro nunca se perde.
 async function organize(supabase: Awaited<ReturnType<typeof createClient>>, v: Video & { brief: string }, pasted: string) {
   const segments = segmentScript(pasted);
   if (segments.length === 0) return fail("Cole o seu roteiro para eu organizar.", 400);
 
   let blocks: Omit<ScriptBlock, "id">[] | null = null;
+  let reading: Reading | null = null;
   let title = "";
   if (hasAiProvider()) {
     const { data: allowed } = await supabase.rpc("consume_ai_call");
     if (allowed) {
       try {
-        const raw = await generateJson({ ...organizerTask(), prompt: tag("trechos", segmentsText(segments)) });
-        blocks = assembleBlocks(segments, raw);
+        const read = normalizeReading(await generateJson({ ...readingTask(), prompt: tag("roteiro_colado", pasted) }));
+        reading = read && faithful(read, pasted) ? read : null;
+      } catch {
+        reading = null;
+      }
+      try {
+        const raw = reading
+          ? await generateJson({ ...assembleTask(), prompt: context([tag("itens", readingSegments(reading)), tag("leitura", readingLines(reading))]) })
+          : await generateJson({ ...organizerTask(), prompt: tag("trechos", segmentsText(segments)) });
+        blocks = reading ? assembleFromReading(reading, raw) : assembleBlocks(segments, raw);
         const t = (raw as { title?: unknown })?.title;
         title = typeof t === "string" ? t.trim().slice(0, 140) : "";
       } catch {
@@ -155,13 +169,13 @@ async function organize(supabase: Awaited<ReturnType<typeof createClient>>, v: V
       }
     }
   }
-  const final = blocks ?? fallbackBlocks(segments);
+  const final = blocks ?? fallbackBlocks(reading ? readingAsSegments(reading) : segments);
 
   const { data: saved, error } = await supabase.rpc("replace_script", { p_video_id: v.id, p_blocks: final });
   if (error) return fail("Não foi possível guardar o roteiro.", 500);
 
   // O vídeo ganha título, gancho, duração e "com mais gente" a partir do próprio roteiro:
-  // quem colou o roteiro só respondeu onde ele vai sair.
+  // quem colou o roteiro só respondeu onde ele vai sair. A leitura fica guardada para os outros passos.
   const firstWords = (final[0].speech || final[0].on_screen || final[0].action).replace(/\s+/g, " ").trim();
   const facts = scriptFacts(final);
   await supabase
@@ -172,6 +186,7 @@ async function organize(supabase: Awaited<ReturnType<typeof createClient>>, v: V
       duration_s: v.duration_s ?? facts.durationS,
       resources: v.resources?.length ? v.resources : facts.resources,
       brief: pasted,
+      script_reading: reading,
       start_door: "roteiro",
       stage: v.stage === "ideia" ? "roteiro" : v.stage,
     })

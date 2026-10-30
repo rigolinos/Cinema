@@ -138,6 +138,63 @@ export function organizerTask(): Task {
   };
 }
 
+// ── Roteiro colado, em duas chamadas: a leitura e a montagem ────────────
+// 1ª chamada: a IA lê o texto do jeito que a pessoa escreveu e faz para si mesma uma versão
+// estruturada. Ninguém vê esta versão; ela existe para a montagem (e os outros passos) entender o roteiro.
+const READING_SYSTEM = `Você lê roteiros de vídeo curto escritos às pressas, no bloco de notas: sem pontuação, com erro de digitação, com fala, cena e indicação de câmera misturadas na mesma linha. Sua tarefa é entender o roteiro e reescrevê-lo em itens, para você mesmo usar depois. Você não melhora nem muda a história.
+
+items: o roteiro inteiro, na ordem em que foi escrito, um item para cada coisa:
+- kind "fala": o que alguém diz. speaker: o nome de quem fala, se o roteiro disser ("Natasha: …" → Natasha); senão, vazio.
+- kind "tela": texto que aparece escrito na tela (título, legenda, "POV: …").
+- kind "acao": o que acontece em cena (quem faz o quê, reação, cenário).
+- kind "camera": indicação de câmera que a pessoa escreveu ("plano aberto", "close na mão", "câmera tremendo").
+Uma linha que mistura coisas vira vários itens. Ex.: "manu e lorenzo discutindo (plano aberto) natasha sai de tras de um banco" → acao "Manu e Lorenzo discutindo.", camera "plano aberto", acao "Natasha sai de trás de um banco."
+
+No text de cada item:
+- Corrija erro de ortografia, de digitação e de acento, e ponha pontuação e maiúscula: "nem sabe o q eu vi" → "Nem sabe o que eu vi".
+- Abreviação de digitação vira a palavra que se fala: "q" → "que", "mt" → "muito", "vc" → "você", "oq" → "o quê".
+- O jeito de falar NÃO é erro e fica igual, só com acento: "ta" → "tá" (nunca "está"), "to" → "tô", "pra", "pro" (nunca "para o"), "né", "cê", letra esticada ("mentiraaa", "simmm"), "kkkk".
+  Certo: "todo mundo ja ta sabendo" → "Todo mundo já tá sabendo." Errado: "Todo mundo já está sabendo."
+- Mantenha o jeito dela: gírias, palavrões, expressões, palavras em inglês (estas entre aspas: "relatable") e a ordem das palavras. Não troque palavra por sinônimo, não resuma, não acrescente frase. Emoji vira a palavra do que ele mostra só em ação ("cara de 😱" → "cara de susto").
+- Nada fica de fora: todo o texto colado aparece em algum item.
+
+summary: do que o vídeo trata, em 1 ou 2 frases. tone: o tom em poucas palavras ("humor, fofoca de escola"). people: os nomes de quem aparece ou fala, como estão no roteiro.`;
+
+export function readingTask(): Task {
+  return {
+    system: READING_SYSTEM,
+    schema: obj({ summary: STR, tone: STR, people: strs, items: list(obj({ kind: oneOf(["fala", "tela", "acao", "camera"]), speaker: STR, text: STR })) }),
+    example: `{"summary":"","tone":"","people":[],"items":[{"kind":"fala","speaker":"","text":""}]}`,
+    thinking: "baixo",
+    temperature: 0.2,
+  };
+}
+
+// 2ª chamada: com a leitura na mão, a IA só decide as partes. O campo de cada item já vem do tipo.
+const ASSEMBLE_SYSTEM = `Você organiza roteiros de vídeo curto em partes. O roteiro no pedido já foi lido e está em itens numerados, cada um com o tipo (fala, tela, acao ou camera) e quem fala. Você não escreve nada novo: só diz em que parte cada item fica.
+
+Para cada item:
+- block: em qual parte ele fica. Partes são numeradas a partir de 1, na ordem do roteiro. Itens seguidos que fazem a mesma coisa na história ficam na mesma parte; uma conversa curta fica inteira numa parte.
+- kind: o papel da parte: gancho (o começo que prende), contexto (situa quem assiste), conteudo (o miolo), virada (a surpresa, o resultado ou a revelação) ou chamada (o pedido final).
+
+Regras:
+- A primeira parte é o gancho. Use só os papéis que existirem; um roteiro pode não ter virada nem chamada.
+- Entre 2 e 8 partes, conforme o tamanho do roteiro.
+- Todo item aparece uma vez, na ordem.
+
+labels: um nome curto (até 3 palavras) para cada parte, na ordem, tirado do que acontece nela ("A fofoca", "Flagra na quadra").
+title: um título curto (até 6 palavras) que resuma o vídeo, para a lista de vídeos.`;
+
+export function assembleTask(): Task {
+  return {
+    system: ASSEMBLE_SYSTEM,
+    schema: obj({ title: STR, labels: strs, items: list(obj({ n: INT, block: INT, kind: oneOf(KIND_VALUES) })) }),
+    example: `{"title":"","labels":[""],"items":[{"n":1,"block":1,"kind":"gancho"}]}`,
+    thinking: "zero",
+    temperature: 0.2,
+  };
+}
+
 // ── Sugestões por bloco ──────────────────────────────────────────────────
 const SUGGESTIONS_TEXT = `TAREFA: revise o roteiro desta pessoa como um roteirista sênior revisaria o texto de um colega que respeita: com honestidade, pouco e onde importa. O roteiro é dela, e o jeito de falar dela fica.
 - Sugira só onde fizer diferença de verdade para o objetivo do vídeo. No máximo 4 sugestões no roteiro inteiro e no máximo 1 por bloco. Bloco que já está bom fica sem sugestão.
@@ -207,6 +264,7 @@ const SHOTS_TEXT = `TAREFA: você é o diretor que ajuda a pessoa a dividir cada
 - Use só os valores permitidos de enquadramento, ângulo e movimento listados no pedido.
 - O gancho começa em close ou detalhe.
 - Mesmo nome de local quando for o mesmo lugar. Roupa só se mudar.
+- Se houver <leitura> com indicações de câmera que a pessoa escreveu ("plano aberto", "close na mão"), elas valem: use esse enquadramento nesse momento.
 - why: uma frase, para quem está aprendendo.
 - block: o número do bloco (o primeiro é 1).`;
 
