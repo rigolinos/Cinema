@@ -54,12 +54,9 @@ export async function POST(request: NextRequest) {
   ]);
 
   let posts;
-  let closing = ""; // a frase do Gravaí para o fim do vídeo (mesma chamada, sem custo a mais)
   try {
     const raw = await generateJson({ ...postTask({ objective, platforms }), prompt });
     posts = normalizePosts(raw, platforms);
-    const c = (raw as { closing?: unknown })?.closing;
-    closing = typeof c === "string" ? c.trim().replace(/\s+/g, " ").slice(0, 240) : "";
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {
       return fail("A IA está no limite de uso agora. Tente de novo em alguns minutos.", 503);
@@ -78,5 +75,5 @@ export async function POST(request: NextRequest) {
     )
     .select();
   if (error) return fail("Não foi possível guardar a publicação.", 500);
-  return NextResponse.json({ posts: saved, closing });
+  return NextResponse.json({ posts: saved });
 }

@@ -65,7 +65,7 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
 
   if (targetSeconds) {
     if (total > targetSeconds * 1.2) {
-      checks.push({ level: "alerta", text: `Passou do tempo: cerca de ${durationLabel(total)} para ${durationLabel(targetSeconds)}. Corte frases ou peça um bloco mais curto.` });
+      checks.push({ level: "alerta", text: `Passou do tempo: cerca de ${durationLabel(total)} para ${durationLabel(targetSeconds)}. Corte frases ou peça uma parte mais curta.` });
     } else if (total < targetSeconds * 0.5) {
       checks.push({ level: "alerta", text: `Está curto: cerca de ${durationLabel(total)} para ${durationLabel(targetSeconds)}. Dá para desenvolver mais o conteúdo.` });
     } else {
@@ -77,7 +77,7 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
   if (!hook) {
     checks.push({ level: "alerta", text: "Falta o gancho: sem ele, a pessoa rola o feed antes de entender o vídeo." });
   } else if (blocks[0]?.kind !== "gancho") {
-    checks.push({ level: "alerta", text: "O gancho precisa ser o primeiro bloco." });
+    checks.push({ level: "alerta", text: "O gancho precisa ser a primeira parte." });
   } else if (wordCount(hook.speech) > HOOK_MAX_WORDS) {
     checks.push({ level: "alerta", text: `Gancho longo (${wordCount(hook.speech)} palavras). Para caber em 3 segundos, fique em até ${HOOK_MAX_WORDS}.` });
   }
@@ -97,7 +97,7 @@ export function scriptAsText(title: string, blocks: ScriptBlock[]): string {
     const lines = [`[${times[i].start}–${times[i].end} s] ${b.label || BLOCK_KINDS[b.kind].label}`];
     if (b.speech.trim()) lines.push(`FALA: ${b.speech.trim()}`);
     if (b.on_screen.trim()) lines.push(`NA TELA: ${b.on_screen.trim()}`);
-    if (b.action.trim()) lines.push(`CENA: ${b.action.trim()}`);
+    if (b.action.trim()) lines.push(`O QUE ACONTECE: ${b.action.trim()}`);
     return lines.join("\n");
   });
   return [title.toUpperCase(), ...parts].join("\n\n");

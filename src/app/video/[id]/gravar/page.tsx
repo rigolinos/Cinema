@@ -4,20 +4,18 @@ import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Minus, Plus, Star, X } from "lucide-react";
-import { STEPS, Thinking } from "@/components/gravai/thinking";
-import { PLATFORMS, durationLabel, type Platform } from "@/lib/ideas";
+import { durationLabel } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { ANGLES, FRAMINGS, MOVEMENTS, isSolo, shotTerms, type Shot } from "@/lib/planos";
 import { BLOCK_KINDS, speakerOf, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
-import { CHECKLIST, firstPending, nextPending, progress, setOrder, setupChange } from "@/lib/set";
+import { firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
-type Post = { platform: Platform; caption: string; hashtags: string[] };
 type Block = ScriptBlock & { id: string; position: number; person_id?: string | null };
 type SetShot = Shot & { id: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
-type Phase = "checklist" | "set" | "fim";
+type Phase = "abertura" | "set" | "fim";
 
 const TEXT_SIZES = ["text-xl", "text-2xl", "text-[28px]", "text-[34px]"];
 
@@ -40,15 +38,12 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<{ id: string; name: string; role: string }[]>([]);
   const [shots, setShots] = useState<SetShot[]>([]);
-  const [phase, setPhase] = useState<Phase>("checklist");
-  const [checked, setChecked] = useState<string[]>([]);
+  const [phase, setPhase] = useState<Phase>("abertura");
   const [current, setCurrent] = useState(0);
   const [previousId, setPreviousId] = useState<string | null>(null); // último plano mostrado, para o aviso de troca de cenário
   const [size, setSize] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null); // "Plano 3 gravado": diz o que aconteceu ao tocar
-  // Fim do vídeo: a publicação já preparada e a frase do Gravaí (vêm da mesma chamada de IA).
-  const [finale, setFinale] = useState<{ post: Post | null; closing: string; loading: boolean }>({ post: null, closing: "", loading: false });
   const [showList, setShowList] = useState(false);
   const finaleStarted = useRef(false);
 
@@ -123,28 +118,17 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
 
   const p = progress(shots);
 
-  // Tudo gravado: o Gravaí já deixa a publicação pronta (se ainda não houver) e comemora com a pessoa.
+  // Tudo gravado: o Gravaí já deixa a publicação pronta (se ainda não houver), sem segurar a tela.
   useEffect(() => {
     if (phase !== "fim" || !p.done || !video || finaleStarted.current) return;
     finaleStarted.current = true;
     const db = createClient();
     db.from("video_posts")
-      .select("platform, caption, hashtags")
+      .select("platform", { count: "exact", head: true })
       .eq("video_id", id)
-      .then(async ({ data }) => {
-        const existing = (data ?? []) as Post[];
-        if (existing.length) {
-          setFinale({ post: existing[0], closing: "", loading: false });
-          return;
-        }
-        setFinale((f) => ({ ...f, loading: true }));
-        const res = await fetch("/api/publicar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoId: id }),
-        }).catch(() => null);
-        const body = await res?.json().catch(() => null);
-        setFinale({ post: res?.ok ? ((body?.posts ?? [])[0] ?? null) : null, closing: res?.ok ? (body?.closing ?? "") : "", loading: false });
+      .then(({ count }) => {
+        if (count) return;
+        fetch("/api/publicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId: id }) }).catch(() => null);
       });
   }, [phase, p.done, video, id]);
   const shot = shots[current];
@@ -199,40 +183,28 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
             </p>
           )}
 
-          {video && shots.length > 0 && phase === "checklist" && (
+          {video && shots.length > 0 && phase === "abertura" && (
             <>
-              <div className="flex flex-col gap-2">
-                <h1 className="font-display text-[28px]">Antes de gravar</h1>
-                <p className="leading-relaxed text-muted-foreground">Um minuto aqui evita refazer tudo depois. Toque em cada item quando estiver certo.</p>
+              <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+                {/* O símbolo do Gravaí: a lente com a luz de gravação olhando de um lado para o outro. */}
+                <span className="flex size-36 items-center justify-center rounded-full border-[10px] border-foreground" aria-hidden="true">
+                  <span className="set-look size-20 rounded-full bg-rec" />
+                </span>
+                <div className="flex flex-col gap-2">
+                  <h1 className="font-display text-[34px]">Bora gravar.</h1>
+                  <p className="label-set text-muted-foreground">
+                    {shots.length} {shots.length === 1 ? "plano" : "planos"} · {new Set(shots.map((s) => s.location.trim().toLowerCase())).size}{" "}
+                    {new Set(shots.map((s) => s.location.trim().toLowerCase())).size === 1 ? "lugar" : "lugares"}
+                  </p>
+                </div>
               </div>
-              <ul className="flex flex-col gap-2.5">
-                {CHECKLIST.map((c) => {
-                  const on = checked.includes(c.id);
-                  return (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => setChecked((l) => (on ? l.filter((x) => x !== c.id) : [...l, c.id]))}
-                        className={cn("flex w-full items-start gap-3 rounded-2xl border p-4 text-left", on ? "border-foreground bg-card" : "border-border")}
-                      >
-                        <span className={cn("mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px]", on ? "border-foreground bg-foreground text-background" : "border-input")}>
-                          {on && <Check className="size-4" strokeWidth={2.5} aria-hidden="true" />}
-                        </span>
-                        <span className="flex flex-col gap-1">
-                          <span className="font-bold">{c.label}</span>
-                          <span className="text-sm leading-relaxed text-muted-foreground">{c.tip}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="label-set text-muted-foreground">
-                {shots.length} planos · {new Set(shots.map((s) => s.location.trim().toLowerCase())).size} lugar(es)
+              <p className="text-center text-sm text-muted-foreground">
+                <span className="label-set mr-2">Dica</span>
+                {tipFor(id)}
               </p>
-              <button type="button" onClick={() => setPhase("set")} className="mt-auto min-h-14 rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                {checked.length === CHECKLIST.length ? "Começar a gravar" : "Começar mesmo assim"}
+              <button type="button" onClick={() => setPhase("set")} className="flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-primary text-lg font-bold text-primary-foreground">
+                <span className="size-3 rounded-full bg-rec" aria-hidden="true" />
+                Começar a gravar
               </button>
             </>
           )}
@@ -243,7 +215,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
 
               <div className="flex flex-col gap-2">
                 <p className="font-mono text-sm tracking-wide text-muted-foreground">
-                  BLOCO {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
+                  PARTE {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
                   {shot.takes > 0 ? ` · TAKE ${shot.takes + 1}` : ""}
                 </p>
                 <h1 className="font-display text-[26px]">{shot.description || FRAMINGS[shot.framing].label}</h1>
@@ -327,9 +299,6 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
             <>
               <div className="flex flex-col gap-2">
                 <h1 className="font-display text-[30px]">Vídeo gravado.</h1>
-                <p className="min-h-6 leading-relaxed text-muted-foreground">
-                  {finale.loading ? <Thinking label="Preparando a publicação" steps={STEPS.publicar} /> : finale.closing || "Agora é só editar e publicar. Já deixei o texto pronto."}
-                </p>
               </div>
 
               <div className="grid grid-cols-3 gap-2" aria-label="Resumo da gravação">
@@ -345,23 +314,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 ))}
               </div>
 
-              {finale.post && (
-                <div className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
-                  <span className="label-set text-muted-foreground">Já deixei pronto · {PLATFORMS[finale.post.platform]}</span>
-                  <p className="text-[15px] leading-relaxed">{finale.post.caption}</p>
-                  {finale.post.hashtags.length > 0 && <p className="text-sm text-muted-foreground">{finale.post.hashtags.join(" ")}</p>}
-                </div>
-              )}
-
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-              <div className="flex flex-col gap-3 rounded-2xl border border-border p-4 text-sm leading-relaxed">
-                <p className="font-bold">Na edição</p>
-                <p className="text-muted-foreground">
-                  Monte na ordem dos números dos planos (é a ordem do roteiro). Use os takes marcados como bons e corte 2 segundos do
-                  começo e do fim de cada um.
-                </p>
-              </div>
 
               <button type="button" onClick={() => setShowList((v) => !v)} aria-expanded={showList} className="flex min-h-11 items-center self-center text-sm text-muted-foreground underline">
                 {showList ? "Esconder os planos" : "Conferir os planos"}
@@ -375,7 +328,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 <div className="flex flex-col gap-2">
                   <h1 className="font-display text-[28px]">Faltou algum plano?</h1>
                   <p className="leading-relaxed text-muted-foreground">
-                    {`${p.missing === 1 ? "Falta 1 plano" : `Faltam ${p.missing} planos`}. Grave agora, enquanto o set está montado: voltar depois custa caro.`}
+                    {`${p.missing === 1 ? "Falta 1 plano" : `Faltam ${p.missing} planos`}. Grave agora, com o set montado.`}
                   </p>
                 </div>
               )}
