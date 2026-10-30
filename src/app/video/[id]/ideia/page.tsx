@@ -15,7 +15,6 @@ import {
   DURATIONS,
   OBJECTIVES,
   PLATFORMS,
-  QUESTION_ORDER,
   NICHE_EXAMPLES,
   nicheInSentence,
   PLACES,
@@ -27,6 +26,7 @@ import {
   mixesOrientation,
   nextQuestion,
   platformsLabel,
+  questionsFor,
   samePlaces,
   videoPlatforms,
   withPlaces,
@@ -34,6 +34,7 @@ import {
   type Answers,
   type Platform,
   type QuestionId,
+  type StartDoor,
   type Resource,
 } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
@@ -121,7 +122,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [resourcesDraft, setResourcesDraft] = useState<Resource[]>([]);
   const [platformsDraft, setPlatformsDraft] = useState<Platform[]>([]);
   const [productDraft, setProductDraft] = useState({ product: "", edge: "" });
-  const [door, setDoor] = useState<"zero" | "ideia" | "roteiro">("zero");
+  const [door, setDoor] = useState<StartDoor>("zero");
   const [brief, setBrief] = useState("");
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   // Ideias chegando, ainda sem id: aparecem uma a uma enquanto a IA escreve, sem botões ativos.
@@ -177,7 +178,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     });
   }, [id]);
 
-  const question = editing ?? nextQuestion(answers);
+  const question = editing ?? nextQuestion(answers, door);
 
   // Pedido: "outras ideias", um botão rápido, um pedido escrito, ou "mais assim" (like) sobre uma ideia.
   const requestIdeas = useCallback(
@@ -330,7 +331,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             {door === "ideia"
               ? "Bora deixar a sua ideia pronta para gravar. Antes, umas perguntas rápidas sobre o vídeo."
               : door === "roteiro"
-                ? "Bora organizar o seu roteiro. Antes, umas perguntas rápidas sobre o vídeo, para os planos e a publicação."
+                ? "Bora organizar o seu roteiro. Só me diz onde ele vai sair."
                 : knowsYou
                   ? "Bora achar a ideia. Já sei um pouco do que você curte, então elas vêm mais com a sua cara."
                   : "Bora achar a ideia. Umas perguntas rápidas e eu te trago sugestões."}
@@ -338,7 +339,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
         )}
 
         {loaded &&
-          QUESTION_ORDER.map((q) => {
+          questionsFor(door).map((q) => {
             if (q === question) {
               return (
                 <div key={q} className="flex flex-col gap-3">

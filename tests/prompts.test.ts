@@ -4,7 +4,7 @@ import { withExample } from "@/lib/ai";
 import { findFormat } from "@/lib/formats";
 import { normalizeOwnIdea } from "@/lib/ideia-propria";
 import { normalizeIdeas } from "@/lib/ideas";
-import { assembleBlocks, fallbackBlocks, sameWords, segmentScript } from "@/lib/organizar";
+import { assembleBlocks, fallbackBlocks, sameWords, scriptFacts, segmentScript, speakersIn } from "@/lib/organizar";
 import { normalizeShots } from "@/lib/planos";
 import { HUMOR, MESTRE, SUBMESTRES, buildSystem, context, tag, usesHumor } from "@/lib/prompts/base";
 import { draftRequest, ideasRequest } from "@/lib/prompts/montagem";
@@ -219,5 +219,24 @@ describe("ideias chegando aos poucos", () => {
     ]);
     expect(completeItems('{"ide', "ideas")).toEqual([]);
     expect(completeItems('{"ideas":[]}', "ideas")).toEqual([]);
+  });
+});
+
+describe("roteiro colado: o que o texto já diz", () => {
+  const dialog = [{ speech: "Natasha: amiga nem sabe o que eu vi\nKira: o quê?" }, { speech: "Natasha: a Manu e o Lorenzo brigando" }];
+
+  it("acha quem fala pelo nome antes dos dois-pontos", () => {
+    expect(speakersIn(dialog)).toEqual(["natasha", "kira"]);
+    expect(speakersIn([{ speech: "Atenção time: inimigo na B" }])).toEqual(["atenção time"]);
+  });
+
+  it("duas pessoas falando: com mais gente; uma só não decide nada", () => {
+    expect(scriptFacts(dialog).resources).toEqual(["com_alguem"]);
+    expect(scriptFacts([{ speech: "Oi, hoje eu vou mostrar" }]).resources).toEqual([]);
+  });
+
+  it("a duração vem das falas e respeita os limites do banco", () => {
+    expect(scriptFacts([{ speech: "" }]).durationS).toBeGreaterThanOrEqual(5);
+    expect(scriptFacts([{ speech: "palavra ".repeat(26) }]).durationS).toBe(10);
   });
 });

@@ -1,6 +1,7 @@
 // "Já tenho o roteiro": o app divide o texto colado em trechos numerados e a IA só diz onde cada um fica.
 // Os blocos são remontados com o texto original, então nenhuma palavra muda: garantido por construção.
-import type { BlockKind, ScriptBlock } from "./roteiro";
+import type { Resource } from "./ideas";
+import { totalSeconds, type BlockKind, type ScriptBlock } from "./roteiro";
 
 export const PASTE_MAX_CHARS = 4000;
 const LONG_LINE = 220;
@@ -108,4 +109,21 @@ export function sameWords(raw: string, blocks: Pick<ScriptBlock, "speech" | "on_
 
 export function segmentsText(segments: Segment[]): string {
   return segments.map((s) => `${s.n}. ${s.text}`).join("\n");
+}
+
+// Roteiro colado: o vídeo não pergunta o que o texto já diz.
+// Duração: o tempo estimado das falas. Pessoas: duas ou mais falas marcadas com nome ("Kira: o quê?").
+const SPEAKER = /^\s*([\p{L}][\p{L} ]{0,24}):/gmu;
+
+export function speakersIn(blocks: Pick<ScriptBlock, "speech">[]): string[] {
+  const names = new Set<string>();
+  for (const b of blocks) for (const m of b.speech.matchAll(SPEAKER)) names.add(m[1].trim().toLowerCase());
+  return [...names];
+}
+
+export function scriptFacts(blocks: Pick<ScriptBlock, "speech">[]): { durationS: number; resources: Resource[] } {
+  return {
+    durationS: Math.min(3600, Math.max(5, totalSeconds(blocks))),
+    resources: speakersIn(blocks).length >= 2 ? ["com_alguem"] : [],
+  };
 }
