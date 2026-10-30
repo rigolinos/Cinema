@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SET_TIPS, firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
+import { SET_TIPS, byPlace, firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
 
 const shot = (position: number, shoot_order: number | null, recorded = false, good_take = false) => ({ position, shoot_order, recorded, good_take });
 
@@ -44,5 +44,12 @@ describe("dica da abertura", () => {
     for (const t of SET_TIPS) expect(t.length).toBeLessThanOrEqual(60);
     expect(tipFor("abc")).toBe(tipFor("abc"));
     expect(SET_TIPS).toContain(tipFor("fb68030d-21c1-4beb-96bb-ec0ac2ad0492"));
+  });
+});
+
+describe("lista do set por lugar", () => {
+  it("abre um grupo a cada troca de lugar, sem misturar a ordem", () => {
+    const rows = [{ location: "Quarto" }, { location: " quarto" }, { location: "Quadra" }, { location: "Quarto" }, { location: "" }];
+    expect(byPlace(rows).map((g) => [g.place, g.rows.length])).toEqual([["Quarto", 2], ["Quadra", 1], ["Quarto", 1], ["", 1]]);
   });
 });

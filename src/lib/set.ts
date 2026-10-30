@@ -65,3 +65,14 @@ export function progress(shots: Pick<SetShot, "recorded" | "good_take">[]) {
     done: shots.length > 0 && recorded === shots.length,
   };
 }
+
+// Lista de planos agrupada por lugar, na ordem dada: um grupo novo a cada troca de lugar.
+export function byPlace<T extends { location: string }>(rows: T[]): { place: string; rows: T[] }[] {
+  const groups: { place: string; rows: T[] }[] = [];
+  for (const row of rows) {
+    const last = groups.at(-1);
+    if (last && last.place.toLowerCase() === row.location.trim().toLowerCase()) last.rows.push(row);
+    else groups.push({ place: row.location.trim(), rows: [row] });
+  }
+  return groups;
+}

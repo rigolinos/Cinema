@@ -3,8 +3,10 @@
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Minus, Plus, RotateCcw, X } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus, RotateCcw, X } from "lucide-react";
+import { Folha } from "@/components/gravai/folha";
 import { FramingIcon } from "@/components/gravai/framing-icon";
+import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
 import { durationLabel } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
@@ -45,7 +47,10 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const [size, setSize] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null); // "Plano 3 gravado": diz o que aconteceu ao tocar
-  const [showList, setShowList] = useState(false);
+  // A lista de planos (o contador "3 / 8" abre): pular para qualquer plano, sem passar por todos.
+  const [listOpen, setListOpen] = useState(false);
+  const counter = useRef<HTMLButtonElement>(null);
+  const [skipped, setSkipped] = useState<string[]>([]); // pulados nesta sessão de gravação
   // Depois de "Gravei", o plano espera a resposta: ficou bom (segue) ou outro take (fica).
   const [review, setReview] = useState<string | null>(null);
   const finaleStarted = useRef(false);
@@ -110,6 +115,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
       setError("Não deu para salvar. Confira a conexão e toque de novo.");
       return false;
     }
+    if (updated.recorded) setSkipped((l) => l.filter((x) => x !== shot.id));
     if (advance) {
       const next = nextPending(list, list.indexOf(updated));
       const done = `Plano ${scriptNumber.get(shot.id)} ${patch.good_take ? "ficou bom" : "gravado"}`;
@@ -151,6 +157,35 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   );
   const change = shot ? setupChange(shots.find((s) => s.id === previousId), shot) : null;
   const upcoming = shots.find((s, i) => i > current && !s.recorded);
+  const rows: PlanRow[] = shots.map((s, i) => ({
+    id: s.id,
+    number: scriptNumber.get(s.id) ?? i + 1,
+    description: s.description,
+    framing: s.framing,
+    angle: s.angle,
+    movement: s.movement,
+    orientation: s.orientation,
+    location: s.location,
+    recorded: s.recorded,
+    good: s.good_take,
+    takes: s.takes,
+    skipped: skipped.includes(s.id),
+    current: phase === "set" && i === current,
+  }));
+
+  function closeList() {
+    setListOpen(false);
+    counter.current?.focus();
+  }
+
+  // Da lista direto para o plano escolhido, de qualquer fase.
+  function pick(shotId: string) {
+    const index = shots.findIndex((s) => s.id === shotId);
+    if (index === -1) return;
+    goTo(index);
+    setPhase("set");
+    setListOpen(false);
+  }
 
   return (
     <div className="dark min-h-dvh bg-background text-foreground">
@@ -164,7 +199,21 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
               <span className={cn("size-2.5 rounded-full bg-rec", phase === "set" && "animate-pulse")} aria-hidden="true" />
               Modo set
             </span>
-            <span className="font-mono text-sm text-muted-foreground">{shots.length > 0 ? `${p.recorded} / ${p.total}` : ""}</span>
+            {shots.length > 0 ? (
+              <button
+                ref={counter}
+                type="button"
+                onClick={() => setListOpen(true)}
+                aria-haspopup="dialog"
+                aria-label={`${p.recorded} de ${p.total} planos gravados. Ver a lista de planos`}
+                className="-mr-2 flex min-h-11 items-center gap-1 rounded-full border border-input px-3 font-mono text-sm"
+              >
+                {p.recorded} / {p.total}
+                <ChevronDown className="size-4" strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            ) : (
+              <span className="size-11" />
+            )}
           </div>
           {shots.length > 0 && (
             <div className="flex gap-1" role="img" aria-label={`${p.recorded} de ${p.total} planos gravados`}>
@@ -227,7 +276,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
 
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-4">
-                  <FramingIcon framing={shot.framing} orientation={shot.orientation} large />
+                  <FramingIcon framing={shot.framing} orientation={shot.orientation} size="lg" />
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <p className="font-mono text-sm tracking-wide text-muted-foreground">
                       PARTE {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
@@ -297,6 +346,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                       type="button"
                       onClick={() => {
                         logSignal("plano_pulado", { plano: `(${shotTerms(shot)})` }, id);
+                        setSkipped((l) => (l.includes(shot.id) ? l : [...l, shot.id]));
                         setNotice(`Plano ${scriptNumber.get(shot.id)} ficou para depois. Ele volta no fim.`);
                         const next = nextPending(shots, current);
                         if (next === -1 || next === current) setPhase("fim");
@@ -307,12 +357,6 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                       Pular por agora
                     </button>
                   </>
-                )}
-                {current > 0 && (
-                  <button type="button" onClick={() => goTo(current - 1)} className="flex min-h-11 items-center gap-1 self-center text-sm text-muted-foreground">
-                    <ChevronLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
-                    Plano anterior
-                  </button>
                 )}
               </div>
             </>
@@ -338,60 +382,19 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
               </div>
 
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-              <button type="button" onClick={() => setShowList((v) => !v)} aria-expanded={showList} className="flex min-h-11 items-center self-center text-sm text-muted-foreground underline">
-                {showList ? "Esconder os planos" : "Conferir os planos"}
-              </button>
             </>
           )}
 
-          {video && shots.length > 0 && phase === "fim" && (!p.done || showList) && (
+          {video && shots.length > 0 && phase === "fim" && !p.done && (
             <>
-              {!p.done && (
-                <div className="flex flex-col gap-2">
-                  <h1 className="font-display text-[28px]">Faltou algum plano?</h1>
-                  <p className="leading-relaxed text-muted-foreground">
-                    {`${p.missing === 1 ? "Falta 1 plano" : `Faltam ${p.missing} planos`}. Grave agora, com o set montado.`}
-                  </p>
-                </div>
-              )}
-
-              <ol className="flex flex-col gap-2">
-                {[...shots]
-                  .sort((a, b) => scriptNumber.get(a.id)! - scriptNumber.get(b.id)!)
-                  .map((s) => (
-                    <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-card p-3.5">
-                      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-full", s.recorded ? "bg-foreground text-background" : "border-[1.5px] border-rec")}>
-                        {s.recorded && <Check className="size-4" strokeWidth={2.5} aria-hidden="true" />}
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-[15px] font-semibold">{s.description || FRAMINGS[s.framing].label}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          PLANO {String(scriptNumber.get(s.id)).padStart(2, "0")} · {s.takes} TAKE{s.takes === 1 ? "" : "S"}
-                          {s.good_take ? " · BOM" : ""}
-                        </span>
-                      </span>
-                      {!s.recorded ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCurrent(shots.indexOf(s));
-                            setPhase("set");
-                          }}
-                          className="min-h-11 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground"
-                        >
-                          Gravar
-                        </button>
-                      ) : (
-                        <button type="button" onClick={() => mark(s, { recorded: false, good_take: false }, false)} className="min-h-11 px-2 text-sm text-muted-foreground underline">
-                          Refazer
-                        </button>
-                      )}
-                    </li>
-                  ))}
-              </ol>
-
-              {!p.done && error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+              <div className="flex flex-col gap-2">
+                <h1 className="font-display text-[28px]">Faltou algum plano?</h1>
+                <p className="leading-relaxed text-muted-foreground">
+                  {`${p.missing === 1 ? "Falta 1 plano" : `Faltam ${p.missing} planos`}. Grave agora, com o set montado.`}
+                </p>
+              </div>
+              <PlanList rows={rows} onPick={pick} />
+              {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             </>
           )}
 
@@ -424,6 +427,12 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
           )}
         </main>
       </div>
+
+      {listOpen && (
+        <Folha title="Ordem de gravação" summary={`${p.recorded} ${p.recorded === 1 ? "gravado" : "gravados"}${skipped.length ? ` · ${skipped.length} pulado${skipped.length === 1 ? "" : "s"}` : ""} · ${p.total} planos`} onClose={closeList}>
+          <PlanList rows={rows} onPick={pick} />
+        </Folha>
+      )}
     </div>
   );
 }
