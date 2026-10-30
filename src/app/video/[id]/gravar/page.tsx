@@ -3,7 +3,7 @@
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Minus, Plus, Star, X } from "lucide-react";
+import { Check, ChevronLeft, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { FramingIcon } from "@/components/gravai/framing-icon";
 import { durationLabel } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
@@ -46,6 +46,8 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null); // "Plano 3 gravado": diz o que aconteceu ao tocar
   const [showList, setShowList] = useState(false);
+  // Depois de "Gravei", o plano espera a resposta: ficou bom (segue) ou outro take (fica).
+  const [review, setReview] = useState<string | null>(null);
   const finaleStarted = useRef(false);
 
   useWakeLock(phase === "set");
@@ -85,10 +87,16 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
 
   function goTo(index: number) {
     if (phase === "set" && shots[current]) setPreviousId(shots[current].id);
+    setReview(null);
     setCurrent(index);
   }
 
-  async function mark(shot: SetShot, patch: Partial<SetShot>, advance: boolean) {
+  // Cada "Gravei" é um take a mais, salvo na hora: sair no meio não perde nada.
+  async function recorded(shot: SetShot) {
+    if (await mark(shot, { recorded: true, takes: shot.takes + 1 }, false)) setReview(shot.id);
+  }
+
+  async function mark(shot: SetShot, patch: Partial<SetShot>, advance: boolean): Promise<boolean> {
     const updated = { ...shot, ...patch };
     const list = shots.map((s) => (s.id === shot.id ? updated : s));
     setShots(list);
@@ -100,15 +108,18 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
     if (error) {
       setShots(shots);
       setError("Não deu para salvar. Confira a conexão e toque de novo.");
-      return;
+      return false;
     }
     if (advance) {
       const next = nextPending(list, list.indexOf(updated));
-      const done = `Plano ${scriptNumber.get(shot.id)} ${patch.good_take ? "gravado e marcado como bom" : "gravado"}`;
+      const done = `Plano ${scriptNumber.get(shot.id)} ${patch.good_take ? "ficou bom" : "gravado"}`;
       setNotice(next === -1 ? done : `${done}. Agora o plano ${scriptNumber.get(list[next].id)}.`);
-      if (next === -1) setPhase("fim");
-      else goTo(next);
+      if (next === -1) {
+        setReview(null);
+        setPhase("fim");
+      } else goTo(next);
     }
+    return true;
   }
 
   async function finishVideo(to: "publicar" | "visao") {
@@ -220,7 +231,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <p className="font-mono text-sm tracking-wide text-muted-foreground">
                       PARTE {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
-                      {shot.takes > 0 ? ` · TAKE ${shot.takes + 1}` : ""}
+                      {review === shot.id ? ` · TAKE ${shot.takes}` : shot.takes > 0 ? ` · TAKE ${shot.takes + 1}` : ""}
                     </p>
                     <p className="label-set">{shotTags(shot).join(" · ")}</p>
                     {(shot.location || shot.wardrobe) && <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>}
@@ -259,32 +270,44 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
               <div className="mt-auto flex flex-col gap-2.5 pt-2">
-                <button type="button" onClick={() => mark(shot, { recorded: true, takes: shot.takes + 1 }, true)} className="min-h-14 rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                  Gravei este plano
-                </button>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => mark(shot, { recorded: true, good_take: true, takes: shot.takes + 1 }, true)}
-                    className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-input font-semibold"
-                  >
-                    <Star className="size-4" strokeWidth={1.75} aria-hidden="true" />
-                    Ficou bom
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      logSignal("plano_pulado", { plano: `(${shotTerms(shot)})` }, id);
-                      setNotice(`Plano ${scriptNumber.get(shot.id)} ficou para depois. Ele volta no fim.`);
-                      const next = nextPending(shots, current);
-                      if (next === -1 || next === current) setPhase("fim");
-                      else goTo(next);
-                    }}
-                    className="min-h-12 rounded-full border-[1.5px] border-input font-semibold"
-                  >
-                    Pular por agora
-                  </button>
-                </div>
+                {review === shot.id ? (
+                  <>
+                    <p className="label-set text-center text-muted-foreground" role="status">
+                      Take {shot.takes} gravado · ficou bom?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => mark(shot, { good_take: true }, true)}
+                      className="flex min-h-14 items-center justify-center gap-2 rounded-full bg-primary text-lg font-bold text-primary-foreground"
+                    >
+                      <Check className="size-5" strokeWidth={2.5} aria-hidden="true" />
+                      Ficou bom, próximo
+                    </button>
+                    <button type="button" onClick={() => setReview(null)} className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-input font-semibold">
+                      <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                      Gravar outro take
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => recorded(shot)} className="min-h-14 rounded-full bg-primary text-lg font-bold text-primary-foreground">
+                      Gravei
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        logSignal("plano_pulado", { plano: `(${shotTerms(shot)})` }, id);
+                        setNotice(`Plano ${scriptNumber.get(shot.id)} ficou para depois. Ele volta no fim.`);
+                        const next = nextPending(shots, current);
+                        if (next === -1 || next === current) setPhase("fim");
+                        else goTo(next);
+                      }}
+                      className="min-h-12 rounded-full border-[1.5px] border-input font-semibold"
+                    >
+                      Pular por agora
+                    </button>
+                  </>
+                )}
                 {current > 0 && (
                   <button type="button" onClick={() => goTo(current - 1)} className="flex min-h-11 items-center gap-1 self-center text-sm text-muted-foreground">
                     <ChevronLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
