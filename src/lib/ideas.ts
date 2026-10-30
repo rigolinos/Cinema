@@ -15,11 +15,32 @@ export const PLATFORMS = {
 } as const;
 
 export const RESOURCES = {
-  sozinho: "Sozinho",
-  com_alguem: "Com alguém",
+  sozinho: "Só eu",
+  com_alguem: "Com mais gente",
   em_casa: "Em casa",
   na_rua: "Na rua",
 } as const;
+
+// "Com o que você conta" são duas escolhas únicas: quem grava e onde ("Nos dois" marca casa e rua).
+export const WHO: Resource[] = ["sozinho", "com_alguem"];
+export const PLACES = [
+  { label: "Em casa", value: ["em_casa"] },
+  { label: "Na rua", value: ["na_rua"] },
+  { label: "Nos dois", value: ["em_casa", "na_rua"] },
+] as const satisfies readonly { label: string; value: readonly Resource[] }[];
+
+export function withWho(list: readonly Resource[], who: Resource): Resource[] {
+  return [who, ...list.filter((r) => !WHO.includes(r))];
+}
+
+export function withPlaces(list: readonly Resource[], places: readonly Resource[]): Resource[] {
+  return [...list.filter((r) => WHO.includes(r)), ...places];
+}
+
+export function samePlaces(list: readonly Resource[], places: readonly Resource[]): boolean {
+  const mine = list.filter((r) => !WHO.includes(r));
+  return mine.length === places.length && places.every((p) => mine.includes(p));
+}
 
 export const DURATIONS = [15, 30, 60, 180] as const;
 

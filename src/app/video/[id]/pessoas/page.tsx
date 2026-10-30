@@ -167,10 +167,6 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
 
         {video && (
           <>
-            <p className="leading-relaxed text-muted-foreground">
-              Quem aparece e quem ajuda. Cada um recebe um link só com a parte dele, sem criar conta.
-            </p>
-
             {!nameSaved && (
               <form onSubmit={saveMyName} className="flex flex-col gap-3 rounded-2xl border-[1.5px] border-foreground p-4">
                 <label htmlFor="meu-nome" className="font-bold">
@@ -190,7 +186,8 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
               <h2 id="quando" className="label-set">
                 Quando e onde
               </h2>
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3">
+              {/* Um embaixo do outro: no iPhone o campo de data tem largura mínima e invadia o Lugar. */}
+              <div className="flex flex-col gap-3">
                 <label className="flex flex-col gap-1.5">
                   <span className="text-sm font-semibold">Dia</span>
                   <input
@@ -200,7 +197,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                       setWhen((w) => ({ ...w, date: e.target.value }));
                       saveWhen({ shoot_date: e.target.value || null });
                     }}
-                    className={field}
+                    className={cn(field, "min-w-0 appearance-none text-left")}
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -215,7 +212,6 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                   />
                 </label>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">Aparece no link de cada pessoa. Combine o endereço pelo WhatsApp se não quiser deixar aqui.</p>
             </section>
 
             <section aria-labelledby="time" className="flex flex-col gap-3">
@@ -228,7 +224,6 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                     <h3 className="text-lg font-bold">{p.role === "eu" ? `${p.name} (você)` : p.name}</h3>
                     <span className="label-set shrink-0 text-muted-foreground">{ROLES[p.role].label}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{ROLES[p.role].sees}</p>
 
                   {p.role !== "eu" && (
                     <>
@@ -289,7 +284,6 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                     </button>
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground">{ROLES[newRole].sees}</p>
                 <button type="submit" disabled={!newName.trim()} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40">
                   Adicionar
                 </button>
@@ -302,7 +296,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                   <h2 id="partes" className="label-set">
                     Quem aparece em cada parte
                   </h2>
-                  <p className="text-sm leading-relaxed text-muted-foreground">Quem aparece no vídeo recebe só as partes marcadas com o nome dela.</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">Cada um recebe só as partes com o nome dele.</p>
                 </div>
                 {blocks.map((b, i) => (
                   <div key={b.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">

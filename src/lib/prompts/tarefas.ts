@@ -266,17 +266,15 @@ Por plataforma (os números já têm folga; não passe deles):
 - Shorts: título de até 60 caracteres e descrição de 1 ou 2 frases.
 - YouTube: título de até 60 caracteres e descrição de 2 ou 3 frases.
 
-Hashtags específicas do assunto e do nicho, nunca genéricas (#viral, #fyp). A capa é uma só para todas as plataformas: cover_text (até 5 palavras) e cover_idea (a imagem, em uma frase).
-
-closing: uma frase curta e calorosa para a pessoa, que acabou de gravar este vídeo. Cite algo concreto do roteiro (a virada, o produto, a dica) e diga por que vai funcionar, como alguém da equipe falaria. Sem exagero, sem emoji, sem "parabéns" vazio. Ex.: "Ficou com a sua cara: a virada da marmita vai pegar todo mundo que tem mãe assim."`;
+Hashtags específicas do assunto e do nicho, nunca genéricas (#viral, #fyp). A capa é uma só para todas as plataformas: cover_text (até 5 palavras) e cover_idea (a imagem, em uma frase).`;
 
 export function postTask(o: { objective: Objective | null; platforms: Platform[] }): Task {
   const platforms: Platform[] = o.platforms.length ? o.platforms : ["reels"];
   const post = obj({ caption: STR, title: STR, hashtags: strs });
   return {
     system: buildSystem({ objective: o.objective, task: POST_TEXT }),
-    schema: obj({ cover_text: STR, cover_idea: STR, closing: STR, posts: obj(Object.fromEntries(platforms.map((p) => [p, post]))) }),
-    example: `{"cover_text":"","cover_idea":"","closing":"","posts":{${platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",")}}}`,
+    schema: obj({ cover_text: STR, cover_idea: STR, posts: obj(Object.fromEntries(platforms.map((p) => [p, post]))) }),
+    example: `{"cover_text":"","cover_idea":"","posts":{${platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",")}}}`,
     thinking: "baixo",
     temperature: 0.8,
   };

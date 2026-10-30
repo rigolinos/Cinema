@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ReportAi } from "@/components/gravai/denunciar";
-import { AlertTriangle, ArrowUp, Check, Copy, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowUp, Check, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
@@ -63,8 +63,12 @@ function BlockCard({
   onSuggestion,
   onSave,
   onRewrite,
+  onRemove,
+  autoFocus,
 }: {
   block: Block;
+  onRemove?: () => void; // ausente quando é a única parte: o roteiro não fica vazio
+  autoFocus: boolean; // parte recém-adicionada: o cursor já vai para a fala
   quick: string[]; // botões rápidos do objetivo do vídeo
   suggestion?: BlockSuggestion; // sugestão do Gravaí para este bloco: só muda se a pessoa aceitar
   onSuggestion: (accept: boolean) => void;
@@ -98,16 +102,23 @@ function BlockCard({
   };
 
   return (
-    <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Bloco ${index + 1}: ${block.label || kind.label}`}>
-      <div className="flex items-baseline justify-between gap-3">
+    <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Parte ${index + 1}: ${block.label || kind.label}`}>
+      <div className="flex items-center justify-between gap-3">
         <h2 className="label-set">
-          {String(index + 1).padStart(2, "0")} · {block.label || kind.label}
+          Parte {String(index + 1).padStart(2, "0")} · {block.label || kind.label}
         </h2>
-        <span className="font-mono text-sm text-muted-foreground">
-          {time.start}–{time.end} s
+        <span className="flex items-center gap-1">
+          <span className="font-mono text-sm text-muted-foreground">
+            {time.start}–{time.end} s
+          </span>
+          {onRemove && (
+            <button type="button" disabled={busy} onClick={onRemove} aria-label={`Excluir a parte ${index + 1}`} className="-mr-2.5 flex size-11 items-center justify-center text-muted-foreground disabled:opacity-40">
+              <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          )}
         </span>
       </div>
-      <Explain id={`bloco-${block.kind}`} question="Para que serve este bloco?" closed={repeated} className="-mt-1">
+      <Explain id={`bloco-${block.kind}`} question="Para que serve esta parte?" closed={repeated} className="-mt-1">
         {kind.hint}
       </Explain>
 
@@ -118,6 +129,7 @@ function BlockCard({
           onChange={(e) => setDraft((d) => ({ ...d, speech: e.target.value }))}
           onBlur={() => save("speech")}
           maxLength={1500}
+          autoFocus={autoFocus}
           placeholder="O que você fala neste trecho"
           className="min-h-20 font-medium"
         />
@@ -134,7 +146,7 @@ function BlockCard({
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">Cena</span>
+        <span className="text-sm font-semibold">O que acontece</span>
         <GrowingText
           value={draft.action}
           onChange={(e) => setDraft((d) => ({ ...d, action: e.target.value }))}
@@ -153,11 +165,11 @@ function BlockCard({
           </span>
           {suggestion.speech && <p className="text-[15px] font-medium leading-relaxed">{suggestion.speech}</p>}
           {suggestion.on_screen && <p className="text-sm text-muted-foreground">Na tela: {suggestion.on_screen}</p>}
-          {suggestion.action && <p className="text-sm text-muted-foreground">Cena: {suggestion.action}</p>}
+          {suggestion.action && <p className="text-sm text-muted-foreground">O que acontece: {suggestion.action}</p>}
           <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>
           <ReportAi
             area="roteiro"
-            content={[suggestion.speech, suggestion.on_screen && `Na tela: ${suggestion.on_screen}`, suggestion.action && `Cena: ${suggestion.action}`].filter(Boolean).join("\n")}
+            content={[suggestion.speech, suggestion.on_screen && `Na tela: ${suggestion.on_screen}`, suggestion.action && `O que acontece: ${suggestion.action}`].filter(Boolean).join("\n")}
             label="Denunciar esta sugestão"
             className="-my-1.5"
           />
@@ -180,7 +192,7 @@ function BlockCard({
           className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-40"
         >
           <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          Pedir ajuste neste bloco
+          Pedir ajuste nesta parte
         </button>
       ) : (
         <form
@@ -199,7 +211,7 @@ function BlockCard({
           </div>
           <div className="flex gap-2">
             <label htmlFor={`ajuste-${block.id}`} className="sr-only">
-              O que mudar neste bloco
+              O que mudar nesta parte
             </label>
             <input
               id={`ajuste-${block.id}`}
@@ -238,6 +250,11 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [error, setError] = useState<string | null>(null);
   const { confirm, sheet } = useConfirm();
   const [copied, setCopied] = useState(false);
+  const [shotCount, setShotCount] = useState<Record<string, number>>({}); // planos de cada parte: saem junto se ela for excluída
+  // Parte excluída fica alguns segundos só escondida, para dar tempo de desfazer; depois sai do banco.
+  const [removed, setRemoved] = useState<{ block: Block; index: number } | null>(null);
+  const pending = useRef<{ block: Block; index: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const [fresh, setFresh] = useState<string | null>(null);
 
   useEffect(() => {
     const db = createClient();
@@ -245,14 +262,80 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("video_people").select("id, name, role").eq("video_id", id),
-    ]).then(([v, b, p]) => {
+      db.from("shots").select("block_id").eq("video_id", id),
+    ]).then(([v, b, p, s]) => {
       setVideo((v.data as Video | null) ?? null);
       setBlocks((b.data ?? []) as Block[]);
       setPeople((p.data ?? []) as Person[]);
+      const counts: Record<string, number> = {};
+      for (const row of (s.data ?? []) as { block_id: string }[]) counts[row.block_id] = (counts[row.block_id] ?? 0) + 1;
+      setShotCount(counts);
     });
   }, [id]);
 
+  // Saiu da tela com uma exclusão esperando: ela vale.
+  useEffect(
+    () => () => {
+      const r = pending.current;
+      if (!r) return;
+      clearTimeout(r.timer);
+      // A consulta do Supabase só roda com then().
+      createClient().from("script_blocks").delete().eq("id", r.block.id).then(() => null);
+    },
+    [],
+  );
+
+  async function commitRemoval() {
+    const r = pending.current;
+    if (!r) return;
+    clearTimeout(r.timer);
+    pending.current = null;
+    setRemoved(null);
+    const { error } = await createClient().from("script_blocks").delete().eq("id", r.block.id);
+    if (error) {
+      setBlocks((list) => [...list.slice(0, r.index), r.block, ...list.slice(r.index)]);
+      setError("Não deu para excluir a parte. Tente de novo.");
+    }
+  }
+
+  async function removeBlock(block: Block) {
+    await commitRemoval();
+    const index = blocks.indexOf(block);
+    setBlocks((list) => list.filter((b) => b.id !== block.id));
+    setReview((r) => (r ? { ...r, suggestions: r.suggestions.filter((s) => s.blockId !== block.id) } : r));
+    pending.current = { block, index, timer: setTimeout(commitRemoval, 5000) };
+    setRemoved({ block, index });
+  }
+
+  function undoRemoval() {
+    const r = pending.current;
+    if (!r) return;
+    clearTimeout(r.timer);
+    pending.current = null;
+    setRemoved(null);
+    setBlocks((list) => [...list.slice(0, r.index), r.block, ...list.slice(r.index)]);
+  }
+
+  async function addBlock() {
+    setBusy("adicionar");
+    setError(null);
+    const position = Math.max(-1, ...blocks.map((b) => b.position)) + 1;
+    const { data, error } = await createClient()
+      .from("script_blocks")
+      .insert({ video_id: id, position, kind: "conteudo", label: null, speech: "", on_screen: "", action: "" })
+      .select()
+      .single();
+    setBusy(null);
+    if (error || !data) {
+      setError("Não deu para adicionar a parte. Tente de novo.");
+      return;
+    }
+    setBlocks((list) => [...list, data as Block]);
+    setFresh((data as Block).id);
+  }
+
   async function draft() {
+    await commitRemoval();
     if (blocks.length > 0 && !(await confirm({ title: "Escrever outro rascunho?", text: "O rascunho novo substitui o roteiro atual, inclusive o que você editou.", action: "Escrever de novo" }))) return;
     setBusy("rascunho");
     setError(null);
@@ -334,6 +417,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   async function finish() {
     if (!video) return;
     setBusy("seguir");
+    await commitRemoval();
     // Quem grava sozinho não tem ninguém para chamar: pula o passo Pessoas.
     const next = isSolo(video.resources ?? []) ? nextReadyStage("pessoas") : nextReadyStage("roteiro");
     if (video.stage === "roteiro") {
@@ -348,7 +432,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   }
 
   const times = timeline(blocks);
-  const checks = video ? checkScript(blocks, video.duration_s, video.objective) : [];
+  const alerts = video ? checkScript(blocks, video.duration_s, video.objective).filter((c) => c.level !== "ok") : [];
   const format = findFormat(video?.format_slug);
 
   return (
@@ -405,15 +489,12 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               </div>
             )}
 
-            {blocks.length > 0 && (
+            {/* Só o que precisa de atenção: o que está certo não ocupa a tela. */}
+            {blocks.length > 0 && alerts.length > 0 && (
               <ul className="flex flex-col gap-2 rounded-2xl border border-border p-4" aria-label="Revisão do roteiro">
-                {checks.map((c) => (
+                {alerts.map((c) => (
                   <li key={c.text} className="flex gap-2.5 text-sm leading-relaxed">
-                    {c.level === "ok" ? (
-                      <Check className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={2} aria-hidden="true" />
-                    ) : (
-                      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" strokeWidth={1.75} aria-hidden="true" />
-                    )}
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" strokeWidth={1.75} aria-hidden="true" />
                     {c.text}
                   </li>
                 ))}
@@ -442,7 +523,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 </span>
                 <p className="leading-relaxed">
                   {review.note ||
-                    (review.suggestions.length ? "Deixei sugestões nos blocos. Nada muda se você não tocar." : "Seu roteiro já está bom. Não mudaria nada.")}
+                    (review.suggestions.length ? "Deixei sugestões nas partes. Nada muda se você não tocar." : "Seu roteiro já está bom. Não mudaria nada.")}
                 </p>
               </div>
             )}
@@ -461,10 +542,24 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 onSuggestion={(accept) => decide(b, accept)}
                 onSave={(field, value) => saveField(b, field, value)}
                 onRewrite={(request) => rewrite(b, request)}
+                onRemove={blocks.length > 1 ? () => removeBlock(b) : undefined}
+                autoFocus={b.id === fresh}
               />
             ))}
 
-            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo o bloco" /></p>}
+            {blocks.length > 0 && (
+              <button
+                type="button"
+                onClick={addBlock}
+                disabled={busy !== null}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input text-sm font-semibold disabled:opacity-40"
+              >
+                <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
+                Adicionar parte
+              </button>
+            )}
+
+            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && busy !== "adicionar" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo a parte" /></p>}
             {error && (
               <p role="alert" className="rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
                 {error}
@@ -479,6 +574,18 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
           </>
         )}
       </div>
+
+      {removed && (
+        <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full bg-foreground py-1.5 pl-5 pr-1.5 text-sm font-semibold text-background">
+          <span>
+            Parte {String(removed.index + 1).padStart(2, "0")} excluída
+            {shotCount[removed.block.id] ? ` com ${shotCount[removed.block.id] === 1 ? "1 plano" : `${shotCount[removed.block.id]} planos`}` : ""}
+          </span>
+          <button type="button" onClick={undoRemoval} className="min-h-11 rounded-full px-4 underline">
+            Desfazer
+          </button>
+        </div>
+      )}
 
       {blocks.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">

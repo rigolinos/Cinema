@@ -87,7 +87,7 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
                 Parte {String(b.number).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
               </span>
               {b.speech && <p className="text-xl font-semibold leading-snug">{b.speech}</p>}
-              {b.action && <p className="text-sm leading-relaxed text-muted-foreground">Cena: {b.action}</p>}
+              {b.action && <p className="text-sm leading-relaxed text-muted-foreground">O que acontece: {b.action}</p>}
             </article>
           ))}
         </section>

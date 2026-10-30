@@ -2,11 +2,11 @@
 
 export type PersonRole = "eu" | "ator" | "filma" | "equipe";
 
-export const ROLES: Record<PersonRole, { label: string; as: string; sees: string }> = {
-  eu: { label: "Eu", as: "criador", sees: "Você vê tudo." },
-  ator: { label: "Aparece no vídeo", as: "para aparecer no vídeo", sees: "Recebe só as próprias falas e cenas, para treinar." },
-  filma: { label: "Quem filma", as: "para filmar", sees: "Recebe o roteiro e a lista de planos, na ordem de gravação." },
-  equipe: { label: "Ajuda no set", as: "para ajudar no set", sees: "Recebe o roteiro e os planos." },
+export const ROLES: Record<PersonRole, { label: string; as: string }> = {
+  eu: { label: "Eu", as: "criador" },
+  ator: { label: "Aparece no vídeo", as: "para aparecer no vídeo" },
+  filma: { label: "Quem filma", as: "para filmar" },
+  equipe: { label: "Ajuda no set", as: "para ajudar no set" },
 };
 
 // Versão do termo: se o texto mudar, a versão sobe e quem já aceitou continua com a versão antiga guardada.

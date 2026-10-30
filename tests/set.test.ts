@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHECKLIST, firstPending, nextPending, progress, setOrder, setupChange } from "@/lib/set";
+import { SET_TIPS, firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
 
 const shot = (position: number, shoot_order: number | null, recorded = false, good_take = false) => ({ position, shoot_order, recorded, good_take });
 
@@ -39,9 +39,10 @@ describe("progress", () => {
   });
 });
 
-describe("CHECKLIST", () => {
-  it("cada item tem uma dica prática", () => {
-    expect(new Set(CHECKLIST.map((c) => c.id)).size).toBe(CHECKLIST.length);
-    for (const c of CHECKLIST) expect(c.tip.length).toBeGreaterThan(20);
+describe("dica da abertura", () => {
+  it("curta, e sempre a mesma para o mesmo vídeo", () => {
+    for (const t of SET_TIPS) expect(t.length).toBeLessThanOrEqual(60);
+    expect(tipFor("abc")).toBe(tipFor("abc"));
+    expect(SET_TIPS).toContain(tipFor("fb68030d-21c1-4beb-96bb-ec0ac2ad0492"));
   });
 });

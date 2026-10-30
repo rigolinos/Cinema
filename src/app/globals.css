@@ -225,6 +225,19 @@
   .thinking-dot { animation: none; opacity: 0.6; }
 }
 
+/* Abertura do modo set: a luz de gravação olha de um lado para o outro, como quem confere o set. */
+@keyframes setLook {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-14px); }
+  75% { transform: translateX(14px); }
+}
+.set-look {
+  animation: setLook 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .set-look { animation: none; }
+}
+
 /* Faixas que deslizam para o lado (assuntos, nichos, botões rápidos): sem barra de rolagem por cima dos botões. */
 .scroll-row {
   scrollbar-width: none;

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
 const NEXT_STEPS: Record<string, string> = {
-  roteiro: "Escrever junto com você, bloco a bloco: gancho, contexto, conteúdo, virada e chamada final.",
+  roteiro: "Escrever junto com você, parte por parte: gancho, contexto, conteúdo, virada e chamada final.",
   pessoas: "Quem aparece e quem filma, cada um com um link só com a parte dele.",
   planos: "Cada parte do roteiro vira as tomadas que você precisa, com o porquê de cada ângulo.",
   gravar: "No celular: lista de planos, teleprompter e nada esquecido no dia.",

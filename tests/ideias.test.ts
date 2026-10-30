@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, videoPlatforms, type Answers } from "@/lib/ideas";
+import { durationLabel, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, samePlaces, videoPlatforms, withPlaces, withWho, type Answers } from "@/lib/ideas";
 import { parseJson } from "@/lib/ai";
 
 const full: Answers = { niche: "treino em casa", objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho"] };
@@ -13,6 +13,20 @@ describe("nextQuestion", () => {
     expect(nextQuestion({ ...full, durationS: null })).toBe("duration");
     expect(nextQuestion({ ...full, resources: [] })).toBe("resources");
     expect(nextQuestion(full)).toBeNull();
+  });
+});
+
+describe("quem grava e onde", () => {
+  it("cada grupo é escolha única e não mexe no outro", () => {
+    expect(withWho(["sozinho", "em_casa"], "com_alguem")).toEqual(["com_alguem", "em_casa"]);
+    expect(withPlaces(["com_alguem", "em_casa"], ["na_rua"])).toEqual(["com_alguem", "na_rua"]);
+    expect(withPlaces(["sozinho"], ["em_casa", "na_rua"])).toEqual(["sozinho", "em_casa", "na_rua"]);
+  });
+
+  it("reconhece a opção de lugar marcada, inclusive Nos dois", () => {
+    expect(samePlaces(["sozinho", "na_rua", "em_casa"], ["em_casa", "na_rua"])).toBe(true);
+    expect(samePlaces(["sozinho", "em_casa"], ["em_casa", "na_rua"])).toBe(false);
+    expect(samePlaces(["sozinho"], ["em_casa"])).toBe(false);
   });
 });
 

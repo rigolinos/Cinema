@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const ask = typeof body?.request === "string" ? body.request.trim().slice(0, 300) : "";
   const pasted = typeof body?.text === "string" ? body.text.slice(0, PASTE_MAX_CHARS) : "";
   if (!videoId) return fail("Vídeo não informado.", 400);
-  if (mode === "bloco" && (!blockId || !ask)) return fail("Diga o que mudar neste bloco.", 400);
+  if (mode === "bloco" && (!blockId || !ask)) return fail("Diga o que mudar nesta parte.", 400);
   if (mode === "organizar" && !pasted.trim()) return fail("Cole o seu roteiro para eu organizar.", 400);
 
   const [{ data: video }, { data: profile }, { data: current }, { data: memory }] = await Promise.all([
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   }
 
   const index = blocks.findIndex((x) => x.id === blockId);
-  if (index === -1) return fail("Bloco não encontrado.", 404);
+  if (index === -1) return fail("Parte não encontrada.", 404);
 
   const prompt = context([tag("pedido_agora", ask), tag("roteiro", scriptForPrompt(blocks, index)), ...shared]);
   let rewrite;
@@ -126,10 +126,10 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return aiFailure(err);
   }
-  if (!rewrite) return fail("A IA não trouxe o bloco desta vez. Tente de novo.", 502);
+  if (!rewrite) return fail("A IA não trouxe a parte desta vez. Tente de novo.", 502);
 
   const { data: updated, error } = await supabase.from("script_blocks").update(rewrite).eq("id", blockId).select().single();
-  if (error) return fail("Não foi possível guardar o bloco.", 500);
+  if (error) return fail("Não foi possível guardar a parte.", 500);
   await supabase.from("creator_signals").insert({ kind: "pedido_bloco", video_id: videoId, detail: { pedido: ask.slice(0, 160), bloco: (blocks[index].label ?? "").slice(0, 60) } });
   return NextResponse.json({ block: updated });
 }

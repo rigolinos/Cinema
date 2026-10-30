@@ -1,19 +1,20 @@
 // Modo set: o que a tela de gravação precisa saber, sem depender de banco ou de tela.
 
-export interface ChecklistItem {
-  id: string;
-  label: string;
-  tip: string;
-}
-
-// Antes de gravar: um minuto aqui evita refazer tudo depois.
-export const CHECKLIST: ChecklistItem[] = [
-  { id: "luz", label: "Luz de frente", tip: "Fique de frente para a janela ou a luz, nunca de costas." },
-  { id: "som", label: "Som sem eco", tip: "Lugar fechado, sem ventilador, celular perto da boca ou microfone de lapela." },
-  { id: "lente", label: "Lente limpa", tip: "Passe a camiseta na lente: marca de dedo deixa tudo embaçado." },
-  { id: "silencio", label: "Não perturbe ligado", tip: "Notificação no meio do take obriga a gravar de novo." },
-  { id: "espaco", label: "Bateria e espaço", tip: "Pelo menos metade da bateria e espaço para alguns minutos de vídeo." },
+// Abertura do set: uma dica curta por vez, sem nada para marcar.
+export const SET_TIPS = [
+  "Fique de frente para a luz, nunca de costas.",
+  "Passe a camiseta na lente antes de começar.",
+  "Ligue o Não perturbe: notificação estraga o take.",
+  "Lugar sem eco e sem ventilador ligado.",
+  "Celular com bateria e espaço sobrando.",
 ];
+
+// A mesma dica para o mesmo vídeo (o sorteio pelo id não muda entre o servidor e a tela).
+export function tipFor(videoId: string): string {
+  let sum = 0;
+  for (const ch of videoId) sum += ch.charCodeAt(0);
+  return SET_TIPS[sum % SET_TIPS.length];
+}
 
 export interface SetShot {
   id: string;

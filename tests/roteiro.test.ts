@@ -63,7 +63,7 @@ describe("checkScript", () => {
 
   it("avisa quando falta o gancho ou ele não é o primeiro", () => {
     expect(checkScript([b("conteudo", "x"), b("chamada", "y")], null)[0].text).toMatch(/Falta o gancho/);
-    expect(checkScript([b("conteudo", "x"), b("gancho", "y"), b("chamada", "z")], null)[0].text).toMatch(/primeiro bloco/);
+    expect(checkScript([b("conteudo", "x"), b("gancho", "y"), b("chamada", "z")], null)[0].text).toMatch(/primeira parte/);
   });
 });
 
@@ -134,7 +134,7 @@ describe("scriptAsText", () => {
     const text = scriptAsText("3 erros", [b("gancho", words(8), { on_screen: "3 ERROS" }), b("chamada", "Segue", { label: "Final", action: "Aponta" })]);
     expect(text).toContain("3 ERROS\n\n[0–3 s] Gancho");
     expect(text).toContain("NA TELA: 3 ERROS");
-    expect(text).toContain("[3–5 s] Final\nFALA: Segue\nCENA: Aponta");
+    expect(text).toContain("[3–5 s] Final\nFALA: Segue\nO QUE ACONTECE: Aponta");
   });
 });
 

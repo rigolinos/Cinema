@@ -18,14 +18,19 @@ import {
   QUESTION_ORDER,
   NICHE_EXAMPLES,
   nicheInSentence,
+  PLACES,
   QUICK_IDEAS,
   RESOURCES,
+  WHO,
   durationLabel,
   mainPlatform,
   mixesOrientation,
   nextQuestion,
   platformsLabel,
+  samePlaces,
   videoPlatforms,
+  withPlaces,
+  withWho,
   type Answers,
   type Platform,
   type QuestionId,
@@ -41,7 +46,7 @@ const QUESTIONS: Record<QuestionId, string> = {
   produto: "O que você vende, e por que alguém compraria de você e não de outro?",
   platform: "Onde ele vai sair? Pode marcar mais de um.",
   duration: "E quanto tempo, mais ou menos?",
-  resources: "Com o que você conta hoje? Pode marcar mais de um.",
+  resources: "Quem grava e onde?",
 };
 
 const chip =
@@ -479,26 +484,40 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             )}
 
             {question === "resources" && (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(RESOURCES) as Resource[]).map((r) => {
-                    const on = resourcesDraft.includes(r);
-                    return (
-                      <button
-                        key={r}
-                        type="button"
-                        aria-pressed={on}
-                        className={cn(chip, on && chipOn)}
-                        onClick={() => setResourcesDraft((d) => (on ? d.filter((x) => x !== r) : [...d, r]))}
-                      >
-                        {RESOURCES[r]}
-                      </button>
-                    );
-                  })}
+              <div className="flex flex-col gap-4">
+                <div role="group" aria-labelledby="quem-grava" className="flex flex-col gap-2">
+                  <span id="quem-grava" className="text-sm font-semibold">
+                    Quem grava
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {WHO.map((r) => {
+                      const on = resourcesDraft.includes(r);
+                      return (
+                        <button key={r} type="button" aria-pressed={on} className={cn(chip, on && chipOn)} onClick={() => setResourcesDraft((d) => withWho(d, r))}>
+                          {RESOURCES[r]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div role="group" aria-labelledby="onde-grava" className="flex flex-col gap-2">
+                  <span id="onde-grava" className="text-sm font-semibold">
+                    Onde
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {PLACES.map((p) => {
+                      const on = samePlaces(resourcesDraft, p.value);
+                      return (
+                        <button key={p.label} type="button" aria-pressed={on} className={cn(chip, on && chipOn)} onClick={() => setResourcesDraft((d) => withPlaces(d, p.value))}>
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <button
                   type="button"
-                  disabled={resourcesDraft.length === 0 || busy !== null}
+                  disabled={!resourcesDraft.some((r) => WHO.includes(r)) || resourcesDraft.every((r) => WHO.includes(r)) || busy !== null}
                   onClick={() => save("resources", { resources: resourcesDraft })}
                   className="mt-2 min-h-13 w-full rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                 >
