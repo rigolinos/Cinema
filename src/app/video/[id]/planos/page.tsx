@@ -127,7 +127,7 @@ function ShotCard({
         <div className="flex flex-col gap-5 border-t border-border pt-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold">O que aparece</span>
-            <input value={text.description} maxLength={300} onChange={(e) => setText((t) => ({ ...t, description: e.target.value }))} onBlur={() => saveText("description")} className={field} />
+            <textarea rows={3} value={text.description} maxLength={300} onChange={(e) => setText((t) => ({ ...t, description: e.target.value }))} onBlur={() => saveText("description")} className={cn(field, "resize-none py-3 leading-snug")} />
           </label>
           <Choice title="Enquadramento" terms={FRAMINGS} value={shot.framing} onChange={(v: Framing) => onChange({ framing: v })} />
           <Choice title="Ângulo" terms={ANGLES} value={shot.angle} onChange={(v: Angle) => onChange({ angle: v })} />

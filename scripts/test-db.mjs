@@ -514,6 +514,25 @@ ok(r.rows?.[0]?.n === 1, 'limpa só o rascunho vazio antigo' + (r.err ? ': ' + r
 const sobrou = (await q('SELECT id FROM public.videos WHERE id = ANY($1)', [[vazioVelho, vazioNovo, comResposta, comIdeia, vazioDeA]])).rows.map((x) => x.id);
 ok(!sobrou.includes(vazioVelho) && sobrou.includes(vazioNovo) && sobrou.includes(comResposta) && sobrou.includes(comIdeia), 'o recém-criado, o respondido e o com ideia ficam');
 ok(sobrou.includes(vazioDeA), 'não mexe nos vídeos de outra pessoa');
+const antigo = async (uid, colunas = '', valores = '') =>
+  (await as('authenticated', uid, `INSERT INTO public.videos (created_at, updated_at ${colunas}) VALUES (now() - interval '8 days', now() - interval '8 days' ${valores}) RETURNING id`)).rows[0].id;
+const abandonado = await antigo(B, ', objective', ", 'crescer'");
+const abandonadoComIdeia = await antigo(B);
+await as('authenticated', B, `INSERT INTO public.video_ideas (video_id, title, hook) VALUES ($1, 'Ideia', 'Gancho')`, [abandonadoComIdeia]);
+const comTexto = await antigo(B, ', brief', ", 'meu roteiro'");
+const comRoteiro = await antigo(B);
+await as('authenticated', B, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [comRoteiro, JSON.stringify([{ kind: 'gancho', speech: 'Oi' }])]);
+const comTitulo = await antigo(B, ', title', ", 'Meu vídeo'");
+const voltouOntem = (await as('authenticated', B, `INSERT INTO public.videos (objective, created_at, updated_at) VALUES ('crescer', now() - interval '8 days', now() - interval '1 day') RETURNING id`)).rows[0].id;
+const abandonadoDeA = await antigo(A, ', objective', ", 'crescer'");
+await as('authenticated', B, 'SELECT public.delete_empty_drafts(60)');
+const ficaram = (await q('SELECT id FROM public.videos WHERE id = ANY($1)', [[abandonado, abandonadoComIdeia, comTexto, comRoteiro, comTitulo, voltouOntem, abandonadoDeA]])).rows.map((x) => x.id);
+ok(!ficaram.includes(abandonado) && !ficaram.includes(abandonadoComIdeia), 'rascunho sem ideia escolhida some depois de 7 dias');
+ok(ficaram.includes(comTexto) && ficaram.includes(comRoteiro) && ficaram.includes(comTitulo), 'o que tem texto, roteiro ou título fica');
+ok(ficaram.includes(voltouOntem), 'quem voltou ao rascunho nos últimos dias não perde');
+ok(ficaram.includes(abandonadoDeA), 'não mexe nos rascunhos de outra pessoa');
+r = await as('authenticated', B, `UPDATE public.videos SET objective = NULL, platform = NULL, platforms = '{}', duration_s = NULL, resources = '{}' WHERE id = $1 RETURNING platforms, objective`, [voltouOntem]);
+ok(!r.err && r.rows[0]?.objective === null && r.rows[0]?.platforms?.length === 0, 'Novo vídeo limpa as respostas do rascunho reaproveitado' + (r.err ? ': ' + r.err : ''));
 r = await as('anon', null, 'SELECT public.delete_empty_drafts(60)');
 ok(r.err, 'visitante não limpa nada');
 r = await as('authenticated', B, `UPDATE public.videos SET archived_at = now() WHERE id = $1 RETURNING archived_at`, [comResposta]);

@@ -8,6 +8,7 @@ describe("rascunho vazio", () => {
     expect(isEmptyDraft({ ...empty, objective: "crescer" as const })).toBe(false);
     expect(isEmptyDraft({ ...empty, resources: ["sozinho" as const] })).toBe(false);
     expect(isEmptyDraft({ ...empty, title: "Ideia" })).toBe(false);
+    expect(isEmptyDraft({ ...empty, brief: "meu roteiro colado" })).toBe(false);
   });
 });
 
