@@ -218,6 +218,7 @@ export function suggestionsTask(o: { objective: Objective; humor: boolean }): Ta
 // ── Rascunho do roteiro ──────────────────────────────────────────────────
 const DRAFT_TEXT = `TAREFA: escreva o roteiro completo desta ideia, pronto para gravar.
 - Respeite o título, o gancho escolhido, a situação e o desfecho: foram decididos pela pessoa. O primeiro bloco usa o gancho escolhido.
+- Quando a situação e o desfecho contam o vídeo cena a cena, siga essa ordem e use essas piadas e viradas. Não invente outro desenrolar.
 - Limite rígido: no máximo o número de palavras de fala do bloco <limite>, no roteiro todo. Conte antes de responder.
 - Divida em blocos do tipo gancho, contexto, conteudo, virada e chamada. Use só os que o vídeo precisa.
 - A chamada final segue o objetivo: obrigatória em Vender, Ensinar e Crescer, pedindo uma coisa só; opcional em Divertir.
@@ -234,6 +235,28 @@ export function draftTask(o: { objective: Objective; humor: boolean }): Task {
     system: buildSystem({ objective: o.objective, humor: o.humor, task: DRAFT_TEXT }),
     schema: obj({ blocks: list(obj(BLOCK_FIELDS)) }),
     example: `{"blocks":[{"kind":"gancho","label":"","speech":"","on_screen":"","action":""}]}`,
+    thinking: "medio",
+    temperature: 0.8,
+  };
+}
+
+// ── A história, antes do roteiro ────────────────────────────────────────
+const STORY_TEXT = `TAREFA: conte o vídeo inteiro, do começo ao fim, para a pessoa decidir se gosta dele antes de existir um roteiro. Escreva como quem conta o vídeo para um amigo: no presente, em texto corrido e concreto.
+- hook: como começa, os primeiros segundos, em uma frase. Mantenha o gancho escolhido, salvo se o pedido mudar isso.
+- situation: o que acontece, em ordem, em até 5 frases curtas e até 500 caracteres. Cada frase é um acontecimento que dá para ver ou ouvir.
+- payoff: como termina, em 1 ou 2 frases: a virada, o resultado, a dica ou a oferta, e o último momento do vídeo.
+- Entregue o conteúdo de verdade, nunca a descrição dele. Se ensina, diga o que é ensinado. Se vende, mostre como o produto entra e qual é a oferta.
+- Se tem humor, é aqui que a pessoa decide se ri. Traga pelo menos duas piadas prontas, cada uma com a fala entre aspas ou o gesto exato, e escale: a segunda é mais absurda que a primeira. "Ela entra em pânico" não é piada; "ela revista o próprio sapato e pergunta para o vizinho se ele viu a chave passar" é. Sentimento sem ação não conta.
+- Sem palavras técnicas: nada de plano, corte, take, gancho ou bloco. Sem tempos e sem marcação de quem fala.
+- Tem que caber na duração e ser possível com o que a pessoa tem em <video>.
+- Se houver <historia_atual> e <pedido_agora>, mude só o que foi pedido e mantenha o resto igual, palavra por palavra.
+- Se o pedido escrito pela pessoa pedir algo que as regras de segurança proíbem, atenda o resto e deixe essa parte de fora.`;
+
+export function storyTask(o: { objective: Objective; humor: boolean }): Task {
+  return {
+    system: buildSystem({ objective: o.objective, humor: o.humor, task: STORY_TEXT }),
+    schema: obj({ hook: STR, situation: STR, payoff: STR }),
+    example: `{"hook":"","situation":"","payoff":""}`,
     thinking: "medio",
     temperature: 0.8,
   };

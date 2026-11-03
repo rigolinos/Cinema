@@ -7,7 +7,7 @@ import { normalizeIdeas } from "@/lib/ideas";
 import { assembleBlocks, fallbackBlocks, sameWords, scriptFacts, segmentScript, speakersIn } from "@/lib/organizar";
 import { normalizeShots } from "@/lib/planos";
 import { HUMOR, MESTRE, SUBMESTRES, buildSystem, context, tag, usesHumor } from "@/lib/prompts/base";
-import { draftRequest, ideasRequest } from "@/lib/prompts/montagem";
+import { draftRequest, ideasRequest, storyRequest } from "@/lib/prompts/montagem";
 import {
   ANGLE_VALUES,
   FORMAT_VALUES,
@@ -19,7 +19,7 @@ import {
   postTask,
   shotsTask,
 } from "@/lib/prompts/tarefas";
-import { normalizeDraft } from "@/lib/roteiro";
+import { normalizeDraft, normalizeStory } from "@/lib/roteiro";
 import { completeItems } from "@/lib/stream-json";
 
 // Um caso realista: a criadora de humor, com briefing próprio e memória.
@@ -207,6 +207,35 @@ describe("prompts montados", () => {
         `# Prompts montados (v3)\n\nGerado pelo teste tests/prompts.test.ts com o mesmo código das rotas. Caso: criadora de humor, objetivo Crescer, com briefing e memória.\n\n${show("Ideias do zero", ideas)}\n${show("Rascunho do roteiro", draft)}`,
       );
     }
+  });
+});
+
+describe("a história antes do roteiro", () => {
+  const ideia = { ...video, title: "A chave", hook: "Saio de casa assobiando.", situation: "Percebe na rua que esqueceu algo.", payoff: "Volta correndo.", formatSlug: "pov" };
+
+  it("sem pedido, parte da ideia", () => {
+    const r = storyRequest({ video: ideia, person });
+    expect(r.prompt).toContain("<ideia>");
+    expect(r.prompt).not.toContain("<pedido_agora>");
+    expect(r.prompt).not.toMatch(/undefined|null|NaN|\[object|\n{3,}/);
+    expect(r.system).toContain("duas piadas prontas");
+  });
+
+  it("com pedido, muda só o que foi pedido na história atual", () => {
+    const r = storyRequest({ video: ideia, person, ask: "troca a piada do final" });
+    expect(r.prompt).toContain("troca a piada do final");
+    expect(r.prompt).toContain("<historia_atual>");
+    expect(r.prompt.indexOf("<pedido_agora>")).toBeLessThan(r.prompt.indexOf("<historia_atual>"));
+  });
+
+  it("corta no limite das colunas e recusa história sem começo ou sem meio", () => {
+    const story = normalizeStory({ hook: "a".repeat(400), situation: "b".repeat(700), payoff: "c".repeat(700) });
+    expect([story?.hook.length, story?.situation.length, story?.payoff.length]).toEqual([300, 600, 600]);
+    expect(normalizeStory({ hook: "x", situation: `Primeira frase. ${"b".repeat(700)}`, payoff: "y" })?.situation).toBe("Primeira frase.");
+    expect(normalizeStory({ hook: "", situation: "x", payoff: "y" })).toBeNull();
+    expect(normalizeStory({ hook: "x", situation: " ", payoff: "y" })).toBeNull();
+    expect(normalizeStory(null)).toBeNull();
+    expect(normalizeStory({ hook: "x", situation: "y" })?.payoff).toBe("");
   });
 });
 

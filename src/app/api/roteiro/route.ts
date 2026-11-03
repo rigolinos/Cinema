@@ -6,9 +6,9 @@ import { assembleFromReading, faithful, normalizeReading, readingAsSegments, rea
 import { memoryLines } from "@/lib/memoria";
 import { PASTE_MAX_CHARS, assembleBlocks, fallbackBlocks, scriptFacts, segmentScript, segmentsText } from "@/lib/organizar";
 import { context, tag, usesHumor } from "@/lib/prompts/base";
-import { draftRequest } from "@/lib/prompts/montagem";
+import { draftRequest, storyRequest } from "@/lib/prompts/montagem";
 import { assembleTask, organizerTask, personTag, readingTask, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
-import { normalizeDraft, normalizeRewrite, normalizeSuggestions, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
+import { normalizeDraft, normalizeRewrite, normalizeStory, normalizeSuggestions, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
@@ -22,9 +22,10 @@ function aiFailure(err: unknown) {
   return fail("A IA não respondeu direito desta vez. Tente de novo.", 502);
 }
 
-type Mode = "rascunho" | "bloco" | "sugestoes" | "organizar";
+type Mode = "rascunho" | "bloco" | "sugestoes" | "organizar" | "historia";
 
 // O roteiro com a pessoa:
+// - "historia": conta o vídeo inteiro, cena a cena, para a pessoa decidir antes do roteiro; com pedido, muda só o que foi pedido;
 // - "rascunho": escreve o roteiro inteiro a partir da ideia escolhida;
 // - "bloco": reescreve um bloco a pedido;
 // - "sugestoes": revisa o roteiro e sugere mudanças por bloco (nada muda sem a pessoa tocar);
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const videoId = typeof body?.videoId === "string" ? body.videoId : "";
-  const mode: Mode = (["bloco", "sugestoes", "organizar"] as const).find((m) => m === body?.mode) ?? "rascunho";
+  const mode: Mode = (["bloco", "sugestoes", "organizar", "historia"] as const).find((m) => m === body?.mode) ?? "rascunho";
   const blockId = typeof body?.blockId === "string" ? body.blockId : "";
   const ask = typeof body?.request === "string" ? body.request.trim().slice(0, 300) : "";
   const pasted = typeof body?.text === "string" ? body.text.slice(0, PASTE_MAX_CHARS) : "";
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
   const v = video as Video & { situation: string; payoff: string; brief: string };
-  if ((mode === "rascunho" || mode === "bloco") && (!v.title || !v.hook)) return fail("Escolha uma ideia antes de escrever o roteiro.", 400);
+  if ((mode === "rascunho" || mode === "bloco" || mode === "historia") && (!v.title || !v.hook)) return fail("Escolha uma ideia antes de escrever o roteiro.", 400);
 
   if (!hasAiProvider() && mode !== "organizar") return fail("O roteirista ainda não está configurado no servidor.", 503);
 
@@ -72,22 +73,38 @@ export async function POST(request: NextRequest) {
     tag("leitura", readingLines(v.script_reading)),
   ];
 
+  const idea = {
+    video: {
+      objective,
+      platforms: videoPlatforms(v),
+      durationS: v.duration_s ?? 30,
+      resources: (v.resources ?? []) as Resource[],
+      brief: v.brief ?? "",
+      title: v.title ?? "",
+      hook: v.hook ?? "",
+      situation: v.situation ?? "",
+      payoff: v.payoff ?? "",
+      formatSlug: v.format_slug,
+    },
+    person: { niche: profile?.niche ?? null, product: profile?.product, edge: profile?.product_edge, memory: memoryText },
+  };
+
+  if (mode === "historia") {
+    let story;
+    try {
+      story = normalizeStory(await generateJson(storyRequest({ ...idea, ask })));
+    } catch (err) {
+      return aiFailure(err);
+    }
+    if (!story) return fail("A IA não trouxe a história desta vez. Tente de novo.", 502);
+    const { error } = await supabase.from("videos").update(story).eq("id", videoId);
+    if (error) return fail("Não foi possível guardar a história.", 500);
+    if (ask) await supabase.from("creator_signals").insert({ kind: "pedido_ideia", video_id: videoId, detail: { pedido: ask.slice(0, 160) } });
+    return NextResponse.json({ story });
+  }
+
   if (mode === "rascunho") {
-    const call = draftRequest({
-      video: {
-        objective,
-        platforms: videoPlatforms(v),
-        durationS: v.duration_s ?? 30,
-        resources: (v.resources ?? []) as Resource[],
-        brief: v.brief ?? "",
-        title: v.title ?? "",
-        hook: v.hook ?? "",
-        situation: v.situation ?? "",
-        payoff: v.payoff ?? "",
-        formatSlug: v.format_slug,
-      },
-      person: { niche: profile?.niche ?? null, product: profile?.product, edge: profile?.product_edge, memory: memoryText },
-    });
+    const call = draftRequest(idea);
     let blocks: ScriptBlock[];
     try {
       blocks = normalizeDraft(await generateJson(call));

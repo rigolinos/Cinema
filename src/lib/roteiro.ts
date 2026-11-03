@@ -137,6 +137,20 @@ export function normalizeDraft(raw: unknown): ScriptBlock[] {
   return blocks;
 }
 
+// A história que a IA conta antes do roteiro. Os limites são os das colunas do vídeo.
+export function normalizeStory(raw: unknown): { hook: string; situation: string; payoff: string } | null {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  // Passou do limite: corta na última frase inteira, para a história não terminar no meio de uma palavra.
+  const whole = (value: unknown, max: number) => {
+    const text = clip(value, max);
+    if (typeof value !== "string" || value.trim().length <= max) return text;
+    const end = Math.max(text.lastIndexOf(". "), text.lastIndexOf("! "), text.lastIndexOf("? "));
+    return end > 0 ? text.slice(0, end + 1) : text;
+  };
+  const story = { hook: whole(r.hook, 300), situation: whole(r.situation, 600), payoff: whole(r.payoff, 600) };
+  return story.hook && story.situation ? story : null;
+}
+
 export function normalizeRewrite(raw: unknown): Pick<ScriptBlock, "speech" | "on_screen" | "action"> | null {
   const r = (raw ?? {}) as Record<string, unknown>;
   const block = { speech: clip(r.speech, 1500), on_screen: clip(r.on_screen, 300), action: clip(r.action, 500) };

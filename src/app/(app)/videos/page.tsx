@@ -17,7 +17,7 @@ const EMPTY: Record<VideoTab, string> = {
   criando: "Nenhum vídeo em criação. Toque em Novo vídeo para começar.",
   prontos: "Quando o roteiro e os planos de um vídeo ficarem prontos, ele espera aqui pelo dia de gravar.",
   gravados: "Quando você gravar um vídeo, ele aparece aqui. Se gravou sem o passo a passo, use Já gravei no menu ⋯ do vídeo.",
-  arquivados: "Arquive pelo menu ⋯ de um vídeo para tirá-lo da frente sem apagar.",
+  arquivados: "Nada no arquivo. Use Arquivar no menu ⋯ para tirar um vídeo da frente sem apagar.",
 };
 
 // Vídeos (aba do menu): todos, separados por situação, com arquivar, apagar e limpar rascunhos vazios.
@@ -92,10 +92,10 @@ export default function MeusVideosPage() {
         )}
       </div>
 
-      {/* O arquivo não disputa espaço com as abas: quem arquivou sabe onde procurar. */}
-      {tab !== "arquivados" && (
+      {/* Só aparece para quem já arquivou algo: para os outros, seria mais um nome a explicar. */}
+      {tab !== "arquivados" && counts.arquivados > 0 && (
         <button type="button" onClick={() => setTab("arquivados")} className="flex min-h-11 items-center self-start text-sm font-semibold text-muted-foreground underline">
-          Ver arquivo{counts.arquivados ? ` (${counts.arquivados})` : ""}
+          Ver arquivo ({counts.arquivados})
         </button>
       )}
     </div>

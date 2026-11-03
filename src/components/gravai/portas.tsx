@@ -128,7 +128,7 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
       return;
     }
     logSignal("ideia_escolhida", { title: patch.title, format: findFormat("format_slug" in patch ? patch.format_slug : null)?.name }, videoId);
-    router.push(`/video/${videoId}/roteiro`);
+    router.push(`/video/${videoId}/roteiro?historia=1`);
   }
 
   if (!idea) {

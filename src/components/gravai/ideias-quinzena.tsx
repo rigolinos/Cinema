@@ -91,7 +91,7 @@ export function StartSheet({
       setBusy(false);
       return;
     }
-    router.push(`/video/${videoId}/roteiro`);
+    router.push(`/video/${videoId}/roteiro?historia=1`);
   }
 
   return (
