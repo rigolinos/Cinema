@@ -4,19 +4,19 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Logo } from "@/components/logo";
+import { CampoSenha, Entrada } from "@/components/gravai/entrada";
+import { fillWithRec } from "@/components/gravai/palco";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth-errors";
 import { LEGAL_VERSIONS } from "@/lib/legal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 
 // Quem chega pelo convite de outra pessoa já encontra o nome preenchido.
 export default function RegisterPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="min-h-dvh bg-[#0E0E0E]" />}>
       <RegisterForm />
     </Suspense>
   );
@@ -64,6 +64,7 @@ function RegisterForm() {
       setSentTo(email);
       setLoading(false);
     } else {
+      fillWithRec();
       router.push("/inicio");
       router.refresh();
     }
@@ -71,130 +72,99 @@ function RegisterForm() {
 
   if (sentTo) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className="flex w-full max-w-md flex-col gap-6 text-center animate-scale-in">
-          <Link href="/" aria-label="Início">
-            <Logo className="text-4xl" />
-          </Link>
-          <div className="flex flex-col gap-3 rounded-2xl bg-card p-6">
-            <h1 className="text-xl font-bold">Confirme seu e-mail</h1>
-            <p className="leading-relaxed text-muted-foreground">
-              Mandamos um link para <strong className="text-foreground">{sentTo}</strong>. Abra no celular, toque no link e você
-              já entra no Gravaí.
-            </p>
-            <p className="text-sm text-muted-foreground">Não chegou? Olhe a caixa de spam ou promoções.</p>
-          </div>
-          <Link href="/login" className="text-sm font-semibold underline">
-            Já confirmei, quero entrar
-          </Link>
-        </div>
-      </div>
+      <Entrada key="enviado" title="Criar conta no Gravaí">
+        <h2 className="font-display text-2xl">Confirme seu e-mail</h2>
+        <p className="leading-relaxed text-muted-foreground">
+          Mandamos um link para <strong className="break-words text-foreground">{sentTo}</strong>. Abra no celular, toque no link e você já entra no Gravaí.
+        </p>
+        <p className="text-sm text-muted-foreground">Não chegou? Olhe a caixa de spam ou promoções.</p>
+        <Link href="/login" className="mt-1 flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
+          Já confirmei, quero entrar
+        </Link>
+      </Entrada>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md animate-scale-in">
-        <div className="mb-8 text-center">
-          <Link href="/" aria-label="Início">
-            <Logo className="text-4xl" />
-          </Link>
+    <Entrada title="Criar conta no Gravaí">
+      <form onSubmit={handleRegister} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="name">Seu nome</Label>
+          <Input
+            id="name"
+            type="text"
+            autoComplete="name"
+            autoCapitalize="words"
+            placeholder="Nome completo"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="h-12 bg-card text-base"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">E-mail</Label>
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="seu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="h-12 bg-card text-base"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="password">Senha</Label>
+          <CampoSenha
+            id="password"
+            autoComplete="new-password"
+            placeholder="Mínimo 6 caracteres"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
         </div>
 
-        <Card className="border-0">
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl">Criar conta</CardTitle>
-            <CardDescription>É grátis. Seu primeiro vídeo começa agora.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Seu nome</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Nome completo"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="bg-background/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="bg-background/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Mínimo 6 caracteres"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="bg-background/50"
-                />
-              </div>
+        <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed">
+          <input
+            type="checkbox"
+            required
+            checked={accepted}
+            onChange={(e) => setAccepted(e.target.checked)}
+            className="mt-0.5 size-5 shrink-0 accent-foreground"
+          />
+          <span>
+            Li e aceito os{" "}
+            <Link href="/termos" target="_blank" className="font-semibold underline">
+              Termos de Uso
+            </Link>{" "}
+            e a{" "}
+            <Link href="/privacidade" target="_blank" className="font-semibold underline">
+              Política de Privacidade
+            </Link>
+            .
+          </span>
+        </label>
 
-              <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed">
-                <input
-                  type="checkbox"
-                  required
-                  checked={accepted}
-                  onChange={(e) => setAccepted(e.target.checked)}
-                  className="mt-0.5 size-5 shrink-0 accent-foreground"
-                />
-                <span>
-                  Li e aceito os{" "}
-                  <Link href="/termos" target="_blank" className="font-semibold underline">
-                    Termos de Uso
-                  </Link>{" "}
-                  e a{" "}
-                  <Link href="/privacidade" target="_blank" className="font-semibold underline">
-                    Política de Privacidade
-                  </Link>
-                  .
-                </span>
-              </label>
+        {error && (
+          <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
-              {error && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+        <Button type="submit" className="mt-1 h-13 w-full rounded-full text-base font-bold" disabled={loading || !accepted}>
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Criar conta grátis
+        </Button>
+      </form>
 
-              <Button
-                type="submit"
-                className="h-12 w-full rounded-full text-base font-bold"
-                disabled={loading || !accepted}
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Criar conta
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              Já tem uma conta?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-primary hover:underline"
-              >
-                Entrar
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+      <Link href="/login" className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
+        Já tenho conta
+      </Link>
+    </Entrada>
   );
 }

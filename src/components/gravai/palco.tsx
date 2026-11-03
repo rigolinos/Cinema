@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { LogoMark } from "@/components/logo";
 import { timecode } from "@/lib/set";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +37,7 @@ export function Palco({
   className?: string;
   children?: React.ReactNode;
 }) {
-  const logo = <Logo className="palco-logo" dotClassName="palco-pingo" />;
+  const logo = <LogoMark className="palco-logo" dotClassName="palco-pingo" />;
   return (
     <div className={cn("palco dark relative overflow-hidden text-foreground", compact && "palco-compacto", className)}>
       <div className="absolute inset-x-0 top-[max(1.25rem,env(safe-area-inset-top))]">
@@ -49,7 +49,7 @@ export function Palco({
           {action}
         </div>
       </div>
-      <div className="palco-marca">
+      <div className="palco-marca palco-coluna">
         {linkHome ? (
           <Link href="/" aria-label="Início" className="block">
             {logo}
@@ -57,7 +57,7 @@ export function Palco({
         ) : (
           logo
         )}
-        {headline ?? <p className="palco-frase text-muted-foreground">Da ideia ao vídeo gravado.</p>}
+        {headline ?? <p className="palco-frase mt-2 text-muted-foreground">Da ideia ao vídeo gravado.</p>}
         {children}
       </div>
     </div>

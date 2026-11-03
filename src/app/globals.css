@@ -250,14 +250,11 @@
   .folha-sobe { animation: none; }
 }
 
-/* Palco da entrada: o topo escuro, com a marca gigante. A marca mede 3,65 vezes o tamanho da letra:
-   a coluna tem a largura dela, e tudo o que acompanha a marca se alinha às mesmas bordas. */
-:root {
-  --palco-fonte: min(calc((100vw - 1.25rem) * 0.273), 36dvh);
-}
+/* Palco da entrada: o topo escuro, com a marca gigante. A coluna tem a largura da marca, e tudo o que
+   a acompanha se alinha às mesmas bordas. Em tela baixa, a altura limita (a marca mede 3,27 por 1). */
 .palco-coluna {
-  width: calc(var(--palco-fonte) * 3.65);
-  max-width: calc(100vw - 1.25rem);
+  width: calc(100% - 1.25rem);
+  width: min(100% - 1.25rem, 118dvh);
   margin-inline: auto;
 }
 .palco {
@@ -272,23 +269,16 @@
 .palco-compacto {
   flex-grow: 0;
 }
-/* A largura é a da marca: o que vem embaixo dela quebra linha em vez de alargar a caixa. */
 .palco-marca {
   position: relative;
-  width: min-content;
-  margin-inline: auto;
 }
-/* A marca de ponta a ponta; em tela baixa, a altura limita.
-   O espaço entre as letras é o da marca (font-display): mais apertado, o "g" cola no "r". */
+/* Enquanto a pessoa digita, a marca encolhe para o formulário ficar acima do teclado. */
 .palco-logo {
-  display: block;
-  white-space: nowrap;
-  font-size: var(--palco-fonte);
-  line-height: 1.2;
-  transition: font-size 0.35s ease;
+  width: 100%;
+  transition: width 0.35s ease;
 }
 .palco-compacto .palco-logo {
-  font-size: 2.75rem;
+  width: 10rem;
 }
 .palco-compacto .palco-frase {
   display: none;
@@ -298,13 +288,13 @@
   animation: palcoCai 0.9s cubic-bezier(0.3, 1.4, 0.5, 1) both, palcoOlha 4.8s ease-in-out 0.9s infinite;
 }
 @keyframes palcoCai {
-  from { transform: translateY(-3.2em); }
+  from { transform: translateY(-1600%); }
   to { transform: translateY(0); }
 }
 @keyframes palcoOlha {
   0%, 55%, 85%, 100% { transform: translateX(0) scale(1); }
-  20% { transform: translateX(max(-0.06em, -0.5rem)) scale(1); }
-  40% { transform: translateX(min(0.06em, 0.5rem)) scale(1); }
+  20% { transform: translateX(max(-30%, -0.5rem)) scale(1); }
+  40% { transform: translateX(min(30%, 0.5rem)) scale(1); }
   70% { transform: translateX(0) scale(1.22); }
 }
 .palco-rec {
