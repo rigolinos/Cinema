@@ -30,7 +30,8 @@ function detail(r: PlanRow): string {
   return shotTags(r).join(" · ");
 }
 
-export function PlanList({ rows, onPick }: { rows: PlanRow[]; onPick?: (id: string) => void }) {
+// `wrap` mostra a descrição inteira: na folha do vídeo, ela é o que a pessoa lê para gravar.
+export function PlanList({ rows, onPick, wrap = false }: { rows: PlanRow[]; onPick?: (id: string) => void; wrap?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       {byPlace(rows).map((group, g) => (
@@ -51,7 +52,7 @@ export function PlanList({ rows, onPick }: { rows: PlanRow[]; onPick?: (id: stri
                   </span>
                   <FramingIcon framing={r.framing} orientation={r.orientation} size="sm" />
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-[15px] font-semibold">
+                    <span className={cn("text-[15px] font-semibold", !wrap && "truncate")}>
                       <span className="mr-1.5 font-mono text-sm text-muted-foreground">{String(r.number).padStart(2, "0")}</span>
                       {r.description || FRAMINGS[r.framing].label}
                     </span>
