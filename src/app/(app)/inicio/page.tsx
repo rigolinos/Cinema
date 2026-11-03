@@ -66,7 +66,7 @@ export default function InicioPage() {
             <span className="size-2.5 rounded-full bg-rec" aria-hidden="true" />
             Novo vídeo
           </span>
-          <span className="text-sm opacity-75">Da ideia à gravação em 5 passos</span>
+          <span className="text-sm opacity-75">Da ideia à gravação</span>
         </span>
         <ArrowRight className="size-6" strokeWidth={1.75} aria-hidden="true" />
       </Link>

@@ -9,8 +9,8 @@ import { AlertTriangle, ArrowUp, Check, Copy, Plus, Sparkles, Trash2 } from "luc
 import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
-import { nextReadyStage } from "@/components/gravai/trail";
-import { isSolo } from "@/lib/planos";
+import { Folha } from "@/components/gravai/folha";
+import { isSolo, shootingOrder, type Shot } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -23,6 +23,27 @@ type Block = ScriptBlock & { id: string; position: number; person_id?: string | 
 type Person = { id: string; name: string; role: string };
 type Field = "speech" | "on_screen" | "action";
 type BlockSuggestion = Suggestion & { blockId: string };
+
+type Story = { hook: string; situation: string; payoff: string };
+
+// A história em três partes: o que a pessoa aprova antes do roteiro, e o que muda quando não gostou do desenrolar.
+function StoryFields({ story, onChange, onBlur }: { story: Story; onChange: (story: Story) => void; onBlur: () => void }) {
+  const fields: [keyof Story, string, string][] = [
+    ["hook", "Como começa", "Os primeiros segundos do vídeo"],
+    ["situation", "O que acontece", "A cena ou o conteúdo"],
+    ["payoff", "Como termina", "A virada, o resultado ou a dica final"],
+  ];
+  return (
+    <>
+      {fields.map(([key, label, placeholder]) => (
+        <label key={key} className="flex flex-col gap-1.5">
+          <span className="text-sm font-semibold">{label}</span>
+          <GrowingText value={story[key]} maxLength={key === "hook" ? 200 : 600} placeholder={placeholder} onChange={(e) => onChange({ ...story, [key]: e.target.value })} onBlur={onBlur} />
+        </label>
+      ))}
+    </>
+  );
+}
 
 const chip = "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap";
 const input =
@@ -255,6 +276,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [removed, setRemoved] = useState<{ block: Block; index: number } | null>(null);
   const pending = useRef<{ block: Block; index: number; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [fresh, setFresh] = useState<string | null>(null);
+  const [story, setStory] = useState<Story>({ hook: "", situation: "", payoff: "" });
+  const [storyOpen, setStoryOpen] = useState(false);
 
   useEffect(() => {
     const db = createClient();
@@ -265,6 +288,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       db.from("shots").select("block_id").eq("video_id", id),
     ]).then(([v, b, p, s]) => {
       setVideo((v.data as Video | null) ?? null);
+      const loaded = v.data as (Video & { situation?: string; payoff?: string }) | null;
+      setStory({ hook: loaded?.hook ?? "", situation: loaded?.situation ?? "", payoff: loaded?.payoff ?? "" });
       setBlocks((b.data ?? []) as Block[]);
       setPeople((p.data ?? []) as Person[]);
       const counts: Record<string, number> = {};
@@ -334,11 +359,28 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     setFresh((data as Block).id);
   }
 
+  // Só guarda o que tem começo: sem ele, o roteiro não tem de onde partir.
+  async function saveStory(): Promise<boolean> {
+    const clean = { hook: story.hook.trim(), situation: story.situation.trim(), payoff: story.payoff.trim() };
+    if (!clean.hook) return false;
+    const { error } = await createClient().from("videos").update(clean).eq("id", id);
+    if (error) {
+      setError("Não deu para salvar a história. Confira a conexão.");
+      return false;
+    }
+    setVideo((v) => (v ? { ...v, ...clean } : v));
+    return true;
+  }
+
   async function draft() {
     await commitRemoval();
-    if (blocks.length > 0 && !(await confirm({ title: "Escrever outro rascunho?", text: "O rascunho novo substitui o roteiro atual, inclusive o que você editou.", action: "Escrever de novo" }))) return;
+    if (blocks.length > 0 && !(await confirm({ title: "Reescrever o roteiro?", text: "O roteiro novo substitui o atual, inclusive o que você editou.", action: "Reescrever" }))) return;
     setBusy("rascunho");
     setError(null);
+    if (!(await saveStory())) {
+      setBusy(null);
+      return;
+    }
     try {
       const data = await callApi({ videoId: id, mode: "rascunho" });
       setBlocks(data.blocks as Block[]);
@@ -417,18 +459,35 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   async function finish() {
     if (!video) return;
     setBusy("seguir");
+    setError(null);
     await commitRemoval();
-    // Quem grava sozinho não tem ninguém para chamar: pula o passo Pessoas.
-    const next = isSolo(video.resources ?? []) ? nextReadyStage("pessoas") : nextReadyStage("roteiro");
-    if (video.stage === "roteiro") {
-      const { error } = await createClient().from("videos").update({ stage: next }).eq("id", id);
+    const db = createClient();
+    // Roteiro aprovado: os planos saem junto, e a pessoa cai na folha do vídeo com tudo pronto.
+    const { count } = await db.from("shots").select("id", { count: "exact", head: true }).eq("video_id", id);
+    if (!count) {
+      const res = await fetch("/api/planos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: id }),
+      }).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (!res?.ok) {
+        // Sem planos desta vez: segue para a tela deles, onde dá para tentar de novo.
+        if (video.stage === "roteiro") await db.from("videos").update({ stage: "planos" }).eq("id", id);
+        router.push(`/video/${id}/planos`);
+        return;
+      }
+      await db.rpc("set_shoot_order", { p_video_id: id, p_shot_ids: shootingOrder(data.shots as (Shot & { id: string })[]).map((s) => s.id) });
+    }
+    if (["ideia", "roteiro", "pessoas", "planos"].includes(video.stage)) {
+      const { error } = await db.from("videos").update({ stage: "gravar" }).eq("id", id);
       if (error) {
         setBusy(null);
         setError("Não deu para avançar. Tente de novo.");
         return;
       }
     }
-    router.push(`/video/${id}/${next}`);
+    router.push(`/video/${id}`);
   }
 
   const times = timeline(blocks);
@@ -465,28 +524,27 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {blocks.length === 0 && (
-              <div className="flex flex-col gap-4 rounded-2xl bg-card p-4">
-                <span className="label-set flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
-                  Gravaí
-                </span>
-                <p className="leading-relaxed">
-                  Escrevo um rascunho{format ? ` no formato “${format.name}”` : ""}, começando pelo seu gancho. Depois você muda o
-                  que quiser.
-                </p>
-                <Explain id="roteiro" question="Por que escrever antes de gravar?" learn="roteiro" className="-mt-2">
-                  O roteiro separa o que você fala, o que aparece escrito e o que acontece em cena. Com ele você grava mais rápido e
-                  não esquece nada.
-                </Explain>
+              <section aria-label="A história" className="flex flex-col gap-4 rounded-2xl bg-card p-4">
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="label-set flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
+                    A história
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">Não gostou do desenrolar? Mude aqui, antes do roteiro.</p>
+                </div>
+                <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
                 <button
                   type="button"
                   onClick={draft}
-                  disabled={busy !== null}
+                  disabled={busy !== null || !story.hook.trim()}
                   className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                 >
-                  {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Escrever o rascunho"}
+                  {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Escrever o roteiro"}
                 </button>
-              </div>
+                <Link href={`/video/${id}/ideia`} className="flex min-h-11 items-center justify-center text-sm font-semibold underline">
+                  Trocar de ideia
+                </Link>
+              </section>
             )}
 
             {/* Só o que precisa de atenção: o que está certo não ocupa a tela. */}
@@ -567,9 +625,28 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             )}
 
             {blocks.length > 0 && video.start_door !== "roteiro" && (
-              <button type="button" onClick={draft} disabled={busy !== null} className="min-h-11 self-start text-sm font-semibold underline disabled:opacity-40">
-                {busy === "rascunho" ? <Thinking label="Escrevendo" steps={STEPS.roteiro} /> : "Escrever outro rascunho"}
+              <button type="button" onClick={() => setStoryOpen(true)} disabled={busy !== null} className="min-h-11 self-start text-sm font-semibold underline disabled:opacity-40">
+                {busy === "rascunho" ? <Thinking label="Escrevendo" steps={STEPS.roteiro} /> : "Mudar a história e reescrever"}
               </button>
+            )}
+
+            {storyOpen && (
+              <Folha title="A história" summary="O roteiro é reescrito a partir daqui." onClose={() => setStoryOpen(false)}>
+                <div className="flex flex-col gap-4 px-2 pb-2">
+                  <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
+                  <button
+                    type="button"
+                    disabled={!story.hook.trim()}
+                    onClick={() => {
+                      setStoryOpen(false);
+                      draft();
+                    }}
+                    className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                  >
+                    Reescrever o roteiro
+                  </button>
+                </div>
+              </Folha>
             )}
           </>
         )}
@@ -604,7 +681,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               disabled={busy !== null}
               className="min-h-13 flex-1 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
             >
-              Roteiro pronto
+              {busy === "seguir" ? <Thinking label="Montando os planos" steps={STEPS.planos} /> : "Roteiro pronto"}
             </button>
           </div>
         </div>
