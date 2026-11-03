@@ -1,64 +1,73 @@
+import type { Viewport } from "next";
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { BarraComecar } from "@/components/gravai/barra-comecar";
+import { Palco } from "@/components/gravai/palco";
 import { COMPANY } from "@/lib/legal";
 
+// O topo é escuro, como o login: a barra do navegador acompanha.
+export const viewport: Viewport = { themeColor: "#0E0E0E" };
+
+const questions = ["O que eu falo nos 3 primeiros segundos?", "O que aparece em cada plano?", "Em que ordem eu gravo?"];
+
 const steps = [
-  { n: "01", title: "Ideia", desc: "Você conta o nicho e o objetivo. Saem ideias com o gancho dos 3 primeiros segundos." },
-  { n: "02", title: "Roteiro", desc: "Escrito junto com você, na estrutura certa para Reels, TikTok ou YouTube." },
-  { n: "03", title: "Pessoas", desc: "Quem aparece e quem filma, cada um com um link só com a parte dele." },
-  { n: "04", title: "Planos", desc: "Cada cena vira as tomadas que você precisa, com o porquê de cada ângulo." },
-  { n: "05", title: "Gravar", desc: "No celular: lista de planos, teleprompter e nada esquecido no dia." },
+  { n: "01", title: "Ideia", desc: "Ideias novas a cada 15 dias, já com o gancho dos 3 primeiros segundos." },
+  { n: "02", title: "Roteiro", desc: "Escrito com você, parte por parte. Ou cole o seu e ele organiza." },
+  { n: "03", title: "Pessoas", desc: "Cada pessoa recebe um link só com a parte dela, sem criar conta." },
+  { n: "04", title: "Planos", desc: "Cada plano decidido antes de gravar, com o porquê." },
+  { n: "05", title: "Gravar", desc: "No set, o teleprompter e um plano por vez." },
 ];
+
+const HIDE_BAR_ON = ["topo", "fim"];
 
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-5">
-        <Logo className="text-2xl" />
-        <Link
-          href="/login"
-          className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-foreground px-5 text-sm font-semibold"
+    <div className="flex min-h-dvh flex-col bg-background">
+      <div id="topo">
+        <Palco
+          linkHome={false}
+          className="min-h-[92dvh] py-16"
+          action={
+            <Link href="/login" className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold underline">
+              Entrar
+            </Link>
+          }
+          headline={<h1 className="mt-1 text-[1.375rem] font-bold leading-tight tracking-[-0.01em] sm:text-3xl">Da ideia ao vídeo gravado.</h1>}
         >
-          Entrar
-        </Link>
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5">
-        <section className="border-b-2 border-foreground pb-12 pt-10 sm:pt-16">
-          <p className="label-set text-muted-foreground">Seu parceiro de set</p>
-          <h1 className="font-display mt-4 text-5xl sm:text-7xl">
-            Da ideia ao
-            <br />
-            vídeo gravado.
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            O Gravaí conversa com você e faz junto o trabalho de uma equipe: roteirista, diretor e produtor. Explica
-            cada passo, sem jargão solto.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/register"
-              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-bold text-primary-foreground"
-            >
-              <span className="size-2.5 rounded-full bg-rec" aria-hidden="true" />
-              Bora gravar
+          <p className="mt-2 max-w-md leading-snug text-muted-foreground">Ideia, roteiro e planos do seu vídeo curto, prontos no celular.</p>
+          <div className="mt-6 flex max-w-md flex-col gap-3">
+            <Link href="/register" className="flex min-h-13 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
+              Começar de graça
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex min-h-13 items-center justify-center rounded-full border-[1.5px] border-foreground px-8 text-base font-semibold"
-            >
-              Já tenho conta
-            </Link>
+            <p className="label-set text-center text-muted-foreground">Sem baixar nada · No celular</p>
           </div>
+        </Palco>
+      </div>
+
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-12">
+        <section aria-labelledby="dor" className="flex flex-col gap-5">
+          <h2 id="dor" className="font-display max-w-3xl text-[2.0625rem] sm:text-5xl">
+            Você não trava na edição. Você trava antes de gravar.
+          </h2>
+          <ol>
+            {questions.map((q, i) => (
+              <li key={q} className="flex gap-3 border-t border-input py-3 leading-snug last:border-b">
+                <span className="label-set pt-0.5 text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+                {q}
+              </li>
+            ))}
+          </ol>
+          <p className="leading-relaxed">O Gravaí responde as três com você.</p>
         </section>
 
-        <section className="py-12">
-          <p className="label-set text-muted-foreground">Como funciona</p>
-          <ol className="mt-6 grid gap-3 sm:grid-cols-5">
+        <section aria-labelledby="como" className="flex flex-col gap-3">
+          <h2 id="como" className="label-set text-muted-foreground">
+            Como funciona
+          </h2>
+          <ol className="grid gap-3 sm:grid-cols-5">
             {steps.map((s) => (
-              <li key={s.n} className="flex flex-col gap-2 rounded-xl bg-card p-5">
+              <li key={s.n} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
                 <span className="label-set text-muted-foreground">{s.n}</span>
-                <span className="text-lg font-bold">{s.title}</span>
+                <span className="text-lg font-bold leading-tight">{s.title}</span>
                 <span className="text-sm leading-relaxed text-muted-foreground">{s.desc}</span>
               </li>
             ))}
@@ -66,23 +75,36 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="flex flex-col items-center gap-2 border-t border-border py-6 text-center text-xs text-muted-foreground">
-        <nav aria-label="Documentos" className="flex flex-wrap justify-center gap-x-4">
-          <Link href="/termos" className="inline-flex min-h-11 items-center underline">
-            Termos de Uso
-          </Link>
-          <Link href="/privacidade" className="inline-flex min-h-11 items-center underline">
-            Política de Privacidade
-          </Link>
-          <Link href="/excluir-conta" className="inline-flex min-h-11 items-center underline">
-            Excluir conta
-          </Link>
-        </nav>
-        <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold underline">
-          Instagram {COMPANY.instagramHandle}
-        </a>
-        <p>© 2026 Gravaí · CNPJ {COMPANY.cnpj}</p>
-      </footer>
+      {/* O fim da página é um convite, não o rodapé legal. */}
+      <div id="fim" className="dark flex flex-col items-center gap-6 bg-background px-4 pb-8 pt-14 text-foreground">
+        <span className="flex size-28 items-center justify-center rounded-full border-[9px] border-foreground" aria-hidden="true">
+          <span className="set-look size-16 rounded-full bg-rec" />
+        </span>
+        <h2 className="font-display text-center text-[2.75rem] sm:text-6xl">Bora gravar.</h2>
+        <Link href="/register" className="flex min-h-13 w-full max-w-md items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
+          Começar de graça
+        </Link>
+
+        <footer className="mt-6 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
+          <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold underline">
+            Instagram {COMPANY.instagramHandle}
+          </a>
+          <nav aria-label="Documentos" className="flex flex-wrap justify-center gap-x-4">
+            <Link href="/termos" className="inline-flex min-h-11 items-center underline">
+              Termos de Uso
+            </Link>
+            <Link href="/privacidade" className="inline-flex min-h-11 items-center underline">
+              Política de Privacidade
+            </Link>
+            <Link href="/excluir-conta" className="inline-flex min-h-11 items-center underline">
+              Excluir conta
+            </Link>
+          </nav>
+          <p className="mt-1">© 2026 Gravaí · CNPJ {COMPANY.cnpj}</p>
+        </footer>
+      </div>
+
+      <BarraComecar hideOn={HIDE_BAR_ON} />
     </div>
   );
 }
