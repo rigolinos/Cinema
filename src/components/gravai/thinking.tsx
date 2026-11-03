@@ -35,4 +35,5 @@ export const STEPS = {
   organizar: ["Lendo o seu roteiro", "Separando as partes", "Conferindo que nada mudou"],
   publicar: ["Lendo o roteiro", "Escrevendo a legenda de cada plataforma", "Escolhendo a capa"],
   ideiaPropria: ["Lendo a sua ideia", "Testando ganchos", "Deixando pronta para gravar"],
+  planos: ["Lendo o roteiro", "Escolhendo os enquadramentos", "Organizando por lugar"],
 };

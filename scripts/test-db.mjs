@@ -613,6 +613,10 @@ const v3 = await one('SELECT title, situation, payoff FROM public.videos WHERE i
 ok(!r.err && v3.situation === 'A mãe liga três vezes' && v3.payoff === 'Na terceira ela está na porta', 'escolher a ideia leva a cena e o desfecho para o vídeo');
 r = await as('authenticated', A, `UPDATE public.videos SET brief = 'meu roteiro', start_door = 'roteiro' WHERE id = $1 RETURNING start_door`, [vidV3]);
 ok(r.rows?.[0]?.start_door === 'roteiro', 'o vídeo guarda o que a pessoa trouxe e a porta de entrada');
+r = await as('authenticated', A, `UPDATE public.videos SET hook = 'Novo começo', situation = 'Novo meio', payoff = 'Novo fim' WHERE id = $1 RETURNING hook, payoff`, [vidV3]);
+ok(r.rows?.[0]?.hook === 'Novo começo' && r.rows[0].payoff === 'Novo fim', 'dono muda a história antes do roteiro' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', B, `UPDATE public.videos SET hook = 'invadido' WHERE id = $1 RETURNING id`, [vidV3]);
+ok(!r.err && r.rows.length === 0, 'ninguém muda a história de outra pessoa');
 r = await as('authenticated', A, `UPDATE public.videos SET start_door = 'janela' WHERE id = $1`, [vidV3]);
 ok(r.err, 'porta desconhecida é recusada');
 r = await as('authenticated', A, `INSERT INTO public.creator_profiles (user_id, product, product_edge) VALUES ($1, 'Bolo de pote', 'Feito no dia') ON CONFLICT (user_id) DO UPDATE SET product = excluded.product, product_edge = excluded.product_edge RETURNING product`, [A]);
