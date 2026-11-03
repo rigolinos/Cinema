@@ -10,13 +10,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, safeNext } from "@/lib/auth-errors";
 
 // Aviso para quem volta de um link de e-mail vencido (?aviso=link).
 function LinkNotice() {
   const aviso = useSearchParams().get("aviso");
   if (aviso !== "link") return null;
   return <p className="rounded-lg bg-muted p-3 text-sm leading-relaxed">Esse link expirou ou já foi usado. Entre com sua senha ou peça um link novo.</p>;
+}
+
+// Quem veio de um convite e ainda não tem conta continua voltando para ele depois do cadastro.
+const CREATE_ACCOUNT = "flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold";
+function CreateAccountLink() {
+  const next = useSearchParams().get("next");
+  return (
+    <Link href={next ? `/register?${new URLSearchParams({ next })}` : "/register"} className={CREATE_ACCOUNT}>
+      Criar conta grátis
+    </Link>
+  );
 }
 
 export default function LoginPage() {
@@ -42,7 +53,7 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       fillWithRec();
-      router.push("/inicio");
+      router.push(safeNext(new URLSearchParams(window.location.search).get("next")));
       router.refresh();
     }
   }
@@ -84,9 +95,15 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <Link href="/register" className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
-        Criar conta grátis
-      </Link>
+      <Suspense
+        fallback={
+          <Link href="/register" className={CREATE_ACCOUNT}>
+            Criar conta grátis
+          </Link>
+        }
+      >
+        <CreateAccountLink />
+      </Suspense>
       <Link href="/esqueci" className="flex min-h-11 items-center justify-center self-center px-2 text-sm text-muted-foreground underline">
         Esqueci minha senha
       </Link>

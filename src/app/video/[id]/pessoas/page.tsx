@@ -35,6 +35,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   const [people, setPeople] = useState<Person[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [consents, setConsents] = useState<string[]>([]); // person_id de quem autorizou
+  const [claims, setClaims] = useState<Record<string, string>>({}); // person_id e o nome da conta que salvou o convite
   const [when, setWhen] = useState({ date: "", place: "" });
   const [newName, setNewName] = useState("");
   const [newRoles, setNewRoles] = useState<GuestRole[]>(["ator"]);
@@ -54,11 +55,13 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("image_consents").select("person_id").eq("video_id", id),
       db.from("creator_profiles").select("display_name").maybeSingle(),
-    ]).then(async ([v, p, b, c, profile]) => {
+      db.rpc("invite_claims", { p_video: id }),
+    ]).then(async ([v, p, b, c, profile, claimed]) => {
       const vid = (v.data as (Video & { shoot_date: string | null; shoot_place: string | null }) | null) ?? null;
       setVideo(vid);
       setBlocks((b.data ?? []) as Block[]);
       setConsents(((c.data ?? []) as { person_id: string | null }[]).map((x) => x.person_id ?? ""));
+      setClaims(Object.fromEntries(((claimed.data ?? []) as { person_id: string; name: string }[]).map((x) => [x.person_id, x.name])));
       setWhen({ date: vid?.shoot_date ?? "", place: vid?.shoot_place ?? "" });
       setMyName(profile.data?.display_name ?? "");
       setNameSaved(Boolean(profile.data?.display_name?.trim()));
@@ -240,6 +243,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                             {consents.includes(p.id) ? "Autorizou a imagem" : "Falta autorizar a imagem"}
                           </span>
                         )}
+                        {claims[p.id] && <span className="rounded-md bg-muted px-2 py-1 font-mono text-xs uppercase">Salvo na conta de {claims[p.id]}</span>}
                         {!p.share_enabled && <span className="rounded-md bg-muted px-2 py-1 font-mono text-xs uppercase text-destructive">Link desligado</span>}
                       </div>
                       {p.share_enabled && !nameSaved && <p className="text-sm text-muted-foreground">Salve seu nome completo lá em cima para liberar o link.</p>}

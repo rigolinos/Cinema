@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
+import { InviteCard, VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
+import { withInvites, type InviteRow } from "@/lib/convites";
 import { isEmptyDraft, videoTab, type VideoTab } from "@/lib/meus-videos";
 import { SlateTabs } from "@/components/gravai/slate-tabs";
 
@@ -21,16 +22,17 @@ const EMPTY: Record<VideoTab, string> = {
 // Vídeos (aba do menu): todos, separados por situação, com arquivar, apagar e limpar rascunhos vazios.
 export default function MeusVideosPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
+  const [invites, setInvites] = useState<InviteRow[]>([]);
   const [tab, setTab] = useState<VideoTab>("andamento");
   const [cleaning, setCleaning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    createClient()
-      .from("videos")
-      .select("*")
-      .order("updated_at", { ascending: false })
-      .then(({ data }) => setVideos((data ?? []) as VideoRow[]));
+    const db = createClient();
+    Promise.all([db.from("videos").select("*").order("updated_at", { ascending: false }), db.rpc("my_invites")]).then(([v, i]) => {
+      setInvites((i.data ?? []) as InviteRow[]);
+      setVideos((v.data ?? []) as VideoRow[]);
+    });
   }, []);
 
   useEffect(load, [load]);
@@ -49,8 +51,8 @@ export default function MeusVideosPage() {
     load();
   }
 
-  const counts = Object.fromEntries(TABS.map(([t]) => [t, (videos ?? []).filter((v) => videoTab(v) === t).length])) as Record<VideoTab, number>;
-  const shown = (videos ?? []).filter((v) => videoTab(v) === tab);
+  const counts = Object.fromEntries(TABS.map(([t]) => [t, [...(videos ?? []), ...invites].filter((v) => videoTab(v) === t).length])) as Record<VideoTab, number>;
+  const shown = withInvites((videos ?? []).filter((v) => videoTab(v) === tab), invites.filter((i) => videoTab(i) === tab));
   const empties = (videos ?? []).filter((v) => !v.archived_at && isEmptyDraft(v)).length;
 
   return (
@@ -75,13 +77,17 @@ export default function MeusVideosPage() {
       {videos && shown.length === 0 && <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed text-muted-foreground">{EMPTY[tab]}</p>}
 
       <div className="flex flex-col gap-2.5">
-        {shown.map((v) => (
-          <VideoCard
-            key={v.id}
-            video={v}
-            onChange={(next) => setVideos((list) => (list ?? []).flatMap((x) => (x.id !== v.id ? [x] : next ? [next] : [])))}
-          />
-        ))}
+        {shown.map((item) =>
+          item.kind === "invite" ? (
+            <InviteCard key={item.row.token} invite={item.row} onRemove={() => setInvites((list) => list.filter((x) => x.token !== item.row.token))} />
+          ) : (
+            <VideoCard
+              key={item.row.id}
+              video={item.row}
+              onChange={(next) => setVideos((list) => (list ?? []).flatMap((x) => (x.id !== item.row.id ? [x] : next ? [next] : [])))}
+            />
+          ),
+        )}
       </div>
     </div>
   );
