@@ -27,6 +27,14 @@ export const metadata: Metadata = {
     "Crie a ideia, escreva o roteiro, planeje cada plano e grave com um parceiro de set que explica cada passo.",
   applicationName: "Gravaí",
   appleWebApp: { capable: true, title: "Gravaí", statusBarStyle: "default" },
+  openGraph: {
+    title: "Gravaí: da ideia ao vídeo gravado",
+    description: "Ideia, roteiro e planos do seu vídeo curto, prontos no celular. Comece de graça.",
+    siteName: "Gravaí",
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

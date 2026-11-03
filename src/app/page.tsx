@@ -1,5 +1,6 @@
 import type { Viewport } from "next";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { BarraComecar } from "@/components/gravai/barra-comecar";
 import { Palco } from "@/components/gravai/palco";
 import { COMPANY } from "@/lib/legal";
@@ -15,6 +16,13 @@ const steps = [
   { n: "03", title: "Pessoas", desc: "Cada pessoa recebe um link só com a parte dela, sem criar conta." },
   { n: "04", title: "Planos", desc: "Cada plano decidido antes de gravar, com o porquê." },
   { n: "05", title: "Gravar", desc: "No set, o teleprompter e um plano por vez." },
+];
+
+const questionsAndAnswers = [
+  { q: "É de graça?", a: "Dá para começar sem pagar nada." },
+  { q: "Precisa baixar?", a: "Não. Abre no navegador do celular, no Android e no iPhone." },
+  { q: "Preciso entender de cinema?", a: "Não. O Gravaí explica cada termo na hora em que ele aparece." },
+  { q: "Já tenho meu roteiro. Serve?", a: "Serve. Cole do jeito que está: ele organiza em partes e planos." },
 ];
 
 const HIDE_BAR_ON = ["topo", "fim"];
@@ -72,6 +80,23 @@ export default function LandingPage() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section aria-labelledby="duvidas" className="flex flex-col gap-3">
+          <h2 id="duvidas" className="label-set text-muted-foreground">
+            Dúvidas
+          </h2>
+          <div>
+            {questionsAndAnswers.map(({ q, a }) => (
+              <details key={q} className="group border-t border-input last:border-b">
+                <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between gap-3 py-2 font-semibold [&::-webkit-details-marker]:hidden">
+                  {q}
+                  <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none" strokeWidth={1.75} aria-hidden="true" />
+                </summary>
+                <p className="pb-4 leading-relaxed text-muted-foreground">{a}</p>
+              </details>
+            ))}
+          </div>
         </section>
       </main>
 
