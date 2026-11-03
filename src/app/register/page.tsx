@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { CampoSenha, Entrada } from "@/components/gravai/entrada";
 import { fillWithRec } from "@/components/gravai/palco";
-import { authCallbackUrl, authErrorMessage } from "@/lib/auth-errors";
+import { authCallbackUrl, authErrorMessage, safeNext } from "@/lib/auth-errors";
 import { LEGAL_VERSIONS } from "@/lib/legal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,9 @@ export default function RegisterPage() {
 function RegisterForm() {
   const params = useSearchParams();
   const fromInvite = params.get("origem") === "convite";
+  // Para onde volta depois de entrar: quem veio salvar um convite retorna a ele.
+  const next = safeNext(params.get("next"));
+  const loginHref = next === "/inicio" ? "/login" : `/login?${new URLSearchParams({ next })}`;
   const [name, setName] = useState(() => (params.get("nome") ?? "").slice(0, 80));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +47,7 @@ function RegisterForm() {
       email,
       password,
       options: {
-        emailRedirectTo: authCallbackUrl(window.location.origin, "/inicio"),
+        emailRedirectTo: authCallbackUrl(window.location.origin, next),
         data: {
           full_name: name,
           org_name: `Estúdio de ${name.trim().split(/\s+/)[0] || "você"}`,
@@ -65,7 +68,7 @@ function RegisterForm() {
       setLoading(false);
     } else {
       fillWithRec();
-      router.push("/inicio");
+      router.push(next);
       router.refresh();
     }
   }
@@ -78,7 +81,7 @@ function RegisterForm() {
           Mandamos um link para <strong className="break-words text-foreground">{sentTo}</strong>. Abra no celular, toque no link e você já entra no Gravaí.
         </p>
         <p className="text-sm text-muted-foreground">Não chegou? Olhe a caixa de spam ou promoções.</p>
-        <Link href="/login" className="mt-1 flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
+        <Link href={loginHref} className="mt-1 flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
           Já confirmei, quero entrar
         </Link>
       </Entrada>
@@ -162,7 +165,7 @@ function RegisterForm() {
         </Button>
       </form>
 
-      <Link href="/login" className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
+      <Link href={loginHref} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
         Já tenho conta
       </Link>
     </Entrada>

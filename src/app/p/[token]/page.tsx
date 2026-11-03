@@ -9,7 +9,8 @@ import { firstNameOf, formatShootDate, rolesYou } from "@/lib/pessoas";
 import { Abas } from "./abas";
 import { Acompanhar } from "./acompanhar";
 import { PartActions } from "./actions";
-import { getPart, partRoles, signupUrl } from "./dados";
+import { getPart, inviteState, partRoles, signupUrl } from "./dados";
+import { SaveInvite } from "./salvar";
 
 // Link pessoal: ninguém deve achar por busca. A prévia (WhatsApp) chama a pessoa pelo nome.
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
@@ -35,7 +36,7 @@ function NotFound() {
 
 export default async function SharedPartPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const part = await getPart(token);
+  const [part, saved] = await Promise.all([getPart(token), inviteState(token)]);
   if (!part) return <NotFound />;
 
   const roles = partRoles(part);
@@ -140,6 +141,8 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
       </header>
 
       <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={appears} when={when} signup={signup} />
+
+      <SaveInvite token={token} state={saved} signup={signupUrl(firstName, `/p/${token}`)} />
 
       <Abas tabs={tabs} initial={initial} />
 

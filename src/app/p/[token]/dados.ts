@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import type { InviteState } from "@/lib/convites";
 import type { BlockKind } from "@/lib/roteiro";
 import type { GuestRole, PersonRole } from "@/lib/pessoas";
 import type { GuestShot } from "./acompanhar";
@@ -25,11 +26,19 @@ export const getPart = cache(async (token: string): Promise<Part | null> => {
   return (data as Part | null) ?? null;
 });
 
+// Como o convite está para quem abriu: sem conta, livre para salvar, já salvo ou de quem criou o vídeo.
+export async function inviteState(token: string): Promise<InviteState | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("invite_state", { p_token: token });
+  return (data as InviteState | null) ?? null;
+}
+
 export function partRoles(part: Part): GuestRole[] {
   return part.person.roles?.length ? part.person.roles : [part.person.role as GuestRole];
 }
 
 // Quem foi convidado e quer fazer o próprio vídeo: o cadastro já vem com o nome e sabe que veio de um convite.
-export function signupUrl(firstName: string): string {
-  return `/register?${new URLSearchParams({ nome: firstName, origem: "convite" })}`;
+// Com "next", volta para esse endereço depois de entrar.
+export function signupUrl(firstName: string, next?: string): string {
+  return `/register?${new URLSearchParams({ nome: firstName, origem: "convite", ...(next ? { next } : {}) })}`;
 }

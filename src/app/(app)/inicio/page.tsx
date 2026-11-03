@@ -6,8 +6,9 @@ import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { MemoryNote } from "@/components/gravai/memoria";
 import { RadarCard, useRadar } from "@/components/gravai/radar";
-import { VideoCard, type VideoRow } from "@/components/gravai/video-card";
+import { InviteCard, VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
+import { withInvites, type InviteRow } from "@/lib/convites";
 import { FORMATS } from "@/lib/formats";
 import { daysUntilNext, periodLabel, periodStart } from "@/lib/quinzena";
 
@@ -22,6 +23,7 @@ const SHOW = 5;
 
 export default function InicioPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
+  const [invites, setInvites] = useState<InviteRow[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const today = formatOfTheDay();
@@ -31,20 +33,20 @@ export default function InicioPage() {
     const db = createClient();
     // Rascunhos vazios com mais de 1 hora somem antes de listar (vídeo aberto e abandonado sem resposta).
     db.rpc("delete_empty_drafts", { p_keep_minutes: 60 }).then(() =>
-      db
-        .from("videos")
-        .select("*", { count: "exact" })
-        .is("archived_at", null)
-        .neq("stage", "pronto")
-        .order("updated_at", { ascending: false })
-        .limit(SHOW)
-        .then(({ data, error, count }) => {
-          if (error) setError("Não foi possível carregar seus vídeos.");
-          setVideos((data ?? []) as VideoRow[]);
-          setTotal(count ?? 0);
-        }),
+      Promise.all([
+        db.from("videos").select("*", { count: "exact" }).is("archived_at", null).neq("stage", "pronto").order("updated_at", { ascending: false }).limit(SHOW),
+        db.rpc("my_invites"),
+      ]).then(([{ data, error, count }, mine]) => {
+        if (error) setError("Não foi possível carregar seus vídeos.");
+        setInvites(((mine.data ?? []) as InviteRow[]).filter((i) => i.stage !== "pronto"));
+        setVideos((data ?? []) as VideoRow[]);
+        setTotal(count ?? 0);
+      }),
     );
   }, []);
+
+  const list = withInvites(videos ?? [], invites).slice(0, SHOW);
+  const all = total + invites.length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,26 +88,30 @@ export default function InicioPage() {
             Em andamento
           </h2>
           <Link href="/videos" className="flex min-h-11 items-center rounded-full bg-card px-4 text-sm font-semibold">
-            Ver todos{total > SHOW ? ` (${total})` : ""}
+            Ver todos{all > SHOW ? ` (${all})` : ""}
           </Link>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         {videos === null && <p className="text-sm text-muted-foreground">Carregando…</p>}
-        {videos?.length === 0 && (
+        {videos !== null && list.length === 0 && (
           <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed text-muted-foreground">
             Nada em andamento. Toque em <strong className="text-foreground">Novo vídeo</strong> ou escolha uma das ideias da quinzena.
           </p>
         )}
-        {videos?.map((v) => (
-          <VideoCard
-            key={v.id}
-            video={v}
-            onChange={(next) => {
-              setVideos((list) => (list ?? []).flatMap((x) => (x.id !== v.id ? [x] : next && !next.archived_at ? [next] : [])));
-              if (!next || next.archived_at) setTotal((t) => t - 1);
-            }}
-          />
-        ))}
+        {list.map((item) =>
+          item.kind === "invite" ? (
+            <InviteCard key={item.row.token} invite={item.row} onRemove={() => setInvites((rows) => rows.filter((x) => x.token !== item.row.token))} />
+          ) : (
+            <VideoCard
+              key={item.row.id}
+              video={item.row}
+              onChange={(next) => {
+                setVideos((rows) => (rows ?? []).flatMap((x) => (x.id !== item.row.id ? [x] : next && !next.archived_at ? [next] : [])));
+                if (!next || next.archived_at) setTotal((t) => t - 1);
+              }}
+            />
+          ),
+        )}
       </section>
 
       {radar?.[0] ? (

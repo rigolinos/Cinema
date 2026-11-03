@@ -8,7 +8,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Entre na sua conta para baixar seus dados." }, { status: 401 });
 
-  const [profile, videos, ideas, blocks, shots, people, posts, consents, fortnight, acceptances, usage, memory, signals, saved, reports] = await Promise.all([
+  const [profile, videos, ideas, blocks, shots, people, posts, consents, fortnight, acceptances, usage, memory, signals, saved, reports, invites] = await Promise.all([
     supabase.from("creator_profiles").select("*").maybeSingle(),
     supabase.from("videos").select("*").order("created_at"),
     supabase.from("video_ideas").select("*"),
@@ -24,9 +24,10 @@ export async function GET() {
     supabase.from("creator_signals").select("kind, detail, video_id, created_at").order("created_at"),
     supabase.from("saved_ideas").select("*").order("created_at"),
     supabase.from("ai_reports").select("area, reason, content, note, ref_id, created_at").order("created_at"),
+    supabase.rpc("my_invites"),
   ]);
 
-  const failed = [profile, videos, ideas, blocks, shots, people, posts, consents, fortnight, acceptances, usage, memory, signals, saved, reports].find((r) => r.error);
+  const failed = [profile, videos, ideas, blocks, shots, people, posts, consents, fortnight, acceptances, usage, memory, signals, saved, reports, invites].find((r) => r.error);
   if (failed?.error) return NextResponse.json({ error: "Não foi possível montar a cópia agora. Tente de novo." }, { status: 500 });
 
   const byVideo = <T extends { video_id: string }>(rows: T[] | null, id: string) => (rows ?? []).filter((r) => r.video_id === id);
@@ -46,6 +47,7 @@ export async function GET() {
     autorizacoes_de_imagem_recebidas: consents.data,
     ideias_da_quinzena: fortnight.data,
     ideias_guardadas: saved.data,
+    convites_salvos: invites.data,
     denuncias_de_respostas_da_ia: reports.data,
     aceites_legais: acceptances.data,
     uso_da_ia_por_dia: usage.data,
