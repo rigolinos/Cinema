@@ -314,7 +314,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       id,
     );
     // Escolheu: segue direto para o roteiro (a visão geral do vídeo fica no ícone do topo).
-    router.push(`/video/${id}/roteiro`);
+    router.push(`/video/${id}/roteiro?historia=1`);
   }
 
   const rounds = [...new Set(ideas.map((i) => i.round))];

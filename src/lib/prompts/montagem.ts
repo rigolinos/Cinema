@@ -4,7 +4,7 @@ import { findFormat } from "../formats";
 import type { Objective, Platform, Resource } from "../ideas";
 import { maxWords } from "../roteiro";
 import { context, line, tag, usesHumor } from "./base";
-import { draftTask, formatsTag, ideasTask, personTag, productTag, seenTag, trendsTag, videoTag, type Task } from "./tarefas";
+import { draftTask, formatsTag, ideasTask, personTag, productTag, seenTag, storyTask, trendsTag, videoTag, type Task } from "./tarefas";
 
 interface Person {
   niche: string | null;
@@ -40,6 +40,30 @@ export function ideasRequest(i: {
     seenTag(i.seen),
     trendsTag(i.trends),
     formatsTag(video.resources),
+  ]);
+  return { ...task, prompt };
+}
+
+export function storyRequest(i: {
+  video: VideoBase & { title: string; hook: string; situation: string; payoff: string; formatSlug: string | null };
+  person: Person;
+  ask?: string;
+}): Task & { prompt: string } {
+  const { video, person, ask } = i;
+  const format = findFormat(video.formatSlug);
+  const task = storyTask({ objective: video.objective, humor: usesHumor({ objective: video.objective, texts: [person.niche, video.brief, ask, ...person.memory] }) });
+  const parts = [line("Como começa", video.hook), line("O que acontece", video.situation), line("Como termina", video.payoff)];
+  const prompt = context([
+    tag("pedido_agora", ask),
+    tag(ask ? "historia_atual" : "ideia", [
+      line("Título", video.title),
+      ...parts,
+      format ? `Formato: "${format.name}". Estrutura: ${format.structure.join(" → ")}.` : null,
+    ]),
+    tag("briefing", video.brief),
+    videoTag(video),
+    productTag(video.objective, { product: person.product, edge: person.edge }),
+    personTag({ niche: person.niche, memory: person.memory }),
   ]);
   return { ...task, prompt };
 }

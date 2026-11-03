@@ -45,6 +45,30 @@ function StoryFields({ story, onChange, onBlur }: { story: Story; onChange: (sto
   );
 }
 
+// Mudar a história com uma frase, sem precisar reescrever à mão.
+function StoryAsk({ busy, onAsk }: { busy: boolean; onAsk: (request: string) => Promise<void> }) {
+  const [ask, setAsk] = useState("");
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!ask.trim()) return;
+        await onAsk(ask.trim());
+        setAsk("");
+      }}
+    >
+      <label className="sr-only" htmlFor="pedido-historia">
+        Peça uma mudança na história
+      </label>
+      <input id="pedido-historia" value={ask} maxLength={300} onChange={(e) => setAsk(e.target.value)} placeholder="Peça uma mudança" className={input} />
+      <button type="submit" aria-label="Pedir mudança na história" disabled={!ask.trim() || busy} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
+        <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+    </form>
+  );
+}
+
 const chip = "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap";
 const input =
   "w-full rounded-xl border border-input bg-background px-3.5 py-3 text-base leading-relaxed outline-none focus:border-foreground";
@@ -267,7 +291,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [review, setReview] = useState<{ note: string; suggestions: BlockSuggestion[] } | null>(null);
-  const [busy, setBusy] = useState<string | null>(null); // "rascunho", id de um bloco ou "seguir"
+  const [busy, setBusy] = useState<string | null>(null); // "rascunho", "historia", id de um bloco ou "seguir"
   const [error, setError] = useState<string | null>(null);
   const { confirm, sheet } = useConfirm();
   const [copied, setCopied] = useState(false);
@@ -278,6 +302,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [fresh, setFresh] = useState<string | null>(null);
   const [story, setStory] = useState<Story>({ hook: "", situation: "", payoff: "" });
   const [storyOpen, setStoryOpen] = useState(false);
+  const developing = useRef(false);
 
   useEffect(() => {
     const db = createClient();
@@ -295,8 +320,21 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       const counts: Record<string, number> = {};
       for (const row of (s.data ?? []) as { block_id: string }[]) counts[row.block_id] = (counts[row.block_id] ?? 0) + 1;
       setShotCount(counts);
+      // Quem acabou de escolher a ideia chega com a história sendo contada. A marca sai da URL: recarregar não gasta outra chamada.
+      if (!new URLSearchParams(window.location.search).has("historia") || developing.current) return;
+      developing.current = true;
+      router.replace(`/video/${id}/roteiro`);
+      if (!loaded?.hook || (b.data ?? []).length > 0) return;
+      setBusy("historia");
+      callApi({ videoId: id, mode: "historia" })
+        .then((data) => {
+          setStory(data.story as Story);
+          setVideo((current) => (current ? { ...current, ...(data.story as Story) } : current));
+        })
+        .catch(() => setError("Não deu para contar a história inteira agora. Você pode seguir com esta ou tentar de novo."))
+        .finally(() => setBusy(null));
     });
-  }, [id]);
+  }, [id, router]);
 
   // Saiu da tela com uma exclusão esperando: ela vale.
   useEffect(
@@ -370,6 +408,22 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     }
     setVideo((v) => (v ? { ...v, ...clean } : v));
     return true;
+  }
+
+  // Refaz a história com a IA. Com pedido, muda só o que foi pedido; sem pedido, conta de novo a partir da ideia.
+  async function developStory(request?: string) {
+    if (!request && !(await confirm({ title: "Contar a história de novo?", text: "A história nova substitui esta, inclusive o que você mudou.", action: "Contar de novo" }))) return;
+    if (!(await saveStory())) return;
+    setBusy("historia");
+    setError(null);
+    try {
+      const data = await callApi({ videoId: id, mode: "historia", request });
+      setStory(data.story as Story);
+      setVideo((v) => (v ? { ...v, ...(data.story as Story) } : v));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+    setBusy(null);
   }
 
   async function draft() {
@@ -530,20 +584,32 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                     <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
                     A história
                   </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">Não gostou do desenrolar? Mude aqui, antes do roteiro.</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">O vídeo inteiro, antes do roteiro. Mude o que quiser aqui.</p>
                 </div>
-                <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
-                <button
-                  type="button"
-                  onClick={draft}
-                  disabled={busy !== null || !story.hook.trim()}
-                  className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
-                >
-                  {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Escrever o roteiro"}
-                </button>
-                <Link href={`/video/${id}/ideia`} className="flex min-h-11 items-center justify-center text-sm font-semibold underline">
-                  Trocar de ideia
-                </Link>
+                {busy === "historia" ? (
+                  <Thinking label="Contando a história" steps={STEPS.historia} />
+                ) : (
+                  <>
+                    <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
+                    <StoryAsk busy={busy !== null} onAsk={developStory} />
+                    <button
+                      type="button"
+                      onClick={draft}
+                      disabled={busy !== null || !story.hook.trim()}
+                      className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                    >
+                      {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Aprovar e escrever o roteiro"}
+                    </button>
+                    <div className="flex justify-center gap-6 text-sm font-semibold">
+                      <button type="button" onClick={() => developStory()} disabled={busy !== null} className="min-h-11 underline disabled:opacity-40">
+                        Contar de novo
+                      </button>
+                      <Link href={`/video/${id}/ideia`} className="flex min-h-11 items-center underline">
+                        Trocar de ideia
+                      </Link>
+                    </div>
+                  </>
+                )}
               </section>
             )}
 
@@ -617,7 +683,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               </button>
             )}
 
-            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && busy !== "adicionar" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo a parte" /></p>}
+            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && busy !== "adicionar" && busy !== "historia" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo a parte" /></p>}
             {error && (
               <p role="alert" className="rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
                 {error}
@@ -633,10 +699,17 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             {storyOpen && (
               <Folha title="A história" summary="O roteiro é reescrito a partir daqui." onClose={() => setStoryOpen(false)}>
                 <div className="flex flex-col gap-4 px-2 pb-2">
-                  <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
+                  {busy === "historia" ? (
+                    <Thinking label="Mudando a história" steps={STEPS.historia} />
+                  ) : (
+                    <>
+                      <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
+                      <StoryAsk busy={busy !== null} onAsk={developStory} />
+                    </>
+                  )}
                   <button
                     type="button"
-                    disabled={!story.hook.trim()}
+                    disabled={busy !== null || !story.hook.trim()}
                     onClick={() => {
                       setStoryOpen(false);
                       draft();
