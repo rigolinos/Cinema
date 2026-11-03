@@ -13,10 +13,12 @@ describe("rascunho vazio", () => {
 });
 
 describe("abas", () => {
-  it("arquivado vence; pronto vai para Prontos; o resto está em andamento", () => {
+  it("arquivado vence; pronto para gravar vai para Prontos; gravado para Gravados; o resto está em criação", () => {
     expect(videoTab({ stage: "pronto", archived_at: "2026-10-21" })).toBe("arquivados");
-    expect(videoTab({ stage: "pronto" })).toBe("prontos");
-    expect(videoTab({ stage: "planos", archived_at: null })).toBe("andamento");
+    expect(videoTab({ stage: "gravar" })).toBe("prontos");
+    expect(videoTab({ stage: "pronto" })).toBe("gravados");
+    expect(videoTab({ stage: "planos", archived_at: null })).toBe("criando");
+    expect(videoTab({ stage: "ideia" })).toBe("criando");
   });
 });
 

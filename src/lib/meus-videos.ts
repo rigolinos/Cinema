@@ -9,11 +9,13 @@ export function isEmptyDraft(v: Pick<Video, "title" | "objective" | "platform" |
   return !v.title && !v.objective && !v.platform && !v.duration_s && (v.resources ?? []).length === 0 && !v.brief;
 }
 
-export type VideoTab = "andamento" | "prontos" | "arquivados";
+// Criando: ainda em desenvolvimento. Prontos: roteiro e planos fechados, à espera do dia de gravar. Gravados: já foi.
+export type VideoTab = "criando" | "prontos" | "gravados" | "arquivados";
 
 export function videoTab(v: Pick<Video, "stage"> & { archived_at?: string | null }): VideoTab {
   if (v.archived_at) return "arquivados";
-  return v.stage === "pronto" ? "prontos" : "andamento";
+  if (v.stage === "pronto") return "gravados";
+  return v.stage === "gravar" ? "prontos" : "criando";
 }
 
 // Pacote do vídeo em texto: para mandar no WhatsApp, guardar fora do app ou imprimir no set.

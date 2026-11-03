@@ -106,8 +106,9 @@ export default function InicioPage() {
               key={item.row.id}
               video={item.row}
               onChange={(next) => {
-                setVideos((rows) => (rows ?? []).flatMap((x) => (x.id !== item.row.id ? [x] : next && !next.archived_at ? [next] : [])));
-                if (!next || next.archived_at) setTotal((t) => t - 1);
+                const stays = next && !next.archived_at && next.stage !== "pronto";
+                setVideos((rows) => (rows ?? []).flatMap((x) => (x.id !== item.row.id ? [x] : stays ? [next] : [])));
+                if (!stays) setTotal((t) => t - 1);
               }}
             />
           ),

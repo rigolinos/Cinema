@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useConfirm } from "@/components/gravai/confirm";
-import { Archive, ArchiveRestore, MoreHorizontal, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, Check, MoreHorizontal, RotateCcw, Trash2, X } from "lucide-react";
 import { READY_STAGES, STAGES, Trail, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { durationLabel } from "@/lib/ideas";
@@ -12,8 +12,9 @@ import type { Video, VideoStage } from "@/types/database";
 
 export type VideoRow = Video & { archived_at?: string | null };
 
-// "Continuar" abre direto o passo em que a pessoa está, se ele já existe no app.
+// "Continuar" abre direto o passo em que a pessoa está; vídeo pronto ou gravado abre a página com tudo.
 export function videoHref(v: Video): string {
+  if (v.stage === "gravar") return `/video/${v.id}`;
   const step = STAGES[reachableIndex(v.stage)]?.id;
   return step && READY_STAGES.includes(step) ? `/video/${v.id}/${step}` : `/video/${v.id}`;
 }
@@ -111,6 +112,15 @@ export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: 
     else onChange({ ...video, archived_at });
   }
 
+  // Marcar sem passar pelo set: muita gente grava fora do app e só quer deixar organizado.
+  async function toggleRecorded() {
+    const stage = video.stage === "pronto" ? "gravar" : "pronto";
+    const { error } = await createClient().from("videos").update({ stage }).eq("id", video.id);
+    setMenu(false);
+    if (error) setError("Não deu para mudar. Tente de novo.");
+    else onChange({ ...video, stage });
+  }
+
   async function remove() {
     setMenu(false);
     const ok = await confirm({
@@ -139,7 +149,7 @@ export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: 
               {video.published_at ? "Publicado" : stageLabel(video.stage)}
             </>
           }
-          action={video.stage === "pronto" ? "Abrir" : "Continuar"}
+          action={video.stage === "pronto" || video.stage === "gravar" ? "Abrir" : "Continuar"}
         />
       </Link>
 
@@ -155,6 +165,12 @@ export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: 
 
       {menu && (
         <div role="menu" className="absolute right-2 top-14 z-20 flex w-52 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+          {video.hook && (
+            <button type="button" role="menuitem" onClick={toggleRecorded} className="flex min-h-12 items-center gap-2.5 border-b border-border px-4 text-left text-sm font-semibold">
+              {video.stage === "pronto" ? <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden="true" /> : <Check className="size-4" strokeWidth={2} aria-hidden="true" />}
+              {video.stage === "pronto" ? "Ainda não gravei" : "Já gravei"}
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={toggleArchive} className="flex min-h-12 items-center gap-2.5 px-4 text-left text-sm font-semibold">
             {video.archived_at ? (
               <ArchiveRestore className="size-4" strokeWidth={1.75} aria-hidden="true" />

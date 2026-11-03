@@ -8,14 +8,15 @@ import { isEmptyDraft, videoTab, type VideoTab } from "@/lib/meus-videos";
 import { SlateTabs } from "@/components/gravai/slate-tabs";
 
 const TABS: [VideoTab, string][] = [
-  ["andamento", "Andamento"],
+  ["criando", "Criando"],
   ["prontos", "Prontos"],
-  ["arquivados", "Arquivo"],
+  ["gravados", "Gravados"],
 ];
 
 const EMPTY: Record<VideoTab, string> = {
-  andamento: "Nenhum vídeo em andamento. Toque em Novo vídeo para começar.",
-  prontos: "Quando você concluir a gravação de um vídeo, ele aparece aqui.",
+  criando: "Nenhum vídeo em criação. Toque em Novo vídeo para começar.",
+  prontos: "Quando o roteiro e os planos de um vídeo ficarem prontos, ele espera aqui pelo dia de gravar.",
+  gravados: "Quando você gravar um vídeo, ele aparece aqui. Se gravou sem o passo a passo, use Já gravei no menu ⋯ do vídeo.",
   arquivados: "Arquive pelo menu ⋯ de um vídeo para tirá-lo da frente sem apagar.",
 };
 
@@ -23,7 +24,7 @@ const EMPTY: Record<VideoTab, string> = {
 export default function MeusVideosPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
   const [invites, setInvites] = useState<InviteRow[]>([]);
-  const [tab, setTab] = useState<VideoTab>("andamento");
+  const [tab, setTab] = useState<VideoTab>("criando");
   const [cleaning, setCleaning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -51,7 +52,7 @@ export default function MeusVideosPage() {
     load();
   }
 
-  const counts = Object.fromEntries(TABS.map(([t]) => [t, [...(videos ?? []), ...invites].filter((v) => videoTab(v) === t).length])) as Record<VideoTab, number>;
+  const counts = Object.fromEntries((["criando", "prontos", "gravados", "arquivados"] as VideoTab[]).map((t) => [t, [...(videos ?? []), ...invites].filter((v) => videoTab(v) === t).length])) as Record<VideoTab, number>;
   const shown = withInvites((videos ?? []).filter((v) => videoTab(v) === tab), invites.filter((i) => videoTab(i) === tab));
   const empties = (videos ?? []).filter((v) => !v.archived_at && isEmptyDraft(v)).length;
 
@@ -66,7 +67,7 @@ export default function MeusVideosPage() {
         onChange={setTab}
       />
 
-      {tab === "andamento" && empties > 0 && (
+      {tab === "criando" && empties > 0 && (
         <button type="button" onClick={cleanEmpty} disabled={cleaning} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">
           {cleaning ? "Limpando…" : `Limpar rascunhos vazios (${empties})`}
         </button>
@@ -74,6 +75,7 @@ export default function MeusVideosPage() {
       {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
 
       {videos === null && <p className="label-set text-muted-foreground">Carregando…</p>}
+      {tab === "arquivados" && <h2 className="label-set text-muted-foreground">Arquivo</h2>}
       {videos && shown.length === 0 && <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed text-muted-foreground">{EMPTY[tab]}</p>}
 
       <div className="flex flex-col gap-2.5">
@@ -89,6 +91,13 @@ export default function MeusVideosPage() {
           ),
         )}
       </div>
+
+      {/* O arquivo não disputa espaço com as abas: quem arquivou sabe onde procurar. */}
+      {tab !== "arquivados" && (
+        <button type="button" onClick={() => setTab("arquivados")} className="flex min-h-11 items-center self-start text-sm font-semibold text-muted-foreground underline">
+          Ver arquivo{counts.arquivados ? ` (${counts.arquivados})` : ""}
+        </button>
+      )}
     </div>
   );
 }
