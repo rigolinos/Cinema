@@ -1,5 +1,6 @@
 import type { Viewport } from "next";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { BarraComecar } from "@/components/gravai/barra-comecar";
 import { Palco } from "@/components/gravai/palco";
 import { COMPANY } from "@/lib/legal";
@@ -17,6 +18,13 @@ const steps = [
   { n: "05", title: "Gravar", desc: "No set, o teleprompter e um plano por vez." },
 ];
 
+const questionsAndAnswers = [
+  { q: "É de graça?", a: "Dá para começar sem pagar nada." },
+  { q: "Precisa baixar?", a: "Não. Abre no navegador do celular, no Android e no iPhone." },
+  { q: "Preciso entender de cinema?", a: "Não. O Gravaí explica cada termo na hora em que ele aparece." },
+  { q: "Já tenho meu roteiro. Serve?", a: "Serve. Cole do jeito que está: ele organiza em partes e planos." },
+];
+
 const HIDE_BAR_ON = ["topo", "fim"];
 
 export default function LandingPage() {
@@ -27,7 +35,7 @@ export default function LandingPage() {
           linkHome={false}
           className="min-h-[92dvh] py-16"
           action={
-            <Link href="/login" className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold underline">
+            <Link href="/login" className="inline-flex min-h-11 items-center pl-3 text-sm font-semibold underline">
               Entrar
             </Link>
           }
@@ -43,7 +51,7 @@ export default function LandingPage() {
         </Palco>
       </div>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-12">
+      <main className="palco-coluna flex flex-col gap-12 py-12">
         <section aria-labelledby="dor" className="flex flex-col gap-5">
           <h2 id="dor" className="font-display max-w-3xl text-[2.0625rem] sm:text-5xl">
             Você não trava na edição. Você trava antes de gravar.
@@ -72,6 +80,23 @@ export default function LandingPage() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section aria-labelledby="duvidas" className="flex flex-col gap-3">
+          <h2 id="duvidas" className="label-set text-muted-foreground">
+            Dúvidas
+          </h2>
+          <div>
+            {questionsAndAnswers.map(({ q, a }) => (
+              <details key={q} className="group border-t border-input last:border-b">
+                <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between gap-3 py-2 font-semibold [&::-webkit-details-marker]:hidden">
+                  {q}
+                  <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none" strokeWidth={1.75} aria-hidden="true" />
+                </summary>
+                <p className="pb-4 leading-relaxed text-muted-foreground">{a}</p>
+              </details>
+            ))}
+          </div>
         </section>
       </main>
 

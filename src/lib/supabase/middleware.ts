@@ -40,8 +40,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Redirect unauthenticated users to login (except for auth pages, root, the e-mail
-  // link callback, "esqueci minha senha" and the per-person share links /p/<token>)
-  const publicPaths = ['/login', '/register', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade', '/excluir-conta']
+  // link callback, "esqueci minha senha", the per-person share links /p/<token> and the
+  // link preview image, which WhatsApp and Instagram fetch without an account)
+  const publicPaths = ['/login', '/register', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade', '/excluir-conta', '/opengraph-image']
   if (
     !user &&
     !publicPaths.some((p) => request.nextUrl.pathname.startsWith(p)) &&

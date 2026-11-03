@@ -40,12 +40,14 @@ export function Palco({
   const logo = <Logo className="palco-logo" dotClassName="palco-pingo" />;
   return (
     <div className={cn("palco dark relative overflow-hidden text-foreground", compact && "palco-compacto", className)}>
-      <div className={cn("absolute inset-x-5 top-[max(1.25rem,env(safe-area-inset-top))] flex items-center", action ? "justify-between" : "justify-end")}>
-        <p className="label-set flex items-center gap-2 text-muted-foreground" aria-hidden="true">
-          <span className="palco-rec size-2 rounded-full bg-rec" />
-          <Timecode paused={compact} />
-        </p>
-        {action}
+      <div className="absolute inset-x-0 top-[max(1.25rem,env(safe-area-inset-top))]">
+        <div className={cn("palco-coluna flex items-center", action ? "justify-between" : "justify-end")}>
+          <p className="label-set flex items-center gap-2 text-muted-foreground" aria-hidden="true">
+            <span className="palco-rec size-2 rounded-full bg-rec" />
+            <Timecode paused={compact} />
+          </p>
+          {action}
+        </div>
       </div>
       <div className="palco-marca">
         {linkHome ? (
