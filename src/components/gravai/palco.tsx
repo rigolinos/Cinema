@@ -6,16 +6,8 @@ import { Logo } from "@/components/logo";
 import { timecode } from "@/lib/set";
 import { cn } from "@/lib/utils";
 
-// O palco da entrada do app: a marca gigante com o pingo vivo, a câmera "ligada" e, bem no fundo,
-// os formatos e termos de set passando. Decoração: quem lê a tela com leitor ouve só a marca.
-// Com a pessoa digitando (compact), a marca encolhe e o fundo para: nada se mexe enquanto ela escreve.
-const ROWS = [
-  "POV · 3 erros que… · Antes e depois · Storytime",
-  "Bastidores · Tutorial rápido · Reação · Desafio",
-  "Mito ou verdade · Diálogo · O gancho · A virada",
-  "Plano 01 · Take 2 · Close · Aberto · Detalhe",
-];
-
+// O palco da entrada do app: a marca gigante com o pingo vivo e a câmera "ligada".
+// Com a pessoa digitando (compact), a marca encolhe e o tempo para: nada se mexe enquanto ela escreve.
 function Timecode({ paused }: { paused: boolean }) {
   const el = useRef<HTMLSpanElement>(null);
   const frame = useRef(0);
@@ -33,22 +25,15 @@ function Timecode({ paused }: { paused: boolean }) {
 export function Palco({ compact }: { compact: boolean }) {
   return (
     <div className={cn("palco dark relative overflow-hidden text-foreground", compact && "palco-compacto")}>
-      <div className="palco-fundo" aria-hidden="true">
-        {ROWS.map((row) => (
-          <p key={row} className="palco-fila">
-            {Array(12).fill(`${row} · `).join("")}
-          </p>
-        ))}
-      </div>
       <p className="label-set absolute right-5 top-[max(1.25rem,env(safe-area-inset-top))] flex items-center gap-2 text-muted-foreground" aria-hidden="true">
         <span className="palco-rec size-2 rounded-full bg-rec" />
         <Timecode paused={compact} />
       </p>
-      <div className="palco-marca mx-auto w-full max-w-lg px-5">
+      <div className="palco-marca">
         <Link href="/" aria-label="Início" className="block">
           <Logo className="palco-logo" dotClassName="palco-pingo" />
         </Link>
-        <p className="palco-frase mt-2 text-muted-foreground">Da ideia ao vídeo gravado.</p>
+        <p className="palco-frase text-muted-foreground">Da ideia ao vídeo gravado.</p>
       </div>
     </div>
   );

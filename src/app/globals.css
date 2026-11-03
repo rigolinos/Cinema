@@ -263,50 +263,18 @@
 .palco-compacto {
   flex-grow: 0;
 }
-.palco-fundo {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.375rem;
-  overflow: hidden;
-  transition: opacity 0.3s;
-}
-.palco-compacto .palco-fundo {
-  opacity: 0.35;
-}
-.palco-fila {
-  width: max-content;
-  white-space: nowrap;
-  font-size: 2.125rem;
-  font-weight: 800;
-  font-stretch: 125%;
-  letter-spacing: -0.03em;
-  color: #232321;
-  animation: palcoCorre 150s linear infinite;
-}
-.palco-fila:nth-child(even) {
-  animation-direction: reverse;
-  animation-duration: 185s;
-}
-.palco-compacto .palco-fila {
-  animation-play-state: paused;
-}
-@keyframes palcoCorre {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
 .palco-marca {
   position: relative;
+  width: fit-content;
+  margin-inline: auto;
 }
-/* A marca ocupa a largura toda da coluna: ela mede cerca de 3,63 vezes o tamanho da letra. */
+/* A marca de ponta a ponta: ela mede 3,65 vezes o tamanho da letra. Em tela baixa, a altura limita.
+   O espaço entre as letras é o da marca (font-display): mais apertado, o "g" cola no "r". */
 .palco-logo {
   display: block;
   white-space: nowrap;
-  font-size: min(calc((100vw - 2.5rem) * 0.272), 8rem);
-  letter-spacing: -0.04em;
-  line-height: 1;
+  font-size: min(calc((100vw - 1.25rem) * 0.273), 36dvh);
+  line-height: 1.2;
   transition: font-size 0.35s ease;
 }
 .palco-compacto .palco-logo {
@@ -337,7 +305,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .palco, .palco-logo { transition: none; }
-  .palco-fila, .palco-pingo, .palco-rec { animation: none; }
+  .palco-pingo, .palco-rec { animation: none; }
 }
 
 /* Faixas que deslizam para o lado (assuntos, nichos, botões rápidos): sem barra de rolagem por cima dos botões. */
