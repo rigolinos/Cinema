@@ -10,9 +10,12 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ token: string }> }) {
   const part = await getPart((await params).token);
-  return ogImage({
+  const image = await ogImage({
     label: part ? "CONVITE PARA GRAVAR" : "GRAVAÍ",
     headline: part ? `${firstNameOf(part.person.name)}, você está no time.` : "Da ideia ao vídeo gravado.",
     sub: part ? `“${part.video.title}” · ${rolesYou(partRoles(part))}` : "Roteiro, planos e gravação no celular.",
   });
+  // A imagem inteira, com o tamanho declarado, como a do link principal: gerada na hora, ela sairia sem tamanho.
+  const png = await image.arrayBuffer();
+  return new Response(png, { headers: { "Content-Type": contentType, "Content-Length": String(png.byteLength) } });
 }
