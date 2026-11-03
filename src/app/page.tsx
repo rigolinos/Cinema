@@ -35,7 +35,7 @@ export default function LandingPage() {
           linkHome={false}
           className="min-h-[92dvh] py-16"
           action={
-            <Link href="/login" className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold underline">
+            <Link href="/login" className="inline-flex min-h-11 items-center pl-3 text-sm font-semibold underline">
               Entrar
             </Link>
           }
@@ -51,7 +51,7 @@ export default function LandingPage() {
         </Palco>
       </div>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-12">
+      <main className="palco-coluna flex flex-col gap-12 py-12">
         <section aria-labelledby="dor" className="flex flex-col gap-5">
           <h2 id="dor" className="font-display max-w-3xl text-[2.0625rem] sm:text-5xl">
             Você não trava na edição. Você trava antes de gravar.

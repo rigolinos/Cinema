@@ -250,7 +250,16 @@
   .folha-sobe { animation: none; }
 }
 
-/* Palco da entrada: o topo escuro do login, com a marca gigante. */
+/* Palco da entrada: o topo escuro, com a marca gigante. A marca mede 3,65 vezes o tamanho da letra:
+   a coluna tem a largura dela, e tudo o que acompanha a marca se alinha às mesmas bordas. */
+:root {
+  --palco-fonte: min(calc((100vw - 1.25rem) * 0.273), 36dvh);
+}
+.palco-coluna {
+  width: calc(var(--palco-fonte) * 3.65);
+  max-width: calc(100vw - 1.25rem);
+  margin-inline: auto;
+}
 .palco {
   display: flex;
   flex: 1 0 8.5rem;
@@ -269,12 +278,12 @@
   width: min-content;
   margin-inline: auto;
 }
-/* A marca de ponta a ponta: ela mede 3,65 vezes o tamanho da letra. Em tela baixa, a altura limita.
+/* A marca de ponta a ponta; em tela baixa, a altura limita.
    O espaço entre as letras é o da marca (font-display): mais apertado, o "g" cola no "r". */
 .palco-logo {
   display: block;
   white-space: nowrap;
-  font-size: min(calc((100vw - 1.25rem) * 0.273), 36dvh);
+  font-size: var(--palco-fonte);
   line-height: 1.2;
   transition: font-size 0.35s ease;
 }
@@ -294,8 +303,8 @@
 }
 @keyframes palcoOlha {
   0%, 55%, 85%, 100% { transform: translateX(0) scale(1); }
-  20% { transform: translateX(-0.06em) scale(1); }
-  40% { transform: translateX(0.06em) scale(1); }
+  20% { transform: translateX(max(-0.06em, -0.5rem)) scale(1); }
+  40% { transform: translateX(min(0.06em, 0.5rem)) scale(1); }
   70% { transform: translateX(0) scale(1.22); }
 }
 .palco-rec {
