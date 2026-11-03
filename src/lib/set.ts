@@ -76,3 +76,10 @@ export function byPlace<T extends { location: string }>(rows: T[]): { place: str
   }
   return groups;
 }
+
+// Tempo de câmera a 24 quadros por segundo: 00:00:03:12.
+export function timecode(frames: number): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const seconds = Math.floor(frames / 24);
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60, frames % 24].map(pad).join(":");
+}

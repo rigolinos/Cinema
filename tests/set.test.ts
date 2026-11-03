@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SET_TIPS, byPlace, firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
+import { SET_TIPS, byPlace, firstPending, nextPending, progress, setOrder, setupChange, timecode, tipFor } from "@/lib/set";
 
 const shot = (position: number, shoot_order: number | null, recorded = false, good_take = false) => ({ position, shoot_order, recorded, good_take });
 
@@ -51,5 +51,13 @@ describe("lista do set por lugar", () => {
   it("abre um grupo a cada troca de lugar, sem misturar a ordem", () => {
     const rows = [{ location: "Quarto" }, { location: " quarto" }, { location: "Quadra" }, { location: "Quarto" }, { location: "" }];
     expect(byPlace(rows).map((g) => [g.place, g.rows.length])).toEqual([["Quarto", 2], ["Quadra", 1], ["Quarto", 1], ["", 1]]);
+  });
+});
+
+describe("tempo de câmera", () => {
+  it("conta horas, minutos, segundos e quadros a 24 por segundo", () => {
+    expect(timecode(0)).toBe("00:00:00:00");
+    expect(timecode(84)).toBe("00:00:03:12");
+    expect(timecode(24 * 3661 + 1)).toBe("01:01:01:01");
   });
 });
