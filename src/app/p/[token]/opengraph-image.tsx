@@ -1,6 +1,6 @@
 import { OG_SIZE, ogImage } from "@/lib/og-imagem";
-import { rolesYou } from "@/lib/pessoas";
-import { firstNameOf, getPart, partRoles } from "./dados";
+import { firstNameOf, rolesYou } from "@/lib/pessoas";
+import { getPart, partRoles } from "./dados";
 
 // A imagem da prévia do link (WhatsApp, Instagram): a primeira propaganda do Gravaí para quem foi chamado.
 // Feita para cada pessoa: o nome dela, o vídeo e o papel. Sem o link valer, sai só a marca.

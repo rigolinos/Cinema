@@ -48,12 +48,18 @@ export function rolesYou(roles: readonly GuestRole[]): string {
   return `você ${v.length > 1 ? `${v.slice(0, -1).join(", ")} e ${v.at(-1)}` : (v[0] ?? "ajuda")}`;
 }
 
+// O nome como a pessoa é chamada no convite: o primeiro, com maiúscula, mesmo se foi digitado em minúscula.
+export function firstNameOf(name: string): string {
+  const first = name.trim().split(/\s+/)[0] ?? "";
+  return first.charAt(0).toLocaleUpperCase("pt-BR") + first.slice(1);
+}
+
 // Mensagem pronta para mandar pelo WhatsApp (a pessoa escolhe o contato no próprio WhatsApp).
 export function inviteMessage(name: string, roles: readonly GuestRole[], title: string, url: string): string {
   const acts = roles.includes("ator");
   const crew = roles.some((r) => r !== "ator");
   const what = acts && crew ? "suas falas, o roteiro e os planos" : acts ? "suas falas e cenas" : "o roteiro e os planos";
-  return `Oi, ${name.trim().split(/\s+/)[0]}! Vou gravar “${title}” e você está no time. Aqui estão ${what}: ${url}`;
+  return `Oi, ${firstNameOf(name)}! Vou gravar “${title}” e você está no time. Aqui estão ${what}: ${url}`;
 }
 
 export function whatsappLink(message: string): string {

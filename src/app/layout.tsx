@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Gravaí", statusBarStyle: "default" },
   openGraph: {
     title: "Gravaí: da ideia ao vídeo gravado",
-    description: "Ideia, roteiro e planos do seu vídeo curto, prontos no celular. Comece de graça.",
+    description: "Do roteiro à gravação, sem baixar nada. Comece de graça.",
     siteName: "Gravaí",
     locale: "pt_BR",
     type: "website",

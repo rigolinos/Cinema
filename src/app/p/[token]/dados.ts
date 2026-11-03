@@ -29,8 +29,6 @@ export function partRoles(part: Part): GuestRole[] {
   return part.person.roles?.length ? part.person.roles : [part.person.role as GuestRole];
 }
 
-export const firstNameOf = (name: string) => name.trim().split(/\s+/)[0] ?? "";
-
 // Quem foi convidado e quer fazer o próprio vídeo: o cadastro já vem com o nome e sabe que veio de um convite.
 export function signupUrl(firstName: string): string {
   return `/register?${new URLSearchParams({ nome: firstName, origem: "convite" })}`;
