@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { COMPANY } from "@/lib/legal";
 import { cn } from "@/lib/utils";
 import { cueParts, isMe, myLines, speechLines, splitAction } from "@/lib/convidado";
 import { BLOCK_KINDS } from "@/lib/roteiro";
@@ -147,6 +148,10 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
         <Link href="/privacidade" className="font-semibold underline">
           Privacidade
         </Link>
+        {" · "}
+        <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+          {COMPANY.instagramHandle}
+        </a>
       </footer>
     </div>
   );
