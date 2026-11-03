@@ -245,7 +245,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
       setError("Não deu para salvar a ordem de gravação. Tente de novo.");
       return;
     }
-    router.push(`/video/${id}/gravar`);
+    router.push(`/video/${id}`);
   }
 
   const blockIndex = new Map(blocks.map((b, i) => [b.id, i]));
