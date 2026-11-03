@@ -32,7 +32,8 @@ export function reachableIndex(stage: VideoStage): number {
 
 export function stageLabel(stage: VideoStage): string {
   const i = stageIndex(stage);
-  return i >= STAGES.length ? "Pronto" : `Passo ${i + 1} de ${STAGES.length} · ${STAGES[i].label}`;
+  if (i >= STAGES.length) return "Gravado";
+  return stage === "gravar" ? "Pronto para gravar" : `Passo ${i + 1} de ${STAGES.length} · ${STAGES[i].label}`;
 }
 
 // A trilha de 5 passos: o passo atual e os anteriores ficam preenchidos.
