@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import Link from "next/link";
+import { BackLink } from "@/components/gravai/voltar";
 import { Check, ChevronLeft, Copy, Printer, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { exportPackage } from "@/lib/meus-videos";
@@ -62,9 +62,9 @@ export default function ExportarPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-5 pb-16 pt-3 print:max-w-none print:p-0">
-      <Link href={`/video/${id}`} aria-label="Voltar ao vídeo" className="-ml-3 flex size-11 items-center justify-center print:hidden">
+      <BackLink href={`/video/${id}`} className="-ml-3 flex size-11 items-center justify-center print:hidden">
         <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
-      </Link>
+      </BackLink>
 
       <header className="flex flex-col gap-2 print:hidden">
         <p className="label-set text-muted-foreground">Exportar</p>

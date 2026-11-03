@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Lightbulb, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
-import { isEmptyDraft } from "@/lib/meus-videos";
 import { doorLabel } from "@/lib/memoria";
 import { logSignal } from "@/lib/sinais";
 
@@ -17,21 +16,22 @@ const DOORS: { id: Door; icon: typeof Sparkles; title: string; text: string }[] 
   { id: "roteiro", icon: FileText, title: "Já tenho o roteiro", text: "Cole o seu texto. Eu organizo sem mudar nada." },
 ];
 
-// Reaproveita o rascunho vazio que já existir (aberto e abandonado) em vez de criar outro.
+// Reaproveita o rascunho que parou antes das ideias, em vez de criar outro: a lista não enche de "Vídeo sem ideia ainda".
 async function draftVideo(): Promise<string | null> {
   const db = createClient();
   const { data: drafts } = await db
     .from("videos")
-    .select("id, title, objective, platform, duration_s, resources, video_ideas(count)")
+    .select("id, brief, video_ideas(count)")
     .eq("stage", "ideia")
     .is("archived_at", null)
     .is("title", null)
     .order("created_at", { ascending: false })
     .limit(5);
-  const reuse = (drafts ?? []).find(
-    (d) => isEmptyDraft(d as Parameters<typeof isEmptyDraft>[0]) && !((d.video_ideas as { count: number }[] | null)?.[0]?.count),
-  );
-  if (reuse) return reuse.id;
+  const reuse = (drafts ?? []).find((d) => !d.brief && !((d.video_ideas as { count: number }[] | null)?.[0]?.count));
+  if (reuse) {
+    const { error } = await db.from("videos").update({ objective: null, platform: null, platforms: [], duration_s: null, resources: [] }).eq("id", reuse.id);
+    if (!error) return reuse.id;
+  }
   const { data } = await db.from("videos").insert({}).select("id").single();
   return data?.id ?? null;
 }

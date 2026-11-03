@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ArrowRight, Check, ChevronLeft, Lock, Share2, Trash2 } from "lucide-react";
+import { BackLink } from "@/components/gravai/voltar";
 import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
@@ -58,9 +59,9 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-5 pb-16 pt-3">
       {sheet}
-      <Link href="/inicio" aria-label="Voltar ao início" className="-ml-3 flex size-11 items-center justify-center">
+      <BackLink href="/inicio" className="-ml-3 flex size-11 items-center justify-center">
         <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
-      </Link>
+      </BackLink>
 
       {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
       {video === null && <p className="text-sm text-destructive">Não encontramos este vídeo.</p>}

@@ -116,11 +116,12 @@ export function SaveButton({ idea, className }: { idea: IdeaToSave; className?: 
         aria-pressed={saved}
         aria-label={saved ? "Tirar das ideias guardadas" : "Guardar esta ideia"}
         className={cn(
-          "-m-2.5 flex size-11 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-40",
+          "-my-2.5 -mr-2 flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-40",
           saved ? "text-foreground" : "text-muted-foreground",
         )}
       >
-        <Bookmark className="size-4" strokeWidth={1.5} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+        <Bookmark className="size-4" strokeWidth={1.75} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+        {saved ? "Guardada" : "Guardar"}
       </button>
     </span>
   );

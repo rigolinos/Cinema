@@ -5,8 +5,8 @@ import { scriptAsText, type ScriptBlock } from "./roteiro";
 import type { Video } from "@/types/database";
 
 // Vídeo criado e abandonado: sem título, sem nenhuma resposta (o banco também confere se não há ideia sugerida).
-export function isEmptyDraft(v: Pick<Video, "title" | "objective" | "platform" | "duration_s" | "resources">): boolean {
-  return !v.title && !v.objective && !v.platform && !v.duration_s && (v.resources ?? []).length === 0;
+export function isEmptyDraft(v: Pick<Video, "title" | "objective" | "platform" | "duration_s" | "resources" | "brief">): boolean {
+  return !v.title && !v.objective && !v.platform && !v.duration_s && (v.resources ?? []).length === 0 && !v.brief;
 }
 
 export type VideoTab = "andamento" | "prontos" | "arquivados";

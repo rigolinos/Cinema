@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import Link from "next/link";
+import { BackLink } from "@/components/gravai/voltar";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ReportAi } from "@/components/gravai/denunciar";
 import { Check, ChevronLeft, Copy } from "lucide-react";
@@ -111,9 +111,9 @@ export default function PublicarPage({ params }: { params: Promise<{ id: string 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 px-5 pb-16 pt-3">
       {sheet}
-      <Link href={`/video/${id}`} aria-label="Voltar ao vídeo" className="-ml-3 flex size-11 items-center justify-center">
+      <BackLink href={`/video/${id}`} className="-ml-3 flex size-11 items-center justify-center">
         <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden="true" />
-      </Link>
+      </BackLink>
 
       {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
       {video === null && <p className="text-sm text-destructive">Não encontramos este vídeo.</p>}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import { InstallCapture } from "@/components/gravai/instalar";
+import { RouteTracker } from "@/components/gravai/voltar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -53,6 +54,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${archivo.variable} ${plexMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <InstallCapture />
+        <RouteTracker />
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
