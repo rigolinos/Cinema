@@ -78,6 +78,9 @@ export default function LandingPage() {
             Excluir conta
           </Link>
         </nav>
+        <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold underline">
+          Instagram {COMPANY.instagramHandle}
+        </a>
         <p>© 2026 Gravaí · CNPJ {COMPANY.cnpj}</p>
       </footer>
     </div>

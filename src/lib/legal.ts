@@ -7,6 +7,8 @@ export const COMPANY = {
   owner: "Rodrigo Rigo",
   email: "rootcode@gmail.com",
   site: "https://cinema-theta-silk.vercel.app",
+  instagram: "https://www.instagram.com/gravaai.br/",
+  instagramHandle: "@gravaai.br",
 };
 
 export type LegalDocument = "termos" | "privacidade";

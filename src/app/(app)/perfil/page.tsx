@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BookOpen, Check, Clapperboard, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORMS, type Platform } from "@/lib/ideas";
+import { COMPANY } from "@/lib/legal";
 import { cn } from "@/lib/utils";
 import { InstallItem } from "@/components/gravai/instalar";
 import { MemorySection } from "@/components/gravai/memoria";
@@ -146,6 +147,18 @@ export default function PerfilPage() {
           <span className="text-sm text-muted-foreground">Filmes e curtas: decupagem, elenco e ordem do dia</span>
         </span>
       </Link>
+
+      <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer" className="flex min-h-14 items-center gap-3 rounded-2xl border border-border p-4">
+        <svg className="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <path d="M17 7h.01" />
+        </svg>
+        <span className="flex flex-col">
+          <span className="font-bold">Siga o Gravaí no Instagram</span>
+          <span className="text-sm text-muted-foreground">{COMPANY.instagramHandle}: dicas de formato e roteiro</span>
+        </span>
+      </a>
 
       <MemorySection />
 
