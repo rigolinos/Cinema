@@ -39,7 +39,7 @@ export default function LandingPage() {
               Entrar
             </Link>
           }
-          headline={<h1 className="mt-1 text-[1.375rem] font-bold leading-tight tracking-[-0.01em] sm:text-3xl">Da ideia ao vídeo gravado.</h1>}
+          headline={<h1 className="mt-2 text-[1.375rem] font-bold leading-tight tracking-[-0.01em] sm:text-3xl">Da ideia ao vídeo gravado.</h1>}
         >
           <p className="mt-2 max-w-md leading-snug text-muted-foreground">Ideia, roteiro e planos do seu vídeo curto, prontos no celular.</p>
           <div className="mt-6 flex max-w-md flex-col gap-3">
