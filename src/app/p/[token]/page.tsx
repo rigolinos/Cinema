@@ -5,11 +5,11 @@ import { COMPANY } from "@/lib/legal";
 import { cn } from "@/lib/utils";
 import { cueParts, isMe, myLines, speechLines, splitAction } from "@/lib/convidado";
 import { BLOCK_KINDS } from "@/lib/roteiro";
-import { formatShootDate, rolesYou } from "@/lib/pessoas";
+import { firstNameOf, formatShootDate, rolesYou } from "@/lib/pessoas";
 import { Abas } from "./abas";
 import { Acompanhar } from "./acompanhar";
 import { PartActions } from "./actions";
-import { firstNameOf, getPart, partRoles, signupUrl } from "./dados";
+import { getPart, partRoles, signupUrl } from "./dados";
 
 // Link pessoal: ninguém deve achar por busca. A prévia (WhatsApp) chama a pessoa pelo nome.
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {

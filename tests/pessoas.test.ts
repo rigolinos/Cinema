@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONSENT_VERSION, consentText, formatShootDate, inviteMessage, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
+import { CONSENT_VERSION, consentText, firstNameOf, formatShootDate, inviteMessage, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
 
 describe("termo de uso de imagem", () => {
   it("nomeia quem pediu e o vídeo, e a versão bate com o que o banco aceita", () => {
@@ -26,6 +26,15 @@ describe("convite", () => {
     );
     expect(inviteMessage("Carla", ["filma"], "3 erros", url)).toContain("o roteiro e os planos");
     expect(inviteMessage("Kira", ["ator", "filma"], "3 erros", url)).toContain("suas falas, o roteiro e os planos");
+  });
+
+  it("chama a pessoa pelo primeiro nome com maiúscula, mesmo digitado em minúscula", () => {
+    expect(firstNameOf("  kira souza ")).toBe("Kira");
+    expect(firstNameOf("joão")).toBe("João");
+    expect(firstNameOf("élida")).toBe("Élida");
+    expect(firstNameOf("JP")).toBe("JP");
+    expect(firstNameOf("   ")).toBe("");
+    expect(inviteMessage("kira souza", ["ator"], "3 erros", "https://gravai.app/p/abc")).toContain("Oi, Kira!");
   });
 
   it("mais de um papel: ordem fixa e frase natural", () => {
