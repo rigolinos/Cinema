@@ -58,8 +58,6 @@ export default function InicioPage() {
         gravar hoje?
       </h1>
 
-      <MemoryNote />
-
       <Link href="/novo" className="flex min-h-11 items-center justify-between rounded-2xl bg-primary px-5 py-5 text-primary-foreground">
         <span className="flex flex-col gap-1">
           <span className="flex items-center gap-2 text-lg font-bold">
@@ -119,6 +117,9 @@ export default function InicioPage() {
           <span className="text-sm leading-relaxed text-muted-foreground">{today.summary}</span>
         </Link>
       )}
+
+      {/* Por último: ele só aparece depois de carregar, e aqui não empurra nada na tela. */}
+      <MemoryNote />
     </div>
   );
 }

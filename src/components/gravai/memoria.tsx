@@ -43,9 +43,6 @@ export function MemoryNote() {
         Gravaí
       </span>
       <p className="text-base leading-relaxed">{insight}</p>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Quanto mais a gente cria junto, mais eu consigo te entender e te ajudar.
-      </p>
       <div className="flex gap-4 text-sm font-semibold">
         <Link href="/perfil#memoria" className="flex min-h-11 items-center underline">
           Ver o que aprendi
