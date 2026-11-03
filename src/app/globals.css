@@ -263,9 +263,10 @@
 .palco-compacto {
   flex-grow: 0;
 }
+/* A largura é a da marca: o que vem embaixo dela quebra linha em vez de alargar a caixa. */
 .palco-marca {
   position: relative;
-  width: fit-content;
+  width: min-content;
   margin-inline: auto;
 }
 /* A marca de ponta a ponta: ela mede 3,65 vezes o tamanho da letra. Em tela baixa, a altura limita.

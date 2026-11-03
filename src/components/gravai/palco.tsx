@@ -22,18 +22,41 @@ function Timecode({ paused }: { paused: boolean }) {
   return <span ref={el}>{timecode(0)}</span>;
 }
 
-export function Palco({ compact }: { compact: boolean }) {
+export function Palco({
+  compact = false,
+  action,
+  headline,
+  linkHome = true,
+  className,
+  children,
+}: {
+  compact?: boolean;
+  action?: React.ReactNode; // no canto de cima, à direita; o tempo de câmera vai para a esquerda
+  headline?: React.ReactNode; // no lugar da frase da marca
+  linkHome?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const logo = <Logo className="palco-logo" dotClassName="palco-pingo" />;
   return (
-    <div className={cn("palco dark relative overflow-hidden text-foreground", compact && "palco-compacto")}>
-      <p className="label-set absolute right-5 top-[max(1.25rem,env(safe-area-inset-top))] flex items-center gap-2 text-muted-foreground" aria-hidden="true">
-        <span className="palco-rec size-2 rounded-full bg-rec" />
-        <Timecode paused={compact} />
-      </p>
+    <div className={cn("palco dark relative overflow-hidden text-foreground", compact && "palco-compacto", className)}>
+      <div className={cn("absolute inset-x-5 top-[max(1.25rem,env(safe-area-inset-top))] flex items-center", action ? "justify-between" : "justify-end")}>
+        <p className="label-set flex items-center gap-2 text-muted-foreground" aria-hidden="true">
+          <span className="palco-rec size-2 rounded-full bg-rec" />
+          <Timecode paused={compact} />
+        </p>
+        {action}
+      </div>
       <div className="palco-marca">
-        <Link href="/" aria-label="Início" className="block">
-          <Logo className="palco-logo" dotClassName="palco-pingo" />
-        </Link>
-        <p className="palco-frase text-muted-foreground">Da ideia ao vídeo gravado.</p>
+        {linkHome ? (
+          <Link href="/" aria-label="Início" className="block">
+            {logo}
+          </Link>
+        ) : (
+          logo
+        )}
+        {headline ?? <p className="palco-frase text-muted-foreground">Da ideia ao vídeo gravado.</p>}
+        {children}
       </div>
     </div>
   );
