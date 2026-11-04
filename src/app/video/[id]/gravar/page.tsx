@@ -10,7 +10,7 @@ import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
 import { durationLabel } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
-import { FRAMINGS, isSolo, shotTags, shotTerms, type Shot } from "@/lib/planos";
+import { FRAMINGS, isSolo, shotPeople, shotTags, shotTerms, type Shot } from "@/lib/planos";
 import { speakerOf, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
 import { firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const leave = useLeave();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [people, setPeople] = useState<{ id: string; name: string; role: string }[]>([]);
+  const [people, setPeople] = useState<{ id: string; name: string; role: string; roles: string[] | null }[]>([]);
   const [shots, setShots] = useState<SetShot[]>([]);
   const [phase, setPhase] = useState<Phase>("abertura");
   const [current, setCurrent] = useState(0);
@@ -72,7 +72,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("shots").select("*").eq("video_id", id),
-      db.from("video_people").select("id, name, role").eq("video_id", id),
+      db.from("video_people").select("id, name, role, roles").eq("video_id", id),
     ]).then(([v, b, s, p]) => {
       setPeople(p.data ?? []);
       setVideo((v.data as Video | null) ?? null);
@@ -166,6 +166,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
     takes: s.takes,
     skipped: skipped.includes(s.id),
     current: phase === "set" && i === current,
+    people: shotPeople(s, people),
   }));
 
   function closeList() {
@@ -279,6 +280,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                     </p>
                     <p className="label-set">{shotTags(shot).join(" · ")}</p>
                     {(shot.location || shot.wardrobe) && <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>}
+                    {shotPeople(shot, people).length > 0 && <p className="label-set text-muted-foreground">{shotPeople(shot, people).join(" · ")}</p>}
                   </div>
                 </div>
                 <h1 className="font-display text-[26px]">{shot.description || FRAMINGS[shot.framing].label}</h1>

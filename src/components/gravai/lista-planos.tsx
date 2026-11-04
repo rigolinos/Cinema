@@ -21,6 +21,7 @@ export interface PlanRow {
   skipped: boolean;
   current: boolean;
   tag?: string; // no convidado: "Você aparece", "Você filma"
+  people?: string[]; // quem está no plano
 }
 
 function detail(r: PlanRow): string {
@@ -74,7 +75,7 @@ export function PlanList({ rows, onPick, wrap = false, onToggle }: { rows: PlanR
                       {r.description || FRAMINGS[r.framing].label}
                     </span>
                     <span className="flex flex-wrap items-center gap-1.5">
-                      <span className={cn("label-set", r.current ? "text-foreground" : "text-muted-foreground")}>{detail(r)}</span>
+                      <span className={cn("label-set", r.current ? "text-foreground" : "text-muted-foreground")}>{[detail(r), ...(r.people ?? [])].join(" · ")}</span>
                       {r.tag && <span className="label-set rounded bg-muted px-1.5 text-foreground">{r.tag}</span>}
                     </span>
                   </span>

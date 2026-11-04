@@ -4,7 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useConfirm } from "@/components/gravai/confirm";
-import { MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, MapPin, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import { PlansOutdated } from "@/components/gravai/aviso-planos";
 import { StepHeader } from "@/components/gravai/step-header";
 import { useLeave } from "@/components/gravai/voltar";
@@ -17,11 +17,13 @@ import {
   ANGLES,
   FRAMINGS,
   MOVEMENTS,
+  castOf,
   defaultOrientation,
   isSolo,
   setupChanges,
   setupLabel,
   shootingOrder,
+  shotPeople,
   shotTags,
   shotTerms,
   type Angle,
@@ -36,6 +38,7 @@ import type { Video } from "@/types/database";
 
 type Block = ScriptBlock & { id: string; position: number; updated_at?: string };
 type SavedShot = Shot & { id: string; created_at?: string };
+type Person = { id: string; name: string; role: string; roles: string[] | null };
 
 // Nomes curtos para caber na régua; os outros usam o nome inteiro de FRAMINGS, ANGLES e MOVEMENTS.
 const SHORT: Partial<Record<Framing | Angle | Movement, string>> = {
@@ -86,16 +89,40 @@ function Ruler<K extends Framing | Angle | Movement>({
   );
 }
 
+// Quem está no plano: um toque marca ou tira, e já salva.
+function CastPicker({ cast, value, onChange }: { cast: { id: string; label: string }[]; value: string[]; onChange: (ids: string[]) => void }) {
+  return (
+    <fieldset className="-mb-2">
+      <legend className="label-set mb-1 text-muted-foreground">Quem está no plano</legend>
+      <div className="flex flex-wrap gap-x-5">
+        {cast.map((c) => {
+          const on = value.includes(c.id);
+          return (
+            <button key={c.id} type="button" aria-pressed={on} onClick={() => onChange(on ? value.filter((id) => id !== c.id) : [...value, c.id])} className="flex min-h-11 min-w-0 items-center gap-2 text-left text-[15px]">
+              <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full", on ? "bg-foreground text-background" : "border-[1.5px] border-input")} aria-hidden="true">
+                {on && <Check className="size-3" strokeWidth={3} />}
+              </span>
+              <span className={cn("min-w-0 break-words", on ? "font-semibold" : "text-muted-foreground")}>{c.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 function ShotCard({
   shot,
   number,
   setup,
+  people,
   onChange,
   onDelete,
 }: {
   shot: SavedShot;
   number: number;
   setup: string; // lugar e roupa, só quando mudam em relação ao plano anterior
+  people: Person[];
   onChange: (patch: Partial<Shot>) => void;
   onDelete: () => void;
 }) {
@@ -113,6 +140,9 @@ function ShotCard({
     (next ? closeRef : changeRef).current?.focus();
   };
   const planNumber = String(number).padStart(2, "0");
+  const cast = castOf(people);
+  const names = shotPeople(shot, people);
+  const selected = (shot.person_ids ?? []).filter((id) => cast.some((c) => c.id === id));
 
   if (open) {
     return (
@@ -144,6 +174,7 @@ function ShotCard({
           <Ruler title="Enquadramento" terms={FRAMINGS} value={shot.framing} onChange={(v) => onChange({ framing: v })} />
           <Ruler title="Ângulo" terms={ANGLES} value={shot.angle} hint={touched === "angle"} onChange={(v) => { setTouched("angle"); onChange({ angle: v }); }} />
           <Ruler title="Movimento" terms={MOVEMENTS} value={shot.movement} hint={touched === "movement"} onChange={(v) => { setTouched("movement"); onChange({ movement: v }); }} />
+          {cast.length > 1 && <CastPicker cast={cast} value={selected} onChange={(ids) => onChange({ person_ids: ids })} />}
           <div className="grid grid-cols-2 gap-3">
             <label className="flex min-w-0 flex-col gap-1">
               <span className="label-set text-muted-foreground">Lugar</span>
@@ -188,6 +219,12 @@ function ShotCard({
               {setup}
             </p>
           )}
+          {names.length > 0 && (
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Users className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              {names.join(" · ")}
+            </p>
+          )}
         </div>
       </div>
 
@@ -214,6 +251,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [shots, setShots] = useState<SavedShot[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [busy, setBusy] = useState<"decupar" | "seguir" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { confirm, sheet } = useConfirm();
@@ -224,10 +262,12 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("shots").select("*").eq("video_id", id).order("position"),
-    ]).then(([v, b, s]) => {
+      db.from("video_people").select("id, name, role, roles").eq("video_id", id).order("created_at"),
+    ]).then(([v, b, s, p]) => {
       setVideo((v.data as Video | null) ?? null);
       setBlocks((b.data ?? []) as Block[]);
       setShots((s.data ?? []) as SavedShot[]);
+      setPeople((p.data ?? []) as Person[]);
     });
   }, [id]);
 
@@ -277,6 +317,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
         orientation: defaultOrientation(video?.platform ?? null),
         location: last?.location ?? "",
         wardrobe: last?.wardrobe ?? "",
+        person_ids: last?.person_ids ?? [],
       })
       .select()
       .single();
@@ -367,7 +408,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
                   {byScript
                     .filter((s) => s.block_id === b.id)
                     .map((s) => (
-                      <ShotCard key={s.id} shot={s} number={number.get(s.id)!} setup={setupLabel(byScript, number.get(s.id)! - 1)} onChange={(p) => update(s, p)} onDelete={() => remove(s)} />
+                      <ShotCard key={s.id} shot={s} number={number.get(s.id)!} setup={setupLabel(byScript, number.get(s.id)! - 1)} people={people} onChange={(p) => update(s, p)} onDelete={() => remove(s)} />
                     ))}
                   <button type="button" onClick={() => add(b)} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold">
                     <Plus className="size-4" strokeWidth={2} aria-hidden="true" />

@@ -3,6 +3,7 @@ import {
   ANGLES,
   FRAMINGS,
   MOVEMENTS,
+  castOf,
   defaultOrientation,
   isSolo,
   newestChange,
@@ -13,11 +14,54 @@ import {
   setupChanges,
   setupLabel,
   shootingOrder,
+  shotPeople,
   shotTags,
   shotsPrompt,
 } from "@/lib/planos";
 
 const s = (position: number, location: string, wardrobe = "") => ({ position, location, wardrobe });
+
+describe("quem está no plano", () => {
+  const eu = { id: "p0", name: "Natasha Lima", role: "eu", roles: [] };
+  const manu = { id: "p1", name: "manu", role: "ator", roles: ["ator"] };
+  const filma = { id: "p2", name: "Caio", role: "filma", roles: ["filma"] };
+  const opts = { orientation: "vertical" as const, max: 24, solo: false, people: [manu, filma, eu] };
+  const names = (people: unknown) => normalizeShots({ shots: [{ block: 1, framing: "close", people }] }, ["b1"], opts)[0].person_ids;
+
+  it("lista quem cria e quem aparece, sem quem só filma", () => {
+    expect(castOf([manu, filma, eu])).toEqual([{ id: "p0", label: "Natasha" }, { id: "p1", label: "Manu" }]);
+  });
+
+  it("separa quem tem o mesmo primeiro nome", () => {
+    const outra = { id: "p3", name: "Manu Alves", role: "ator", roles: ["ator"] };
+    expect(castOf([eu, manu, outra]).map((c) => c.label)).toEqual(["Natasha", "manu", "Manu Alves"]);
+  });
+
+  it("mostra os nomes do plano e ignora quem saiu do vídeo", () => {
+    expect(shotPeople({ person_ids: ["p1", "p0", "saiu"] }, [eu, manu])).toEqual(["Natasha", "Manu"]);
+    expect(shotPeople({}, [eu, manu])).toEqual([]);
+  });
+
+  it("com uma pessoa só, não precisa dizer quem é", () => {
+    expect(shotPeople({ person_ids: ["p0"] }, [eu])).toEqual([]);
+  });
+
+  it("transforma os nomes da IA nas pessoas do vídeo", () => {
+    expect(names(["natasha", "Manu"])).toEqual(["p0", "p1"]);
+    expect(names(["Você"])).toEqual(["p0"]);
+  });
+
+  it("ignora nome inventado, quem só filma e resposta torta", () => {
+    expect(names(["Godofredo", "Caio"])).toEqual([]);
+    expect(names("Manu")).toEqual([]);
+    expect(names(undefined)).toEqual([]);
+  });
+
+  it("vídeo com uma pessoa só fica sem marcação", () => {
+    const solo = normalizeShots({ shots: [{ block: 1, framing: "close", people: ["Natasha"] }] }, ["b1"], { ...opts, people: [eu] });
+    expect(solo[0].person_ids).toEqual([]);
+  });
+});
 
 describe("shootingOrder", () => {
   it("junta os planos do mesmo lugar e da mesma roupa, mantendo a ordem do roteiro dentro do grupo", () => {
@@ -99,6 +143,7 @@ describe("normalizeShots", () => {
       location: "Sala",
       wardrobe: "",
       why: "Mostra o joelho",
+      person_ids: [],
     });
     expect(normalizeShots({ shots: "nada" }, blocks, opts)).toEqual([]);
   });

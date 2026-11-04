@@ -276,6 +276,7 @@ const SHOTS_TEXT = `TAREFA: você é o diretor que ajuda a pessoa a dividir cada
 - O gancho começa em close ou detalhe.
 - Mesmo nome de local quando for o mesmo lugar. Roupa só se mudar.
 - Se houver <leitura> com indicações de câmera que a pessoa escreveu ("plano aberto", "close na mão"), elas valem: use esse enquadramento nesse momento.
+- people: quem está em quadro naquele plano, só com nomes de <pessoas>. A mão ou o corpo de alguém conta; quem só fala fora de quadro não conta. Plano só de objeto ou de lugar, ou sem <pessoas>: lista vazia.
 - why: uma frase, para quem está aprendendo.
 - block: o número do bloco (o primeiro é 1).`;
 
@@ -301,10 +302,11 @@ export function shotsTask(o: { objective: Objective | null }): Task {
           location: STR,
           wardrobe: STR,
           why: STR,
+          people: list(STR),
         }),
       ),
     }),
-    example: `{"shots":[{"block":1,"framing":"","angle":"","movement":"","orientation":"vertical","description":"","location":"","wardrobe":"","why":""}]}`,
+    example: `{"shots":[{"block":1,"framing":"","angle":"","movement":"","orientation":"vertical","description":"","location":"","wardrobe":"","why":"","people":[]}]}`,
     thinking: "baixo",
     temperature: 0.6,
   };

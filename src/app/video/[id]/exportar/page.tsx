@@ -28,7 +28,8 @@ export default function ExportarPage({ params }: { params: Promise<{ id: string 
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("shots").select("*").eq("video_id", id).order("position"),
       db.from("video_posts").select("*").eq("video_id", id),
-    ]).then(([v, b, s, p]) => {
+      db.from("video_people").select("id, name, role, roles").eq("video_id", id),
+    ]).then(([v, b, s, p, g]) => {
       if (!v.data) {
         setText("");
         return;
@@ -42,6 +43,7 @@ export default function ExportarPage({ params }: { params: Promise<{ id: string 
           blocks,
           blockIds: blocks.map((x) => x.id),
           shots: (s.data ?? []) as Shot[],
+          people: g.data ?? [],
           posts: (p.data ?? []) as Post[],
         }),
       );
