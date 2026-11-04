@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useConfirm } from "@/components/gravai/confirm";
 import { MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
@@ -26,7 +27,6 @@ import {
   type Angle,
   type Framing,
   type Movement,
-  type Orientation,
   type Shot,
   type Term,
 } from "@/lib/planos";
@@ -37,37 +37,51 @@ import type { Video } from "@/types/database";
 type Block = ScriptBlock & { id: string; position: number; updated_at?: string };
 type SavedShot = Shot & { id: string; created_at?: string };
 
-const ORIENTATIONS: Record<Orientation, Term> = {
-  vertical: { label: "Vertical", what: "Celular em pé (9:16).", why: "É o formato de Reels, TikTok e Shorts: ocupa a tela toda." },
-  horizontal: { label: "Horizontal", what: "Celular deitado (16:9).", why: "É o formato do YouTube e da TV." },
+// Nomes curtos para caber na régua; os outros usam o nome inteiro de FRAMINGS, ANGLES e MOVEMENTS.
+const SHORT: Partial<Record<Framing | Angle | Movement, string>> = {
+  medio: "Médio",
+  americano: "Americano",
+  altura_olhos: "Olhos",
+  por_cima_ombro: "Ombro",
+  aproximando: "Aproxima",
+  afastando: "Afasta",
+  acompanhando: "Acompanha",
 };
+const short = (k: Framing | Angle | Movement, term: Term) => SHORT[k] ?? term.label;
 
-const chip = "min-h-11 rounded-full border border-input bg-card px-3.5 text-sm font-semibold whitespace-nowrap";
-const chipOn = "border-foreground bg-foreground text-background";
-const field = "min-h-12 w-full rounded-xl border border-input bg-background px-3.5 text-base outline-none focus:border-foreground";
+// Campo sublinhado: o rótulo em cima e só uma linha embaixo do texto.
+const underlined = "w-full border-b border-input bg-transparent outline-none focus:border-foreground";
 
-function Choice<K extends string>({
+// Todas as opções à vista e um toque para trocar: a barra preta marca a escolhida.
+// O peso da letra não muda, para a régua não pular de largura ao escolher.
+function Ruler<K extends Framing | Angle | Movement>({
   title,
   terms,
   value,
   onChange,
+  hint = false,
 }: {
   title: string;
   terms: Record<K, Term>;
   value: K;
   onChange: (v: K) => void;
+  hint?: boolean; // explica o que acabou de ser escolhido
 }) {
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1 text-sm font-semibold">{title}</legend>
-      <div className="flex flex-wrap gap-2">
-        {(Object.keys(terms) as K[]).map((k) => (
-          <button key={k} type="button" aria-pressed={value === k} className={cn(chip, value === k && chipOn)} onClick={() => onChange(k)}>
-            {terms[k].label}
-          </button>
-        ))}
+    <fieldset className="-mb-2">
+      <legend className="label-set mb-2 text-muted-foreground">{title}</legend>
+      <div className="flex flex-wrap gap-x-[3px] gap-y-1">
+        {(Object.keys(terms) as K[]).map((k) => {
+          const on = value === k;
+          return (
+            <button key={k} type="button" aria-pressed={on} onClick={() => onChange(k)} className="flex min-h-11 flex-auto flex-col gap-1.5 text-center text-[11px] font-medium leading-tight">
+              <span className={cn("h-[5px] rounded-full", on ? "bg-foreground" : "bg-input")} aria-hidden="true" />
+              <span className={on ? "text-foreground" : "text-muted-foreground"}>{short(k, terms[k])}</span>
+            </button>
+          );
+        })}
       </div>
-      <p className="text-sm leading-relaxed text-muted-foreground">{terms[value].what}</p>
+      {hint && <p className="-mt-3 text-sm leading-relaxed text-muted-foreground">{terms[value].what}</p>}
     </fieldset>
   );
 }
@@ -86,10 +100,77 @@ function ShotCard({
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [touched, setTouched] = useState<"angle" | "movement" | null>(null);
   const [text, setText] = useState({ description: shot.description, location: shot.location, wardrobe: shot.wardrobe });
   const saveText = (k: keyof typeof text) => {
     if (text[k] !== shot[k]) onChange({ [k]: text[k] });
   };
+  const changeRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  // O botão tocado some ao trocar de vista: o foco passa para o seu par, o que também traz a tela de volta ao plano ao fechar.
+  const toggle = (next: boolean) => {
+    flushSync(() => setOpen(next));
+    (next ? closeRef : changeRef).current?.focus();
+  };
+  const planNumber = String(number).padStart(2, "0");
+
+  if (open) {
+    return (
+      <article className="flex flex-col overflow-hidden rounded-2xl bg-card" aria-label={`Plano ${number}`}>
+        {/* O visor: o desenho e a explicação acompanham o enquadramento escolhido. */}
+        <div className="dark bg-background px-4 pb-3.5 pt-1 text-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="label-set truncate text-muted-foreground">{`Plano ${planNumber} · ${short(shot.framing, FRAMINGS[shot.framing])}`}</h3>
+            <button ref={closeRef} type="button" aria-expanded onClick={() => toggle(false)} className="label-set -mr-2 flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-muted-foreground">
+              <X className="size-4" strokeWidth={1.75} aria-hidden="true" />
+              Fechar
+            </button>
+          </div>
+          <div className="relative flex h-[150px] items-center justify-center border border-border">
+            <FramingIcon framing={shot.framing} orientation={shot.orientation} size="xl" />
+            <span className="absolute left-1.5 top-1.5 size-3.5 border-l-[1.5px] border-t-[1.5px] border-foreground" aria-hidden="true" />
+            <span className="absolute right-1.5 top-1.5 size-3.5 border-r-[1.5px] border-t-[1.5px] border-foreground" aria-hidden="true" />
+            <span className="absolute bottom-1.5 left-1.5 size-3.5 border-b-[1.5px] border-l-[1.5px] border-foreground" aria-hidden="true" />
+            <span className="absolute bottom-1.5 right-1.5 size-3.5 border-b-[1.5px] border-r-[1.5px] border-foreground" aria-hidden="true" />
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{FRAMINGS[shot.framing].what}</p>
+        </div>
+
+        <div className="flex flex-col gap-5 p-4">
+          <label className="flex flex-col gap-1.5">
+            <span className="label-set text-muted-foreground">O que aparece</span>
+            <textarea rows={3} value={text.description} maxLength={300} onChange={(e) => setText((t) => ({ ...t, description: e.target.value }))} onBlur={() => saveText("description")} className={cn(underlined, "resize-none pb-2 text-[17px] font-semibold leading-snug field-sizing-content")} />
+          </label>
+          <Ruler title="Enquadramento" terms={FRAMINGS} value={shot.framing} onChange={(v) => onChange({ framing: v })} />
+          <Ruler title="Ângulo" terms={ANGLES} value={shot.angle} hint={touched === "angle"} onChange={(v) => { setTouched("angle"); onChange({ angle: v }); }} />
+          <Ruler title="Movimento" terms={MOVEMENTS} value={shot.movement} hint={touched === "movement"} onChange={(v) => { setTouched("movement"); onChange({ movement: v }); }} />
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex min-w-0 flex-col gap-1">
+              <span className="label-set text-muted-foreground">Lugar</span>
+              <input value={text.location} maxLength={80} placeholder="Ex.: Sala" onChange={(e) => setText((t) => ({ ...t, location: e.target.value }))} onBlur={() => saveText("location")} className={cn(underlined, "min-h-11 text-base")} />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1">
+              <span className="label-set text-muted-foreground">Roupa</span>
+              <input value={text.wardrobe} maxLength={80} placeholder="Opcional" onChange={(e) => setText((t) => ({ ...t, wardrobe: e.target.value }))} onBlur={() => saveText("wardrobe")} className={cn(underlined, "min-h-11 text-base")} />
+            </label>
+          </div>
+          <div className="-mb-1.5 flex items-start justify-between gap-3">
+            {shot.why ? (
+              <Explain id="plano-porque" question="Por que este plano?" closed className="min-w-0 flex-1 pt-1">
+                {shot.why}
+              </Explain>
+            ) : (
+              <span />
+            )}
+            <button type="button" onClick={onDelete} className="-mr-2 flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-sm font-semibold text-destructive">
+              <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
+              Apagar
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Plano ${number}`}>
@@ -98,7 +179,7 @@ function ShotCard({
         <FramingIcon framing={shot.framing} orientation={shot.orientation} />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <p className="label-set text-muted-foreground">
-            {[String(number).padStart(2, "0"), ...shotTags(shot)].join(" · ")}
+            {[planNumber, ...shotTags(shot)].join(" · ")}
           </p>
           <h3 className="text-[17px] font-semibold leading-snug">{shot.description || FRAMINGS[shot.framing].label}</h3>
           {setup && (
@@ -118,38 +199,11 @@ function ShotCard({
         ) : (
           <span />
         )}
-        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="-mr-2 flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-sm text-muted-foreground">
-          {open ? <X className="size-4" strokeWidth={1.75} aria-hidden="true" /> : <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />}
-          {open ? "Fechar" : "Mudar"}
+        <button ref={changeRef} type="button" aria-expanded={false} onClick={() => toggle(true)} className="-mr-2 flex min-h-11 shrink-0 scroll-mb-28 items-center gap-1.5 px-2 text-sm text-muted-foreground">
+          <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />
+          Mudar
         </button>
       </div>
-
-      {open && (
-        <div className="flex flex-col gap-5 border-t border-border pt-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold">O que aparece</span>
-            <textarea rows={3} value={text.description} maxLength={300} onChange={(e) => setText((t) => ({ ...t, description: e.target.value }))} onBlur={() => saveText("description")} className={cn(field, "resize-none py-3 leading-snug")} />
-          </label>
-          <Choice title="Enquadramento" terms={FRAMINGS} value={shot.framing} onChange={(v: Framing) => onChange({ framing: v })} />
-          <Choice title="Ângulo" terms={ANGLES} value={shot.angle} onChange={(v: Angle) => onChange({ angle: v })} />
-          <Choice title="Movimento" terms={MOVEMENTS} value={shot.movement} onChange={(v: Movement) => onChange({ movement: v })} />
-          <Choice title="Celular" terms={ORIENTATIONS} value={shot.orientation} onChange={(v: Orientation) => onChange({ orientation: v })} />
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold">Lugar</span>
-              <input value={text.location} maxLength={80} placeholder="Ex.: Sala" onChange={(e) => setText((t) => ({ ...t, location: e.target.value }))} onBlur={() => saveText("location")} className={field} />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold">Roupa</span>
-              <input value={text.wardrobe} maxLength={80} placeholder="Opcional" onChange={(e) => setText((t) => ({ ...t, wardrobe: e.target.value }))} onBlur={() => saveText("wardrobe")} className={field} />
-            </label>
-          </div>
-          <button type="button" onClick={onDelete} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold text-destructive">
-            <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
-            Apagar este plano
-          </button>
-        </div>
-      )}
     </article>
   );
 }
@@ -199,6 +253,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
   }
 
   async function remove(shot: SavedShot) {
+    if (!(await confirm({ title: "Apagar este plano?", text: "Não dá para desfazer.", action: "Apagar plano", danger: true }))) return;
     const { error } = await createClient().from("shots").delete().eq("id", shot.id);
     if (error) {
       setError("Não deu para apagar o plano.");

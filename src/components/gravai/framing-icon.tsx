@@ -42,7 +42,7 @@ const FIGURES: Record<Framing, React.ReactNode> = {
 
 // O enquadramento em desenho: a forma do plano diz mais do que o nome para quem está começando.
 // Deitado (horizontal), a tela vira 16:9 e a pessoa fica menor no centro.
-const SIZES = { sm: ["h-7 w-[18px]", "h-[18px] w-7"], md: ["h-16 w-10", "h-10 w-16"], lg: ["h-24 w-15", "h-15 w-24"] } as const;
+const SIZES = { sm: ["h-7 w-[18px]", "h-[18px] w-7"], md: ["h-16 w-10", "h-10 w-16"], lg: ["h-24 w-15", "h-15 w-24"], xl: ["h-32 w-20", "h-20 w-32"] } as const;
 
 export function FramingIcon({ framing, orientation, size = "md" }: { framing: Framing; orientation: Orientation; size?: keyof typeof SIZES }) {
   const vertical = orientation === "vertical";
