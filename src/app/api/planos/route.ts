@@ -4,7 +4,7 @@ import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { readingLines } from "@/lib/leitura";
 import { defaultOrientation, isSolo, maxShots, normalizeShots } from "@/lib/planos";
 import { context, line, tag } from "@/lib/prompts/base";
-import { shotsTask, termsTag, videoTag } from "@/lib/prompts/tarefas";
+import { castTag, shotsTask, termsTag, videoTag } from "@/lib/prompts/tarefas";
 import { scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import { videoPlatforms } from "@/lib/ideas";
 import type { Video } from "@/types/database";
@@ -23,9 +23,11 @@ export async function POST(request: NextRequest) {
   const videoId = typeof body?.videoId === "string" ? body.videoId : "";
   if (!videoId) return fail("Vídeo não informado.", 400);
 
-  const [{ data: video }, { data: blocks }] = await Promise.all([
+  const [{ data: video }, { data: blocks }, { data: people }, { data: profile }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
     supabase.from("script_blocks").select("*").eq("video_id", videoId).order("position"),
+    supabase.from("video_people").select("name, role, roles").eq("video_id", videoId).order("created_at"),
+    supabase.from("creator_profiles").select("display_name").maybeSingle(),
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
   const v = video as Video;
@@ -45,6 +47,7 @@ export async function POST(request: NextRequest) {
         prompt: context([
           tag("roteiro", scriptForPrompt(script)),
           tag("limite", `No máximo ${maxShots(v.duration_s)} planos no total.`),
+          castTag(profile?.display_name, people ?? []),
           videoTag({ objective: v.objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: v.resources ?? [] }),
           tag("orientacao", line("Orientação padrão", defaultOrientation(v.platform))),
           tag("leitura", readingLines(v.script_reading)),

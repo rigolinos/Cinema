@@ -16,12 +16,13 @@ export const PLATFORMS = {
 
 export const RESOURCES = {
   sozinho: "Só eu",
-  com_alguem: "Com mais gente",
+  com_alguem: "Mais de uma",
   em_casa: "Em casa",
   na_rua: "Na rua",
 } as const;
 
-// "Com o que você conta" são duas escolhas únicas: quem grava e onde ("Nos dois" marca casa e rua).
+// São duas escolhas únicas: quantas pessoas aparecem e onde ("Nos dois" marca casa e rua).
+// "Ainda não sei" é não ter nenhuma das duas de WHO: serve para quem escreve agora e decide depois.
 export const WHO: Resource[] = ["sozinho", "com_alguem"];
 export const PLACES = [
   { label: "Em casa", value: ["em_casa"] },
@@ -31,6 +32,10 @@ export const PLACES = [
 
 export function withWho(list: readonly Resource[], who: Resource): Resource[] {
   return [who, ...list.filter((r) => !WHO.includes(r))];
+}
+
+export function withoutWho(list: readonly Resource[]): Resource[] {
+  return list.filter((r) => !WHO.includes(r));
 }
 
 export function withPlaces(list: readonly Resource[], places: readonly Resource[]): Resource[] {

@@ -129,7 +129,7 @@ export function StartSheet({
         />
         <Choice<number> label="Quanto tempo" options={DURATIONS.map((d) => [d, durationLabel(d)] as [number, string])} value={answers.durationS} onPick={(durationS) => setAnswers((a) => ({ ...a, durationS }))} />
         <Choice<Resource>
-          label="Com o que você conta"
+          label="Quem aparece e onde"
           options={Object.entries(RESOURCES) as [Resource, string][]}
           value={answers.resources}
           onPick={(r) =>

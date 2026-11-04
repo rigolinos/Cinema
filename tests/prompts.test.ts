@@ -18,6 +18,8 @@ import {
   organizerTask,
   postTask,
   shotsTask,
+  castTag,
+  videoTag,
 } from "@/lib/prompts/tarefas";
 import { normalizeDraft, normalizeStory } from "@/lib/roteiro";
 import { completeItems } from "@/lib/stream-json";
@@ -236,6 +238,37 @@ describe("a história antes do roteiro", () => {
     expect(normalizeStory({ hook: "x", situation: " ", payoff: "y" })).toBeNull();
     expect(normalizeStory(null)).toBeNull();
     expect(normalizeStory({ hook: "x", situation: "y" })?.payoff).toBe("");
+  });
+});
+
+describe("quem aparece no vídeo", () => {
+  it("leva os nomes para a IA, e quem só filma fica de fora", () => {
+    const cast = castTag("Natasha Muraguti", [
+      { name: "Natasha", role: "eu" },
+      { name: "João", role: "ator", roles: ["ator"] },
+      { name: "Bia", role: "filma", roles: ["filma"] },
+      { name: "Duda", role: "filma", roles: ["filma", "ator"] },
+    ]);
+    expect(cast).toContain("Quem faz o vídeo e aparece: Natasha");
+    expect(cast).toContain("Também aparecem: João, Duda");
+    expect(cast).not.toContain("Bia");
+  });
+
+  it("sem nome nenhum, não manda nada", () => {
+    expect(castTag(null, [])).toBe("");
+    expect(castTag("Ana Lima", [])).toContain("Ana Lima");
+  });
+
+  it("os nomes chegam ao pedido da história, e a regra proíbe códigos", () => {
+    const cast = castTag("Natasha", []);
+    const r = storyRequest({ video: { ...video, title: "T", hook: "G", situation: "", payoff: "", formatSlug: null }, person, cast });
+    expect(r.prompt).toContain("<pessoas>");
+    expect(r.system).toContain("Nunca códigos como A1");
+  });
+
+  it("quem ainda não sabe quantas pessoas aparecem vira um aviso para a IA", () => {
+    expect(videoTag({ objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["em_casa"] })).toContain("ainda não sabe");
+    expect(videoTag({ objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho", "em_casa"] })).not.toContain("ainda não sabe");
   });
 });
 

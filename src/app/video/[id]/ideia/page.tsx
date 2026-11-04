@@ -9,6 +9,7 @@ import { BriefBox, OwnIdeaBox, PasteBox } from "@/components/gravai/portas";
 import { SaveButton } from "@/components/gravai/guardar";
 import { StepHeader } from "@/components/gravai/step-header";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
+import { parseNames } from "@/lib/pessoas";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import {
@@ -21,6 +22,7 @@ import {
   QUICK_IDEAS,
   RESOURCES,
   WHO,
+  withoutWho,
   durationLabel,
   mainPlatform,
   mixesOrientation,
@@ -47,7 +49,7 @@ const QUESTIONS: Record<QuestionId, string> = {
   produto: "O que você vende, e por que alguém compraria de você e não de outro?",
   platform: "Onde ele vai sair? Pode marcar mais de um.",
   duration: "E quanto tempo, mais ou menos?",
-  resources: "Quem grava e onde?",
+  resources: "Quantas pessoas aparecem e onde?",
 };
 
 const chip =
@@ -67,7 +69,7 @@ function answerText(q: QuestionId, a: Answers): string {
     case "duration":
       return a.durationS ? durationLabel(a.durationS) : "";
     case "resources":
-      return a.resources.map((r) => RESOURCES[r]).join(" · ");
+      return [a.resources.some((r) => WHO.includes(r)) ? null : "Ainda não sei", ...a.resources.map((r) => RESOURCES[r])].filter(Boolean).join(" · ");
   }
 }
 
@@ -120,6 +122,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [editing, setEditing] = useState<QuestionId | null>(null);
   const [nicheDraft, setNicheDraft] = useState("");
   const [resourcesDraft, setResourcesDraft] = useState<Resource[]>([]);
+  const [whoUnknown, setWhoUnknown] = useState(false); // "Ainda não sei" não fica salvo como recurso
+  const [guestNames, setGuestNames] = useState("");
   const [platformsDraft, setPlatformsDraft] = useState<Platform[]>([]);
   const [productDraft, setProductDraft] = useState({ product: "", edge: "" });
   const [door, setDoor] = useState<StartDoor>("zero");
@@ -254,6 +258,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [ideas.length, question, busy]);
 
+  // Os nomes entram antes do roteiro: é com eles que a IA escreve. Não atrapalha seguir se falhar.
+  async function addGuests() {
+    if (!resourcesDraft.includes("com_alguem") || !guestNames.trim()) return;
+    const db = createClient();
+    const { data } = await db.from("video_people").select("name").eq("video_id", id);
+    const names = parseNames(guestNames, ((data ?? []) as { name: string }[]).map((p) => p.name));
+    if (names.length) await db.from("video_people").insert(names.map((name) => ({ video_id: id, name, role: "ator" })));
+  }
+
   async function save(q: QuestionId, patch: Partial<Answers>) {
     setBusy("save");
     setError(null);
@@ -289,7 +302,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
       setNicheDraft(answers.niche ?? "");
       focusNiche();
     }
-    if (q === "resources") setResourcesDraft(answers.resources);
+    if (q === "resources") {
+      setResourcesDraft(answers.resources);
+      setWhoUnknown(answers.resources.length > 0 && !answers.resources.some((r) => WHO.includes(r)));
+      setGuestNames("");
+    }
     if (q === "platform") setPlatformsDraft(answers.platforms);
     if (q === "produto") setProductDraft({ product: answers.product ?? "", edge: answers.productEdge ?? "" });
     setEditing(q);
@@ -488,18 +505,45 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               <div className="flex flex-col gap-4">
                 <div role="group" aria-labelledby="quem-grava" className="flex flex-col gap-2">
                   <span id="quem-grava" className="text-sm font-semibold">
-                    Quem grava
+                    Quantas pessoas aparecem?
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {WHO.map((r) => {
                       const on = resourcesDraft.includes(r);
                       return (
-                        <button key={r} type="button" aria-pressed={on} className={cn(chip, on && chipOn)} onClick={() => setResourcesDraft((d) => withWho(d, r))}>
+                        <button key={r} type="button" aria-pressed={on} className={cn(chip, on && chipOn)} onClick={() => {
+                            setWhoUnknown(false);
+                            setResourcesDraft((d) => withWho(d, r));
+                          }}>
                           {RESOURCES[r]}
                         </button>
                       );
                     })}
+                    <button
+                      type="button"
+                      aria-pressed={whoUnknown}
+                      className={cn(chip, whoUnknown && chipOn)}
+                      onClick={() => {
+                        setWhoUnknown(true);
+                        setResourcesDraft(withoutWho);
+                      }}
+                    >
+                      Ainda não sei
+                    </button>
                   </div>
+                  {resourcesDraft.includes("com_alguem") && (
+                    <label className="mt-1 flex flex-col gap-1.5">
+                      <span className="text-sm font-semibold">Quem aparece com você? (opcional)</span>
+                      <input
+                        value={guestNames}
+                        maxLength={200}
+                        autoCapitalize="words"
+                        onChange={(e) => setGuestNames(e.target.value)}
+                        placeholder="Ana, João"
+                        className="min-h-12 w-full rounded-xl border border-input bg-card px-3.5 text-base outline-none focus:border-foreground"
+                      />
+                    </label>
+                  )}
                 </div>
                 <div role="group" aria-labelledby="onde-grava" className="flex flex-col gap-2">
                   <span id="onde-grava" className="text-sm font-semibold">
@@ -518,8 +562,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 </div>
                 <button
                   type="button"
-                  disabled={!resourcesDraft.some((r) => WHO.includes(r)) || resourcesDraft.every((r) => WHO.includes(r)) || busy !== null}
-                  onClick={() => save("resources", { resources: resourcesDraft })}
+                  disabled={(!whoUnknown && !resourcesDraft.some((r) => WHO.includes(r))) || resourcesDraft.every((r) => WHO.includes(r)) || busy !== null}
+                  onClick={async () => {
+                    await addGuests();
+                    await save("resources", { resources: resourcesDraft });
+                  }}
                   className="mt-2 min-h-13 w-full rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                 >
                   Pronto, seguir

@@ -54,6 +54,20 @@ export function firstNameOf(name: string): string {
   return first.charAt(0).toLocaleUpperCase("pt-BR") + first.slice(1);
 }
 
+// "Ana, João e Bia" vira três nomes. Quem já está na lista não entra de novo.
+export function parseNames(text: string, already: readonly string[] = []): string[] {
+  const seen = new Set(already.map((n) => n.trim().toLocaleLowerCase("pt-BR")));
+  const names: string[] = [];
+  for (const raw of text.split(/,|;|\n|\s+e\s+/i)) {
+    const name = raw.trim().replace(/\s+/g, " ").slice(0, 80);
+    const key = name.toLocaleLowerCase("pt-BR");
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  return names;
+}
+
 // Mensagem pronta para mandar pelo WhatsApp (a pessoa escolhe o contato no próprio WhatsApp).
 export function inviteMessage(name: string, roles: readonly GuestRole[], title: string, url: string): string {
   const acts = roles.includes("ator");
