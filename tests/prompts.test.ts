@@ -238,6 +238,9 @@ describe("regras do roteiro e dos planos", () => {
     expect(draft.system).toContain("só o texto escrito");
     const shots = shotsTask({ objective: "divertir" }).system;
     expect(shots).toContain("uma ação só");
+    expect(shots).toContain("Cada pessoa que fala aparece");
+    expect(shots).toContain("Não é um resumo da cena");
+    expect(shots).not.toContain("Bloco curto costuma ter 1 plano");
     expect(shots).toContain("detalhe mostra só um objeto");
   });
 });

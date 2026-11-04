@@ -6,6 +6,7 @@ import {
   normalizeSuggestions,
   scriptForPrompt,
   speakerOf,
+  withSpeakers,
   normalizeDraft,
   normalizeRewrite,
   scriptAsText,
@@ -143,6 +144,12 @@ describe("quem fala", () => {
     { id: "p1", name: "Natasha", role: "ator" },
     { id: "p2", name: "Rodrigo", role: "eu" },
   ];
+  it("escreve quem fala na fala, para a IA dos planos, sem repetir nem inventar", () => {
+    const blocks = [{ speech: "Oi", person_id: "p1" }, { speech: "Bia: tudo?", person_id: "p1" }, { speech: "", person_id: "p1" }, { speech: "Tchau", person_id: null }];
+    expect(withSpeakers(blocks, people, false).map((b) => b.speech)).toEqual(["Natasha: Oi", "Bia: tudo?", "", "Tchau"]);
+    expect(withSpeakers(blocks, people, true)[3].speech).toBe("Rodrigo: Tchau");
+  });
+
   it("a pessoa marcada no bloco; você mesmo; ou você para a câmera quando grava sozinho", () => {
     expect(speakerOf({ person_id: "p1" }, people, false)).toBe("Natasha");
     expect(speakerOf({ person_id: "p2" }, people, false)).toBe("Rodrigo");

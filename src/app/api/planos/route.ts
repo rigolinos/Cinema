@@ -5,7 +5,7 @@ import { readingLines } from "@/lib/leitura";
 import { defaultOrientation, isSolo, maxShots, normalizeShots } from "@/lib/planos";
 import { context, line, tag } from "@/lib/prompts/base";
 import { castTag, shotsTask, termsTag, videoTag } from "@/lib/prompts/tarefas";
-import { scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
+import { scriptForPrompt, withSpeakers, type ScriptBlock } from "@/lib/roteiro";
 import { videoPlatforms } from "@/lib/ideas";
 import type { Video } from "@/types/database";
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const [{ data: video }, { data: blocks }, { data: people }, { data: profile }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
     supabase.from("script_blocks").select("*").eq("video_id", videoId).order("position"),
-    supabase.from("video_people").select("name, role, roles").eq("video_id", videoId).order("created_at"),
+    supabase.from("video_people").select("id, name, role, roles").eq("video_id", videoId).order("created_at"),
     supabase.from("creator_profiles").select("display_name").maybeSingle(),
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       await generateJson({
         ...shotsTask({ objective: v.objective }),
         prompt: context([
-          tag("roteiro", scriptForPrompt(script)),
+          tag("roteiro", scriptForPrompt(withSpeakers(script, people ?? [], isSolo(v.resources ?? [])))),
           tag("limite", `No máximo ${maxShots(v.duration_s)} planos no total.`),
           castTag(profile?.display_name, people ?? []),
           videoTag({ objective: v.objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: v.resources ?? [] }),
