@@ -70,6 +70,7 @@ Critérios para julgar cada ideia:
 Chamada final é opcional. Se houver, cabe dentro da piada ou é uma linha curta ("marca quem faz isso"). Nunca coloque uma chamada depois da virada se ela matar a risada.`,
 
   vender: `OBJETIVO DESTE VÍDEO: VENDER
+Quem pede é, em geral, uma criadora ou um criador de conteúdo divulgando um produto próprio ou de uma marca. O vídeo mantém o jeito e o público dessa pessoa: precisa parecer conteúdo dela, não comercial de empresa.
 Sucesso é alguém querer comprar: chamar no direct, clicar no link, ir até a loja. Risada e alcance só importam se levarem a isso. Pense como um diretor de criativos de performance: o vídeo é um vendedor com poucos segundos.
 
 Como um criativo que vende funciona:
