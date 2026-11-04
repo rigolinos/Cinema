@@ -27,6 +27,7 @@ PRINCÍPIOS PARA QUALQUER VÍDEO
 - Gravável de verdade com o que a pessoa tem: celular, os lugares e as pessoas que ela citou.
 - Cabe na duração. A duração vem no pedido; nunca escreva mais do que cabe nela.
 - Ritmo. Cada frase empurra para a próxima. Corte tudo o que não muda nada.
+- Pessoas têm nome ou papel fácil de entender: o nome que vier em <pessoas>, "você" ou "sua mãe". Nunca códigos como A1, A2 ou Pessoa 1.
 - Fala de gente. Português do Brasil falado e atual, frases curtas, sem jargão de marketing. Sem emoji, a não ser que a tarefa diga outra coisa.
 
 O QUE UM PROFISSIONAL NÃO ENTREGA

@@ -7,7 +7,7 @@ import { memoryLines } from "@/lib/memoria";
 import { PASTE_MAX_CHARS, assembleBlocks, fallbackBlocks, scriptFacts, segmentScript, segmentsText } from "@/lib/organizar";
 import { context, tag, usesHumor } from "@/lib/prompts/base";
 import { draftRequest, storyRequest } from "@/lib/prompts/montagem";
-import { assembleTask, organizerTask, personTag, readingTask, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
+import { assembleTask, castTag, organizerTask, personTag, readingTask, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
 import { normalizeDraft, normalizeRewrite, normalizeStory, normalizeSuggestions, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
@@ -45,11 +45,12 @@ export async function POST(request: NextRequest) {
   if (mode === "bloco" && (!blockId || !ask)) return fail("Diga o que mudar nesta parte.", 400);
   if (mode === "organizar" && !pasted.trim()) return fail("Cole o seu roteiro para eu organizar.", 400);
 
-  const [{ data: video }, { data: profile }, { data: current }, { data: memory }] = await Promise.all([
+  const [{ data: video }, { data: profile }, { data: current }, { data: memory }, { data: people }] = await Promise.all([
     supabase.from("videos").select("*").eq("id", videoId).maybeSingle(),
-    supabase.from("creator_profiles").select("niche, product, product_edge").maybeSingle(),
+    supabase.from("creator_profiles").select("niche, product, product_edge, display_name").maybeSingle(),
     supabase.from("script_blocks").select("*").eq("video_id", videoId).order("position"),
     supabase.from("creator_memory").select("items").maybeSingle(),
+    supabase.from("video_people").select("name, role, roles").eq("video_id", videoId).order("created_at"),
   ]);
   if (!video) return fail("Vídeo não encontrado.", 404);
   const v = video as Video & { situation: string; payoff: string; brief: string };
@@ -66,7 +67,9 @@ export async function POST(request: NextRequest) {
   const objective = (v.objective ?? "crescer") as Objective;
   const memoryText = memoryLines(memory?.items);
   const humor = usesHumor({ objective, texts: [profile?.niche, v.brief, ask, ...memoryText] });
+  const cast = castTag(profile?.display_name, people ?? []);
   const shared = [
+    cast,
     videoTag({ objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: (v.resources ?? []) as Resource[] }),
     productTag(objective, { product: profile?.product, edge: profile?.product_edge }),
     personTag({ niche: profile?.niche, memory: memoryText }),
@@ -87,6 +90,7 @@ export async function POST(request: NextRequest) {
       formatSlug: v.format_slug,
     },
     person: { niche: profile?.niche ?? null, product: profile?.product, edge: profile?.product_edge, memory: memoryText },
+    cast,
   };
 
   if (mode === "historia") {

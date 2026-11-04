@@ -6,6 +6,7 @@ import { normalizeIdeas, videoPlatforms, type Objective, type Platform, type Res
 import { memoryLines } from "@/lib/memoria";
 import { completeItems } from "@/lib/stream-json";
 import { ideasRequest } from "@/lib/prompts/montagem";
+import { castTag } from "@/lib/prompts/tarefas";
 
 function fail(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -24,11 +25,12 @@ export async function POST(request: NextRequest) {
   const like = typeof body?.like === "string" ? body.like.trim().slice(0, 200) : ""; // título da ideia em "Mais assim"
   if (!videoId) return fail("Vídeo não informado.", 400);
 
-  const [{ data: video }, { data: profile }, { data: previous }, { data: memory }] = await Promise.all([
+  const [{ data: video }, { data: profile }, { data: previous }, { data: memory }, { data: people }] = await Promise.all([
     supabase.from("videos").select("id, objective, platform, platforms, duration_s, resources, brief").eq("id", videoId).maybeSingle(),
-    supabase.from("creator_profiles").select("niche, product, product_edge").maybeSingle(),
+    supabase.from("creator_profiles").select("niche, product, product_edge, display_name").maybeSingle(),
     supabase.from("video_ideas").select("title, round").eq("video_id", videoId).order("round", { ascending: false }),
     supabase.from("creator_memory").select("items").maybeSingle(),
+    supabase.from("video_people").select("name, role, roles").eq("video_id", videoId).order("created_at"),
   ]);
   const { data: radar } = await supabase.from("trend_radar").select("title, what").gte("week_start", radarSince()).limit(5);
 
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest) {
       brief: video.brief ?? "",
     },
     person: { niche: profile.niche, product: profile.product, edge: profile.product_edge, memory: memoryLines(memory?.items) },
+    cast: castTag(profile.display_name, people ?? []),
     ask,
     like,
     seen: (previous ?? []).slice(0, 15).map((p) => p.title),

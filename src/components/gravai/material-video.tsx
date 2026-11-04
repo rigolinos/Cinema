@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
 import { speechLines, splitAction } from "@/lib/convidado";
 import { ROLES, formatShootDate, sortRoles, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import type { Resource } from "@/lib/ideas";
 import type { Shot } from "@/lib/planos";
 import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
 import { byPlace, setOrder } from "@/lib/set";
@@ -26,7 +27,7 @@ function Part({ title, href, children }: { title: string; href: string; children
 }
 
 // A folha do vídeo: tudo o que a pessoa precisa no dia de gravar, na ordem em que ela consulta. Dá para gravar só com isto.
-export function VideoMaterial({ video, blocks, shots, people }: { video: { id: string; shoot_date?: string | null; shoot_place?: string | null }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[] }) {
+export function VideoMaterial({ video, blocks, shots, people }: { video: { id: string; resources?: Resource[]; shoot_date?: string | null; shoot_place?: string | null }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[] }) {
   const base = `/video/${video.id}`;
   const ordered = setOrder(shots);
   const script = new Map([...shots].sort((a, b) => blocks.findIndex((x) => x.id === a.block_id) - blocks.findIndex((x) => x.id === b.block_id) || a.position - b.position).map((s, i) => [s.id, i + 1]));
@@ -46,6 +47,8 @@ export function VideoMaterial({ video, blocks, shots, people }: { video: { id: s
     current: false,
   }));
   const guests = people.filter((p) => p.role !== "eu");
+  const resources = video.resources ?? [];
+  const alone = resources.includes("com_alguem") ? "Mais de uma pessoa, ainda sem nomes." : resources.includes("sozinho") ? "Só você." : "Ainda não definido.";
   const places = byPlace(ordered).filter((g) => g.place);
   const when = [formatShootDate(video.shoot_date ?? null), video.shoot_place].filter(Boolean).join(" · ");
 
@@ -88,7 +91,7 @@ export function VideoMaterial({ video, blocks, shots, people }: { video: { id: s
 
       <Part title="Pessoas" href={`${base}/pessoas`}>
         <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
-          {guests.length === 0 && <p className="py-3.5 text-[15px]">Só você.</p>}
+          {guests.length === 0 && <p className="py-3.5 text-[15px]">{alone}</p>}
           {guests.map((p) => (
             <div key={p.id} className="flex items-baseline justify-between gap-3 py-3.5">
               <span className="min-w-0 break-words text-[15px] font-semibold">{p.name}</span>

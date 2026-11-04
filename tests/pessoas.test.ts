@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONSENT_VERSION, consentText, firstNameOf, formatShootDate, inviteMessage, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
+import { CONSENT_VERSION, consentText, firstNameOf, formatShootDate, inviteMessage, parseNames, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
 
 describe("termo de uso de imagem", () => {
   it("nomeia quem pediu e o vídeo, e a versão bate com o que o banco aceita", () => {
@@ -14,6 +14,19 @@ describe("termo de uso de imagem", () => {
     expect(validConsentName("Bruno Souza")).toBe(true);
     expect(validConsentName("  Bruno  ")).toBe(false);
     expect(validConsentName("B S")).toBe(false);
+  });
+});
+
+describe("nomes de quem aparece", () => {
+  it("separa por vírgula e por 'e', sem repetir", () => {
+    expect(parseNames("Ana, João e Bia")).toEqual(["Ana", "João", "Bia"]);
+    expect(parseNames(" ana ,, Ana;  João  Silva ")).toEqual(["ana", "João Silva"]);
+    expect(parseNames("")).toEqual([]);
+  });
+
+  it("não separa nome que tem a letra e no meio nem duplica quem já está", () => {
+    expect(parseNames("Rafael, Helena")).toEqual(["Rafael", "Helena"]);
+    expect(parseNames("Ana, Bia", ["ANA"])).toEqual(["Bia"]);
   });
 });
 

@@ -24,6 +24,7 @@ interface VideoBase {
 export function ideasRequest(i: {
   video: VideoBase;
   person: Person;
+  cast?: string; // <pessoas>: quem aparece no vídeo
   ask?: string;
   like?: string; // título da ideia em "Mais assim"
   seen: string[];
@@ -34,6 +35,7 @@ export function ideasRequest(i: {
   const prompt = context([
     tag("pedido_agora", i.like ? `mais assim: "${i.like}"` : i.ask),
     tag("briefing", video.brief),
+    i.cast ?? "",
     videoTag(video),
     productTag(video.objective, { product: person.product, edge: person.edge }),
     personTag({ niche: person.niche, memory: person.memory }),
@@ -47,6 +49,7 @@ export function ideasRequest(i: {
 export function storyRequest(i: {
   video: VideoBase & { title: string; hook: string; situation: string; payoff: string; formatSlug: string | null };
   person: Person;
+  cast?: string;
   ask?: string;
 }): Task & { prompt: string } {
   const { video, person, ask } = i;
@@ -61,6 +64,7 @@ export function storyRequest(i: {
       format ? `Formato: "${format.name}". Estrutura: ${format.structure.join(" → ")}.` : null,
     ]),
     tag("briefing", video.brief),
+    i.cast ?? "",
     videoTag(video),
     productTag(video.objective, { product: person.product, edge: person.edge }),
     personTag({ niche: person.niche, memory: person.memory }),
@@ -71,6 +75,7 @@ export function storyRequest(i: {
 export function draftRequest(i: {
   video: VideoBase & { title: string; hook: string; situation: string; payoff: string; formatSlug: string | null };
   person: Person;
+  cast?: string;
 }): Task & { prompt: string } {
   const { video, person } = i;
   const format = findFormat(video.formatSlug);
@@ -85,6 +90,7 @@ export function draftRequest(i: {
     ]),
     tag("limite", `No máximo ${maxWords(video.durationS)} palavras de fala no roteiro todo.`),
     tag("briefing", video.brief),
+    i.cast ?? "",
     videoTag(video),
     productTag(video.objective, { product: person.product, edge: person.edge }),
     personTag({ niche: person.niche, memory: person.memory }),

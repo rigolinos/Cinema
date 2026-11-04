@@ -374,7 +374,20 @@ export function videoTag(v: VideoFacts): string {
     line("Objetivo", v.objective),
     line("Plataformas", platformsLabel(v.platforms)),
     line("Duração", v.durationS ? durationLabel(v.durationS) : null),
-    line("Recursos", v.resources.map((r) => RESOURCES[r].toLowerCase()).join(", ")),
+    line("Recursos", v.resources.map((r) => (r === "com_alguem" ? "mais de uma pessoa" : RESOURCES[r].toLowerCase())).join(", ")),
+    v.resources.length > 0 && !v.resources.some((r) => r === "sozinho" || r === "com_alguem") ? "Quantas pessoas aparecem: ainda não sabe. Prefira o que funciona com uma pessoa só." : null,
+  ]);
+}
+
+// Quem aparece no vídeo. Sem isto, a IA inventa "A1" e "amiga" mesmo com os nomes já cadastrados.
+export function castTag(creator: string | null | undefined, people: { name: string; role: string; roles?: string[] | null }[]): string {
+  const me = people.find((p) => p.role === "eu")?.name.trim() || creator?.trim() || "";
+  const guests = people.filter((p) => p.role !== "eu" && (p.role === "ator" || p.roles?.includes("ator"))).map((p) => p.name.trim()).filter(Boolean);
+  if (!me && guests.length === 0) return "";
+  return tag("pessoas", [
+    line("Quem faz o vídeo e aparece", me),
+    line("Também aparecem", guests.join(", ")),
+    "Use estes nomes nas falas e nas ações. Sem nome para alguém da cena, use um papel fácil de entender.",
   ]);
 }
 
