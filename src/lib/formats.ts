@@ -36,7 +36,7 @@ export const FORMATS: VideoFormat[] = [
   {
     slug: "pov",
     name: "POV",
-    summary: "A pessoa fala ou age olhando para a câmera, como se quem assiste estivesse na cena.",
+    summary: "A câmera é os olhos de outra pessoa: quem aparece olha e reage para ela, e quem está atrás dela pode ter falas sem aparecer.",
     structure: ["Texto na tela com a situação", "A reação ou a cena", "A virada", "Final rápido"],
     hookExample: "POV: é seu primeiro dia e ninguém te explicou nada.",
     why: "A pessoa se reconhece na situação e quer mandar para alguém.",

@@ -36,7 +36,7 @@ const list = (item: object) => ({ type: "ARRAY", items: item });
 const formatSlug = { type: "STRING", enum: FORMAT_VALUES, nullable: true };
 
 // POV é mal usado de propósito nas redes: a IA precisa conhecer os dois sentidos e não escrever POV em tudo.
-const POV_RULE = `- POV é só um dos formatos: a pessoa fala ou age olhando para a câmera, como se quem assiste estivesse na cena. Nas redes, muita gente escreve "POV:" só como legenda de uma situação; isso é linguagem da internet, não o formato. Não coloque "POV" no título nem no gancho por padrão, e no máximo 1 ideia em cada 5 usa esse formato. Varie: plano e contraplano, plano-sequência, esquete com cortes, narração sobre a cena.`;
+const POV_RULE = `- POV é só um dos formatos: é o ponto de vista de quem está atrás da câmera, como se ela fosse os olhos de outra pessoa. Quem aparece olha e reage para a câmera, e quem está atrás dela pode ter falas sem aparecer. Não é necessariamente quem assiste. Nas redes, muita gente escreve "POV:" só como legenda de uma situação; isso é linguagem da internet, não o formato. Não coloque "POV" no título nem no gancho por padrão, e no máximo 1 ideia em cada 5 usa esse formato. Varie: plano e contraplano, plano-sequência, esquete com cortes, narração sobre a cena.`;
 
 // ── Ideias do zero, outras ideias, mais assim ───────────────────────────
 const IDEAS_TEXT = `TAREFA: sugerir 5 ideias de vídeo para esta pessoa, prontas para virar roteiro.
