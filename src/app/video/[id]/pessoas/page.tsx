@@ -231,9 +231,9 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
               </h2>
               {people.map((p) => (
                 <article key={p.id} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="text-lg font-bold">{p.role === "eu" ? `${p.name} (você)` : p.name}</h3>
-                    <span className="label-set shrink-0 text-right text-muted-foreground">{p.role === "eu" ? ROLES.eu.label : sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <h3 className="min-w-0 break-words text-lg font-bold">{p.role === "eu" ? `${p.name} (você)` : p.name}</h3>
+                    <span className="label-set text-muted-foreground">{p.role === "eu" ? ROLES.eu.label : sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
                   </div>
 
                   {p.role !== "eu" && (

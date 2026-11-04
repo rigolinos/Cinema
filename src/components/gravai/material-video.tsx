@@ -104,9 +104,9 @@ export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { 
         <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
           {guests.length === 0 && <p className="py-3.5 text-[15px]">{alone}</p>}
           {guests.map((p) => (
-            <div key={p.id} className="flex items-baseline justify-between gap-3 py-3.5">
+            <div key={p.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-3.5">
               <span className="min-w-0 break-words text-[15px] font-semibold">{p.name}</span>
-              <span className="label-set shrink-0 text-right text-muted-foreground">{sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
+              <span className="label-set text-muted-foreground">{sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
             </div>
           ))}
         </div>
