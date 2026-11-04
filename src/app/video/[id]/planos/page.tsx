@@ -30,7 +30,7 @@ import {
   type Shot,
   type Term,
 } from "@/lib/planos";
-import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
+import { type ScriptBlock } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -305,7 +305,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
                 <section key={b.id} className="flex flex-col gap-3" aria-label={`Parte ${i + 1}`}>
                   <div className="flex flex-col gap-1">
                     <h2 className="label-set">
-                      Parte {String(i + 1).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
+                      Parte {i + 1}
                     </h2>
                     {b.speech && <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">“{b.speech}”</p>}
                   </div>

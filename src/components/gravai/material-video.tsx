@@ -4,10 +4,10 @@ import { speechLines, splitAction } from "@/lib/convidado";
 import { ROLES, formatShootDate, sortRoles, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import type { Resource } from "@/lib/ideas";
 import type { Shot } from "@/lib/planos";
-import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
+import { speakerOf, type ScriptBlock } from "@/lib/roteiro";
 import { byPlace, setOrder } from "@/lib/set";
 
-export type SheetBlock = ScriptBlock & { id: string; position: number; updated_at?: string };
+export type SheetBlock = ScriptBlock & { id: string; position: number; updated_at?: string; person_id?: string | null };
 export type SheetShot = Shot & { id: string; created_at?: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
 export type SheetPerson = { id: string; name: string; role: PersonRole; roles: GuestRole[]; confirmed_at: string | null };
 
@@ -27,7 +27,7 @@ function Part({ title, href, children }: { title: string; href: string; children
 }
 
 // A folha do vídeo: tudo o que a pessoa precisa no dia de gravar, na ordem em que ela consulta. Dá para gravar só com isto.
-export function VideoMaterial({ video, blocks, shots, people }: { video: { id: string; resources?: Resource[]; shoot_date?: string | null; shoot_place?: string | null }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[] }) {
+export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { video: { id: string; resources?: Resource[]; shoot_date?: string | null; shoot_place?: string | null }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[]; onToggleShot: (id: string) => void }) {
   const base = `/video/${video.id}`;
   const ordered = setOrder(shots);
   const script = new Map([...shots].sort((a, b) => blocks.findIndex((x) => x.id === a.block_id) - blocks.findIndex((x) => x.id === b.block_id) || a.position - b.position).map((s, i) => [s.id, i + 1]));
@@ -58,20 +58,21 @@ export function VideoMaterial({ video, blocks, shots, people }: { video: { id: s
         <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
           {blocks.map((b, i) => {
             const action = splitAction(b.action).text;
+            const speaker = speakerOf(b, people, resources.includes("sozinho") && !resources.includes("com_alguem"));
             return (
               <article key={b.id} className="flex flex-col gap-1.5 py-3.5">
-                <h3 className="label-set text-muted-foreground">
-                  {String(i + 1).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
-                </h3>
+                <h3 className="label-set text-muted-foreground">Parte {i + 1}</h3>
                 {action && <p className="text-sm italic leading-snug text-muted-foreground">{action}</p>}
                 {speechLines(b.speech).map((l, n) => (
                   <p key={n} className="text-[17px] font-semibold leading-snug">
+                    {/* Quem fala fica claro: o nome já escrito na fala ou, se não houver, o da parte. */}
+                    {!l.speaker && speaker && <span className="font-normal text-muted-foreground">{speaker}: </span>}
                     {l.raw}
                   </p>
                 ))}
                 {b.on_screen && (
                   <p className="text-sm text-muted-foreground">
-                    <span className="label-set mr-2">Tela</span>
+                    <span className="label-set mr-2">Escrito na tela</span>
                     {b.on_screen}
                   </p>
                 )}
@@ -84,7 +85,7 @@ export function VideoMaterial({ video, blocks, shots, people }: { video: { id: s
       {rows.length > 0 && (
         <Part title="Planos · na ordem de gravar" href={`${base}/planos`}>
           <div className="rounded-2xl bg-card p-2">
-            <PlanList rows={rows} wrap />
+            <PlanList rows={rows} wrap onToggle={onToggleShot} />
           </div>
         </Part>
       )}

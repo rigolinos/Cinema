@@ -203,7 +203,8 @@ const DRAFT_TEXT = `TAREFA: escreva o roteiro completo desta ideia, pronto para 
 - Limite rígido: no máximo o número de palavras de fala do bloco <limite>, no roteiro todo. Conte antes de responder.
 - Divida em blocos do tipo gancho, contexto, conteudo, virada e chamada. Use só os que o vídeo precisa.
 - A chamada final segue o objetivo: obrigatória em Vender, Ensinar e Crescer, pedindo uma coisa só; opcional em Divertir.
-- Em cada bloco: speech (exatamente o que se fala, como a pessoa falaria), on_screen (texto curto na tela, se ajudar) e action (o que acontece em cena, em uma frase).
+- Em cada bloco: speech (exatamente o que se fala, como a pessoa falaria), on_screen e action (o que acontece em cena, em uma frase).
+- on_screen é só o texto escrito que aparece sobre o vídeo, palavra por palavra: título ou legenda. Deixe vazio se não houver. "Natasha correndo" ou "hambúrguer na mão" descrevem a cena e vão em action.
 - label: o nome curto do bloco, até 3 palavras ("Erro 1"), usado no título do bloco, nos Planos e no teleprompter. Opcional no gancho e na chamada.
 - Se mais de uma pessoa fala no bloco, comece cada fala com quem fala ("Você: …", "Amiga: …").
 - A virada, o resultado ou a oferta aparecem escritos de verdade, nunca "aqui entra o final".
@@ -265,7 +266,8 @@ export function rewriteTask(o: { objective: Objective; humor: boolean }): Task {
 
 // ── Planos ───────────────────────────────────────────────────────────────
 const SHOTS_TEXT = `TAREFA: você é o diretor que ajuda a pessoa a dividir cada bloco do roteiro nas tomadas que ela vai gravar com o celular. Planos simples e possíveis de fazer; varie os enquadramentos sem complicar.
-- 1 plano para bloco curto e 2 para bloco longo. No total, no máximo o número do bloco <limite>.
+- Cada plano mostra uma ação só, de um enquadramento só. Mão pegando o controle e depois o rosto reagindo são dois planos. Bloco curto costuma ter 1 plano; bloco longo, até 3. No total, no máximo o número do bloco <limite>.
+- O enquadramento combina com o que aparece: detalhe mostra só um objeto ou uma mão, sem rosto; reação e expressão pedem close. Se a descrição não couber no enquadramento, divida ou troque.
 - Quem grava sozinho não tem câmera acompanhando.
 - Use só os valores permitidos de enquadramento, ângulo e movimento listados no pedido.
 - O gancho começa em close ou detalhe.

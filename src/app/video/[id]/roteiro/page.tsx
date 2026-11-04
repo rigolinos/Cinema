@@ -150,7 +150,7 @@ function BlockCard({
     <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Parte ${index + 1}: ${block.label || kind.label}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="label-set">
-          Parte {String(index + 1).padStart(2, "0")} · {block.label || kind.label}
+          Parte {index + 1}
         </h2>
         <span className="flex items-center gap-1">
           <span className="font-mono text-sm text-muted-foreground">
@@ -168,6 +168,17 @@ function BlockCard({
       </Explain>
 
       <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-semibold">O que acontece</span>
+        <GrowingText
+          value={draft.action}
+          onChange={(e) => setDraft((d) => ({ ...d, action: e.target.value }))}
+          onBlur={() => save("action")}
+          maxLength={500}
+          placeholder="O que acontece (opcional)"
+          className="min-h-12"
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">Fala{speaker ? ` · ${speaker}` : ""}</span>
         <GrowingText
           value={draft.speech}
@@ -180,24 +191,13 @@ function BlockCard({
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">Na tela</span>
+        <span className="text-sm font-semibold">Texto escrito na tela</span>
         <GrowingText
           value={draft.on_screen}
           onChange={(e) => setDraft((d) => ({ ...d, on_screen: e.target.value }))}
           onBlur={() => save("on_screen")}
           maxLength={300}
-          placeholder="Texto que aparece escrito (opcional)"
-          className="min-h-12"
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">O que acontece</span>
-        <GrowingText
-          value={draft.action}
-          onChange={(e) => setDraft((d) => ({ ...d, action: e.target.value }))}
-          onBlur={() => save("action")}
-          maxLength={500}
-          placeholder="O que acontece (opcional)"
+          placeholder={index === 0 ? "Título ou legenda que aparece escrito no vídeo (opcional)" : "Legenda que aparece escrita no vídeo (opcional)"}
           className="min-h-12"
         />
       </label>
@@ -209,12 +209,12 @@ function BlockCard({
             Sugestão do Gravaí
           </span>
           {suggestion.speech && <p className="text-[15px] font-medium leading-relaxed">{suggestion.speech}</p>}
-          {suggestion.on_screen && <p className="text-sm text-muted-foreground">Na tela: {suggestion.on_screen}</p>}
+          {suggestion.on_screen && <p className="text-sm text-muted-foreground">Escrito na tela: {suggestion.on_screen}</p>}
           {suggestion.action && <p className="text-sm text-muted-foreground">O que acontece: {suggestion.action}</p>}
           <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>
           <ReportAi
             area="roteiro"
-            content={[suggestion.speech, suggestion.on_screen && `Na tela: ${suggestion.on_screen}`, suggestion.action && `O que acontece: ${suggestion.action}`].filter(Boolean).join("\n")}
+            content={[suggestion.speech, suggestion.on_screen && `Escrito na tela: ${suggestion.on_screen}`, suggestion.action && `O que acontece: ${suggestion.action}`].filter(Boolean).join("\n")}
             label="Denunciar esta sugestão"
             className="-my-1.5"
           />
@@ -746,7 +746,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       {removed && (
         <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full bg-foreground py-1.5 pl-5 pr-1.5 text-sm font-semibold text-background">
           <span>
-            Parte {String(removed.index + 1).padStart(2, "0")} excluída
+            Parte {removed.index + 1} excluída
             {shotCount[removed.block.id] ? ` com ${shotCount[removed.block.id] === 1 ? "1 plano" : `${shotCount[removed.block.id]} planos`}` : ""}
           </span>
           <button type="button" onClick={undoRemoval} className="min-h-11 rounded-full px-4 underline">
