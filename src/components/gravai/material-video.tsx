@@ -3,7 +3,7 @@ import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
 import { isMe, speechLines, splitAction } from "@/lib/convidado";
 import { ROLES, firstNameOf, formatShootDate, sortRoles, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import type { Resource } from "@/lib/ideas";
-import type { Shot } from "@/lib/planos";
+import { shotPeople, type Shot } from "@/lib/planos";
 import { speakerOf, type ScriptBlock } from "@/lib/roteiro";
 import { byPlace, setOrder } from "@/lib/set";
 
@@ -51,6 +51,7 @@ export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { 
     takes: s.takes,
     skipped: false,
     current: false,
+    people: shotPeople(s, people),
   }));
   const guests = people.filter((p) => p.role !== "eu");
   const resources = video.resources ?? [];

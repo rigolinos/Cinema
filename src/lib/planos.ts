@@ -1,5 +1,7 @@
 import { BLOCK_KINDS, type ScriptBlock } from "./roteiro";
 import { PLATFORMS, RESOURCES, type Platform, type Resource } from "./ideas";
+import { isMe } from "./convidado";
+import { firstNameOf } from "./pessoas";
 
 // Vocabulário da decupagem: cada termo com o que é e por que usar. Serve à tela, ao Aprenda e à IA.
 export interface Term {
@@ -61,6 +63,42 @@ export interface Shot {
   wardrobe: string;
   why: string;
   recorded?: boolean;
+  person_ids?: string[]; // quem aparece neste plano
+}
+
+type CastPerson = { id: string; name: string; role: string; roles?: string[] | null };
+
+// Quem pode estar num plano, com o nome curto: quem criou o vídeo primeiro e quem aparece no vídeo.
+// Quem só filma ou ajuda no set fica de fora. Dois com o mesmo primeiro nome vão com o nome inteiro.
+export function castOf(people: CastPerson[]): { id: string; label: string }[] {
+  const cast = people.filter((p) => p.role === "eu" || p.role === "ator" || p.roles?.includes("ator"));
+  const ordered = [...cast.filter((p) => p.role === "eu"), ...cast.filter((p) => p.role !== "eu")];
+  const short = (p: CastPerson) => (p.name.trim() && p.name.trim() !== "Eu" ? firstNameOf(p.name) : "Você");
+  return ordered.map((p) => ({
+    id: p.id,
+    label: ordered.filter((o) => short(o) === short(p)).length > 1 ? p.name.trim() : short(p),
+  }));
+}
+
+// Os nomes de quem está no plano. Vídeo com uma pessoa só não precisa dizer quem é.
+export function shotPeople(shot: Pick<Shot, "person_ids">, people: CastPerson[]): string[] {
+  const cast = castOf(people);
+  if (cast.length < 2) return [];
+  const ids = shot.person_ids ?? [];
+  return cast.filter((c) => ids.includes(c.id)).map((c) => c.label);
+}
+
+// Os nomes que a IA trouxe viram as pessoas do vídeo; nome que não é de ninguém do vídeo é ignorado.
+function castIds(value: unknown, people: CastPerson[]): string[] {
+  const cast = castOf(people);
+  if (cast.length < 2 || !Array.isArray(value)) return [];
+  const names = value.filter((n): n is string => typeof n === "string" && n.trim().length > 0);
+  return cast
+    .filter(({ id }) => {
+      const person = people.find((p) => p.id === id)!;
+      return names.some((n) => isMe(n, person.name) || (person.role === "eu" && /^(eu|voc[eê])$/i.test(n.trim())));
+    })
+    .map((c) => c.id);
 }
 
 // O que mudou por último no roteiro.
@@ -208,7 +246,7 @@ export function normalizeWardrobe<T extends { wardrobe: string }>(shots: T[]): T
 export function normalizeShots(
   raw: unknown,
   blockIds: string[],
-  opts: { orientation: Orientation; max: number; solo: boolean },
+  opts: { orientation: Orientation; max: number; solo: boolean; people?: CastPerson[] },
 ): Omit<Shot, "position">[] {
   const items = (raw as { shots?: unknown })?.shots;
   if (!Array.isArray(items)) return [];
@@ -228,6 +266,7 @@ export function normalizeShots(
       location: clip(s.location, 80),
       wardrobe: clip(s.wardrobe, 80),
       why: clip(s.why, 300),
+      person_ids: castIds(s.people, opts.people ?? []),
     });
   }
   // A ordem do roteiro manda: planos agrupados pelo bloco, na ordem dos blocos.

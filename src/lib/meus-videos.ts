@@ -1,6 +1,6 @@
 import { findFormat } from "./formats";
 import { PLATFORMS, durationLabel, platformsLabel, videoPlatforms, type Platform } from "./ideas";
-import { ANGLES, FRAMINGS, MOVEMENTS, shootingOrder, type Shot } from "./planos";
+import { ANGLES, FRAMINGS, MOVEMENTS, shootingOrder, shotPeople, type Shot } from "./planos";
 import { scriptAsText, type ScriptBlock } from "./roteiro";
 import type { Video } from "@/types/database";
 
@@ -22,11 +22,12 @@ export function videoTab(v: Pick<Video, "stage"> & { archived_at?: string | null
 export function exportPackage(input: {
   video: Pick<Video, "title" | "hook" | "format_slug" | "platform" | "duration_s"> & { platforms?: Platform[] };
   blocks: ScriptBlock[];
-  shots: (Pick<Shot, "block_id" | "position" | "shoot_order" | "framing" | "angle" | "movement" | "orientation" | "description" | "location" | "wardrobe" | "why"> & { id?: string })[];
+  shots: (Pick<Shot, "block_id" | "position" | "shoot_order" | "framing" | "angle" | "movement" | "orientation" | "description" | "location" | "wardrobe" | "why" | "person_ids"> & { id?: string })[];
   blockIds: string[];
+  people?: { id: string; name: string; role: string; roles?: string[] | null }[];
   posts?: { platform?: Platform; title: string; caption: string; hashtags: string[]; cover_text: string; cover_idea: string }[];
 }): string {
-  const { video, blocks, shots, blockIds, posts = [] } = input;
+  const { video, blocks, shots, blockIds, people = [], posts = [] } = input;
   const title = video.title || "Vídeo";
   const format = findFormat(video.format_slug);
   const info = [format?.name, platformsLabel(videoPlatforms(video)) || null, video.duration_s ? durationLabel(video.duration_s) : null].filter(Boolean).join(" · ");
@@ -53,6 +54,8 @@ export function exportPackage(input: {
       }
       const tech = [FRAMINGS[s.framing].label, ANGLES[s.angle].label, MOVEMENTS[s.movement].label, s.orientation === "horizontal" ? "Horizontal" : "Vertical"].join(" · ");
       lines.push(`PLANO ${String(number.get(s)).padStart(2, "0")} · ${tech}`, `  ${s.description || FRAMINGS[s.framing].label}`);
+      const names = shotPeople(s, people);
+      if (names.length) lines.push(`  Quem está: ${names.join(", ")}`);
       if (s.why) lines.push(`  Por quê: ${s.why}`);
     }
     parts.push(lines.join("\n"));

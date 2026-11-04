@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         ]),
       }),
       script.map((b) => b.id),
-      { orientation: defaultOrientation(v.platform), max: maxShots(v.duration_s), solo: isSolo(v.resources ?? []) },
+      { orientation: defaultOrientation(v.platform), max: maxShots(v.duration_s), solo: isSolo(v.resources ?? []), people: people ?? [] },
     );
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {

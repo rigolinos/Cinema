@@ -56,6 +56,17 @@ describe("pacote do vídeo", () => {
     expect(text).toContain("LEGENDA:\nLegenda boa.\n#treino\n\nCAPA: “3 erros” (Plano 1)");
   });
 
+  it("diz quem está em cada plano", () => {
+    const text = exportPackage({
+      video: { title: "x", hook: null, format_slug: null, platform: "reels", duration_s: 30 } as never,
+      blocks,
+      blockIds: ["b1", "b2"],
+      shots: [{ ...shot("b1", 0, "Sala", 0, "Rosto"), person_ids: ["p1"] }],
+      people: [{ id: "p0", name: "Ana", role: "eu" }, { id: "p1", name: "Bia Costa", role: "ator", roles: ["ator"] }],
+    });
+    expect(text).toContain("Rosto\n  Quem está: Bia");
+  });
+
   it("várias plataformas: uma publicação para cada uma e a capa uma vez só", () => {
     const text = exportPackage({
       video: { title: "x", hook: null, format_slug: null, platform: "reels", platforms: ["reels", "tiktok"], duration_s: 30 },

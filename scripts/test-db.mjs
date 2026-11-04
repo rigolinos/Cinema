@@ -295,6 +295,36 @@ ok(r.rows?.[0]?.p === null, 'o código do "eu" não abre nada');
 r = await as('anon', null, 'SELECT public.shared_part(gen_random_uuid()) AS p');
 ok(r.rows?.[0]?.p === null, 'código inventado não abre nada');
 
+console.log('Quem está no plano:');
+const planosAgora = (await q('SELECT id FROM public.shots WHERE video_id = $1 ORDER BY position', [vidA])).rows.map((x) => x.id);
+const gil = (await pessoa(A, 'Gil Souza', 'ator')).rows[0];
+r = await as('authenticated', A, 'UPDATE public.shots SET person_ids = $1 WHERE id = $2 RETURNING person_ids', [[gil.id, eu.id], planosAgora[0]]);
+ok(r.rows?.[0]?.person_ids?.length === 2, 'dono marca quem está no plano' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', B, 'UPDATE public.shots SET person_ids = $1 WHERE id = $2 RETURNING id', [[gil.id], planosAgora[1]]);
+ok(!r.err && r.rows.length === 0, 'ninguém marca gente no plano de outra pessoa');
+r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [gil.share_token]);
+const parteGil = r.rows?.[0]?.p;
+ok(parteGil?.shots?.filter((s) => s.mine).length === 1 && parteGil.blocks.length === 0, 'o plano marcado diz que a pessoa aparece, mesmo sem fala' + (r.err ? ': ' + r.err : ''));
+ok(parteGil?.shots?.find((s) => s.mine)?.people?.join() === 'Ana,Gil', 'o link mostra só o primeiro nome de quem está no plano');
+ok(!JSON.stringify(parteGil).includes(gil.id) && !JSON.stringify(parteGil).includes(eu.id), 'o link não expõe ids das pessoas');
+const falaAntes = (await one('SELECT speech FROM public.script_blocks WHERE id = $1', [blocosA[0]])).speech;
+await as('authenticated', A, `UPDATE public.script_blocks SET speech = 'Bruno: agora eu' WHERE id = $1`, [blocosA[0]]);
+r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [ator.share_token]);
+const noPrimeiro = r.rows?.[0]?.p?.shots?.find((s) => s.block === 1);
+ok(noPrimeiro?.mine === false, 'com gente marcada, quem só fala na cena não aparece nesse plano');
+ok(r.rows?.[0]?.p?.shots?.find((s) => s.block === 3)?.mine === true, 'plano sem ninguém marcado continua seguindo quem fala na cena');
+await as('authenticated', A, 'UPDATE public.script_blocks SET speech = $1 WHERE id = $2', [falaAntes, blocosA[0]]);
+r = await as('authenticated', A, 'DELETE FROM public.video_people WHERE id = $1 RETURNING id', [gil.id]);
+ok(r.rows?.length === 1 && (await one('SELECT person_ids FROM public.shots WHERE id = $1', [planosAgora[0]]))?.person_ids?.join() === eu.id, 'quem sai do vídeo sai dos planos' + (r.err ? ': ' + r.err : ''));
+await as('authenticated', A, 'UPDATE public.shots SET person_ids = $1 WHERE id = $2', [[], planosAgora[0]]);
+const salvos = (await q('SELECT block_id, framing, angle, movement, orientation, description, location, wardrobe, why, recorded, good_take, takes, shoot_order FROM public.shots WHERE video_id = $1 ORDER BY position', [vidA])).rows;
+r = await as('authenticated', A, 'SELECT person_ids FROM public.replace_shots($1, $2::jsonb) ORDER BY position', [vidA, JSON.stringify([plano(blocosA[0], { person_ids: [eu.id, pessoaB.id] }), plano(blocosA[1])])]);
+ok(r.rows?.[0]?.person_ids?.join() === eu.id && r.rows?.[1]?.person_ids?.length === 0, 'a decupagem guarda só gente deste vídeo' + (r.err ? ': ' + r.err : ''));
+await q('DELETE FROM public.shots WHERE video_id = $1', [vidA]);
+for (const [i, s] of salvos.entries()) {
+  await q('INSERT INTO public.shots (id, video_id, block_id, position, framing, angle, movement, orientation, description, location, wardrobe, why, recorded, good_take, takes, shoot_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)', [planosAgora[i], vidA, s.block_id, i, s.framing, s.angle, s.movement, s.orientation, s.description, s.location, s.wardrobe, s.why, s.recorded, s.good_take, s.takes, s.shoot_order]);
+}
+
 r = await as('anon', null, 'SELECT public.confirm_presence($1) AS ok', [ator.share_token]);
 ok(r.rows?.[0]?.ok === true, 'a pessoa confirma presença pelo link');
 r = await as('authenticated', A, `UPDATE public.video_people SET confirmed_at = now() WHERE id = $1`, [filma.id]);

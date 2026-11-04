@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, List, RefreshCw } from "lucide-react";
 import { FramingIcon } from "@/components/gravai/framing-icon";
 import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
 import type { CueLine } from "@/lib/convidado";
+import { firstNameOf } from "@/lib/pessoas";
 import { FRAMINGS, shotTags, type Angle, type Framing, type Movement, type Orientation } from "@/lib/planos";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export interface GuestShot {
   good: boolean;
   takes: number;
   mine: boolean;
+  people?: string[]; // primeiro nome de quem está no plano
 }
 
 const HOUR = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -76,6 +78,7 @@ export function Acompanhar({
     skipped: false,
     current: false,
     tag: s.mine ? "Você aparece" : undefined,
+    people: s.people?.map(firstNameOf),
   }));
 
   if (shots.length === 0) return <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground">Os planos ainda não foram montados. Quando forem, a gravação aparece aqui.</p>;
@@ -122,6 +125,7 @@ export function Acompanhar({
               </p>
               <p className="label-set">{shotTags(shot).join(" · ")}</p>
               {(shot.location || shot.wardrobe) && <p className="label-set text-muted-foreground">{[shot.location, shot.wardrobe].filter(Boolean).join(" · ")}</p>}
+              {(shot.people?.length ?? 0) > 0 && <p className="label-set text-muted-foreground">{shot.people!.map(firstNameOf).join(" · ")}</p>}
               {(films || shot.mine) && (
                 <p className="label-set text-rec">{[shot.mine && "Você aparece", films && "Você filma"].filter(Boolean).join(" · ")}</p>
               )}
