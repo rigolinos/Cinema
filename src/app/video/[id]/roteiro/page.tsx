@@ -14,7 +14,6 @@ import { Folha } from "@/components/gravai/folha";
 import { isSolo, shootingOrder, type Shot } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
-import { findFormat } from "@/lib/formats";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
 import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, timeline, totalSeconds, type ScriptBlock, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
@@ -304,6 +303,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [fresh, setFresh] = useState<string | null>(null);
   const [story, setStory] = useState<Story>({ hook: "", situation: "", payoff: "" });
   const [storyOpen, setStoryOpen] = useState(false);
+  const [written, setWritten] = useState(""); // o texto de quem trouxe a própria ideia
   const developing = useRef(false);
 
   useEffect(() => {
@@ -317,6 +317,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       setVideo((v.data as Video | null) ?? null);
       const loaded = v.data as (Video & { situation?: string; payoff?: string }) | null;
       setStory({ hook: loaded?.hook ?? "", situation: loaded?.situation ?? "", payoff: loaded?.payoff ?? "" });
+      setWritten(loaded?.brief ?? "");
       setBlocks((b.data ?? []) as Block[]);
       setPeople((p.data ?? []) as Person[]);
       const counts: Record<string, number> = {};
@@ -328,7 +329,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       router.replace(`/video/${id}/roteiro`);
       if (!loaded?.hook || (b.data ?? []).length > 0) return;
       setBusy("historia");
-      callApi({ videoId: id, mode: "historia" })
+      callApi({ videoId: id, mode: "historia", title: loaded.start_door === "ideia" })
         .then((data) => {
           setStory(data.story as Story);
           setVideo((current) => (current ? { ...current, ...(data.story as Story) } : current));
@@ -413,13 +414,19 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   }
 
   // Refaz a história com a IA. Com pedido, muda só o que foi pedido; sem pedido, conta de novo a partir da ideia.
-  async function developStory(request?: string) {
-    if (!request && !(await confirm({ title: "Contar a história de novo?", text: "A história nova substitui esta, inclusive o que você mudou.", action: "Contar de novo" }))) return;
-    if (!(await saveStory())) return;
+  async function developStory(request?: string, fromWritten = false) {
+    if (!request && !fromWritten && !(await confirm({ title: "Contar a história de novo?", text: "A história nova substitui esta, inclusive o que você mudou.", action: "Contar de novo" }))) return;
+    if (fromWritten) {
+      const { error } = await createClient().from("videos").update({ brief: written.trim().slice(0, 4000) }).eq("id", id);
+      if (error) {
+        setError("Não deu para salvar o que você escreveu. Confira a conexão.");
+        return;
+      }
+    } else if (!(await saveStory())) return;
     setBusy("historia");
     setError(null);
     try {
-      const data = await callApi({ videoId: id, mode: "historia", request });
+      const data = await callApi({ videoId: id, mode: "historia", request, title: fromWritten });
       setStory(data.story as Story);
       setVideo((v) => (v ? { ...v, ...(data.story as Story) } : v));
     } catch (err) {
@@ -548,7 +555,6 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
   const times = timeline(blocks);
   const alerts = video ? checkScript(blocks, video.duration_s, video.objective).filter((c) => c.level !== "ok") : [];
-  const format = findFormat(video?.format_slug);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -573,7 +579,6 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             <div className="flex flex-col gap-1.5">
               <h2 className="font-display text-[26px]">{video.title}</h2>
               <p className="font-mono text-sm text-muted-foreground">
-                {format ? `${format.name} · ` : ""}
                 {blocks.length > 0 ? `${durationLabel(totalSeconds(blocks))} de ` : ""}
                 {video.duration_s ? durationLabel(video.duration_s) : ""}
               </p>
@@ -592,6 +597,17 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                   <Thinking label="Contando a história" steps={STEPS.historia} />
                 ) : (
                   <>
+                    {video.start_door === "ideia" && (
+                      <div className="flex flex-col gap-2 rounded-xl bg-muted p-3.5">
+                        <label className="flex flex-col gap-1.5">
+                          <span className="text-sm font-semibold">O que você escreveu</span>
+                          <GrowingText value={written} maxLength={1500} onChange={(e) => setWritten(e.target.value)} />
+                        </label>
+                        <button type="button" onClick={() => developStory(undefined, true)} disabled={busy !== null || written.trim().length < 8} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">
+                          Contar de novo com isso
+                        </button>
+                      </div>
+                    )}
                     <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
                     <StoryAsk busy={busy !== null} onAsk={developStory} />
                     <button

@@ -114,7 +114,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
           {!hasScript && video.hook && (
             <section className="flex flex-col gap-2.5 rounded-2xl bg-card p-4" aria-labelledby="ideia">
               <h2 id="ideia" className="label-set text-muted-foreground">
-                Ideia{format ? ` · ${format.name}` : ""}
+                Ideia
               </h2>
               <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
                 <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>

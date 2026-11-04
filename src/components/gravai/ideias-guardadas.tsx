@@ -6,7 +6,6 @@ import { SaveButton, useSavedIdeas, type SavedIdea } from "@/components/gravai/g
 import { OpenVideoLink, UseIdeaButton } from "@/components/gravai/idea-action";
 import { StartSheet } from "@/components/gravai/ideias-quinzena";
 import { createClient } from "@/lib/supabase/client";
-import { findFormat } from "@/lib/formats";
 import type { QuickStart } from "@/lib/quinzena";
 
 async function startFromSaved(idea: SavedIdea, answers: QuickStart): Promise<string | null> {
@@ -47,22 +46,20 @@ export function IdeiasGuardadas() {
   return (
     <section aria-label="Ideias guardadas" className="flex flex-col gap-2.5">
       {saved.map((idea) => {
-        const format = findFormat(idea.format_slug);
-        const detail = [idea.situation, idea.payoff && `Desfecho: ${idea.payoff}`, idea.why].filter(Boolean).join(" ");
+        const detail = [idea.payoff && `Como termina: ${idea.payoff}`, idea.why].filter(Boolean).join(" ");
         return (
           <article key={idea.id} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2">
-                {format && <span className="label-set text-muted-foreground">{format.name}</span>}
                 {idea.video_id && <span className="label-set text-foreground">· Em vídeo</span>}
               </span>
               <SaveButton idea={idea} />
             </div>
             <h3 className="idea-title">{idea.title}</h3>
-            <p className="text-[15px] leading-snug text-muted-foreground">“{idea.hook}”</p>
+            <p className="text-[15px] leading-relaxed">{idea.situation || idea.hook}</p>
             <div className="flex items-end justify-between gap-3">
               {detail && (
-                <Explain id="ideia-porque" question="Ver a cena e o desfecho" closed className="min-w-0 flex-1">
+                <Explain id="ideia-porque" question="Ver como termina" closed className="min-w-0 flex-1">
                   {detail}
                 </Explain>
               )}

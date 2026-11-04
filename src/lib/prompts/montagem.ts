@@ -51,10 +51,11 @@ export function storyRequest(i: {
   person: Person;
   cast?: string;
   ask?: string;
+  titled?: boolean; // quem escreveu a própria ideia ainda não tem um nome para o vídeo
 }): Task & { prompt: string } {
   const { video, person, ask } = i;
   const format = findFormat(video.formatSlug);
-  const task = storyTask({ objective: video.objective, humor: usesHumor({ objective: video.objective, texts: [person.niche, video.brief, ask, ...person.memory] }) });
+  const task = storyTask({ objective: video.objective, titled: i.titled, humor: usesHumor({ objective: video.objective, texts: [person.niche, video.brief, ask, ...person.memory] }) });
   const parts = [line("Como começa", video.hook), line("O que acontece", video.situation), line("Como termina", video.payoff)];
   const prompt = context([
     tag("pedido_agora", ask),

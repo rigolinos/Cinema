@@ -35,6 +35,9 @@ const obj = (properties: Record<string, object>, required = Object.keys(properti
 const list = (item: object) => ({ type: "ARRAY", items: item });
 const formatSlug = { type: "STRING", enum: FORMAT_VALUES, nullable: true };
 
+// POV é mal usado de propósito nas redes: a IA precisa conhecer os dois sentidos e não escrever POV em tudo.
+const POV_RULE = `- POV é só um dos formatos: a pessoa fala ou age olhando para a câmera, como se quem assiste estivesse na cena. Nas redes, muita gente escreve "POV:" só como legenda de uma situação; isso é linguagem da internet, não o formato. Não coloque "POV" no título nem no gancho por padrão, e no máximo 1 ideia em cada 5 usa esse formato. Varie: plano e contraplano, plano-sequência, esquete com cortes, narração sobre a cena.`;
+
 // ── Ideias do zero, outras ideias, mais assim ───────────────────────────
 const IDEAS_TEXT = `TAREFA: sugerir 5 ideias de vídeo para esta pessoa, prontas para virar roteiro.
 - Se houver briefing ou pedido, as 5 seguem esse caminho. Varie a situação, o ângulo e o personagem, nunca o gênero que a pessoa pediu.
@@ -43,6 +46,7 @@ const IDEAS_TEXT = `TAREFA: sugerir 5 ideias de vídeo para esta pessoa, prontas
 - "Outras ideias": as 5 são diferentes de todas as que a pessoa já viu, não versões delas.
 - No objetivo Vender, toda ideia usa o produto e o diferencial que a pessoa contou.
 - Formatos e tendências são sugestão. Uma ótima ideia fora de formato vale mais que uma fraca dentro de um.
+${POV_RULE}
 - Entregue da mais forte para a menos forte: a primeira é a sua melhor aposta para esta pessoa.
 
 Cada ideia traz:
@@ -72,6 +76,7 @@ const FORTNIGHT_TEXT = `TAREFA: sugerir 6 ideias para as próximas duas semanas 
 - Pelo menos 3 dão para gravar com os recursos de sempre dela.
 - Cada ideia é julgada pelos critérios do objetivo dela e diz qual é em objective.
 - Não repita nem disfarce ideias que a pessoa já viu.
+${POV_RULE}
 - Entregue da mais forte para a menos forte: a primeira é a sua melhor aposta para esta pessoa.
 
 Cada ideia traz os mesmos campos das ideias do zero, mais objective (divertir, vender, ensinar ou crescer):
@@ -84,30 +89,6 @@ export function fortnightTask(o: { humor: boolean }): Task {
     example: `{"ideas":[{"objective":"","title":"","situation":"","hook":"","payoff":"","why":"","format_slug":""}]}`,
     thinking: "medio",
     temperature: 0.9,
-  };
-}
-
-// ── Já tenho a ideia ─────────────────────────────────────────────────────
-const OWN_IDEA_TEXT = `TAREFA: a pessoa já tem uma ideia de vídeo e escreveu do jeito dela. A ideia é dela: não troque por outra. Deixe-a pronta para gravar, como um roteirista sênior faria numa reunião de pauta.
-1. Entenda o que ela quer e mantenha a essência, o tom e as palavras fortes que ela usou.
-2. title: um título curto (até 8 palavras) para ela reconhecer a ideia.
-3. situation: a cena em 1 ou 2 frases concretas, completando só o que faltar.
-4. hooks: 3 ganchos diferentes para os primeiros 3 segundos, cada um com até 12 palavras. O primeiro é fiel ao que ela escreveu, o segundo é mais forte, o terceiro vem por outro ângulo.
-5. O desfecho: se ela escreveu, copie em payoff e deixe payoff_options vazio. Se a ideia depende de uma virada que ela não disse, deixe payoff vazio e dê 2 opções concretas em payoff_options, sem escolher por ela.
-6. format_slug: um da lista, se algum servir; senão, vazio.
-7. questions: no máximo 2 perguntas curtas, só sobre o que só ela sabe e que muda o vídeo (o produto, quem aparece, onde grava). Se não faltar nada, vazio.
-8. note: um comentário honesto em uma frase, no tom de quem ajuda: o que já é forte e o que pode ficar melhor.`;
-
-export function ownIdeaTask(o: { objective: Objective; humor: boolean }): Task {
-  return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: OWN_IDEA_TEXT }),
-    schema: obj(
-      { title: STR, situation: STR, hooks: strs, payoff: STR, payoff_options: strs, format_slug: formatSlug, questions: strs, note: STR },
-      ["title", "situation", "hooks", "payoff", "payoff_options", "questions", "note"],
-    ),
-    example: `{"title":"","situation":"","hooks":["","",""],"payoff":"","payoff_options":[],"format_slug":"","questions":[],"note":""}`,
-    thinking: "medio",
-    temperature: 0.8,
   };
 }
 
@@ -249,14 +230,16 @@ const STORY_TEXT = `TAREFA: conte o vídeo inteiro, do começo ao fim, para a pe
 - Se tem humor, é aqui que a pessoa decide se ri. Traga pelo menos duas piadas prontas, cada uma com a fala entre aspas ou o gesto exato, e escale: a segunda é mais absurda que a primeira. "Ela entra em pânico" não é piada; "ela revista o próprio sapato e pergunta para o vizinho se ele viu a chave passar" é. Sentimento sem ação não conta.
 - Sem palavras técnicas: nada de plano, corte, take, gancho ou bloco. Sem tempos e sem marcação de quem fala.
 - Tem que caber na duração e ser possível com o que a pessoa tem em <video>.
+- Se houver <briefing>, é a ideia que a pessoa contou, e a história é a dela: não troque a ideia nem o que ela escreveu. Complete só o que faltar, inclusive o final, se ela não disse qual é.
 - Se houver <historia_atual> e <pedido_agora>, mude só o que foi pedido e mantenha o resto igual, palavra por palavra.
 - Se o pedido escrito pela pessoa pedir algo que as regras de segurança proíbem, atenda o resto e deixe essa parte de fora.`;
 
-export function storyTask(o: { objective: Objective; humor: boolean }): Task {
+export function storyTask(o: { objective: Objective; humor: boolean; titled?: boolean }): Task {
+  const title = "\n- title: um nome curto para este vídeo, até 8 palavras, concreto e sem a palavra POV.";
   return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: STORY_TEXT }),
-    schema: obj({ hook: STR, situation: STR, payoff: STR }),
-    example: `{"hook":"","situation":"","payoff":""}`,
+    system: buildSystem({ objective: o.objective, humor: o.humor, task: o.titled ? STORY_TEXT + title : STORY_TEXT }),
+    schema: obj({ ...(o.titled ? { title: STR } : {}), hook: STR, situation: STR, payoff: STR }),
+    example: o.titled ? `{"title":"","hook":"","situation":"","payoff":""}` : `{"hook":"","situation":"","payoff":""}`,
     thinking: "medio",
     temperature: 0.8,
   };

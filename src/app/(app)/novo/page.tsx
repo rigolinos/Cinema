@@ -2,7 +2,9 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileText, Lightbulb, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Bookmark, FileText, Lightbulb, Sparkles } from "lucide-react";
+import { useSavedIdeas } from "@/components/gravai/guardar";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
 import { doorLabel } from "@/lib/memoria";
@@ -52,6 +54,7 @@ function Doors() {
   const searchParams = useSearchParams();
   const formato = searchParams.get("formato");
   const started = useRef(false);
+  const saved = useSavedIdeas();
   const [busy, setBusy] = useState<Door | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,6 +108,12 @@ function Doors() {
           </button>
         ))}
       </div>
+      {saved && saved.length > 0 && (
+        <Link href="/ideias/guardadas" className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-semibold">
+          <Bookmark className="size-4" strokeWidth={1.75} fill="currentColor" aria-hidden="true" />
+          Ideias guardadas ({saved.length})
+        </Link>
+      )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
