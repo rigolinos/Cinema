@@ -15,6 +15,7 @@ import {
   setupLabel,
   shootingOrder,
   shotPeople,
+  shotPlainTags,
   shotTags,
   shotsPrompt,
 } from "@/lib/planos";
@@ -60,6 +61,13 @@ describe("quem está no plano", () => {
   it("vídeo com uma pessoa só fica sem marcação", () => {
     const solo = normalizeShots({ shots: [{ block: 1, framing: "close", people: ["Natasha"] }] }, ["b1"], { ...opts, people: [eu] });
     expect(solo[0].person_ids).toEqual([]);
+  });
+});
+
+describe("folha do vídeo", () => {
+  it("diz o enquadramento em palavras simples e só mostra ângulo e movimento fora do padrão", () => {
+    expect(shotPlainTags({ framing: "close", angle: "altura_olhos", movement: "parado" })).toEqual(["De perto"]);
+    expect(shotPlainTags({ framing: "aberto", angle: "de_cima", movement: "acompanhando" })).toEqual(["De longe", "De cima", "Acompanhando"]);
   });
 });
 

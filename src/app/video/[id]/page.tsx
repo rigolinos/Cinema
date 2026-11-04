@@ -4,9 +4,9 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
-import { ArrowRight, Check, ChevronLeft, Lock, Pencil, RotateCcw, Share2, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, Clapperboard, FileText, Lightbulb, Lock, MoreHorizontal, Pencil, RotateCcw, Share2, Trash2, Users } from "lucide-react";
 import { PlansOutdated } from "@/components/gravai/aviso-planos";
-import { VideoMaterial, type SheetBlock, type SheetPerson, type SheetShot } from "@/components/gravai/material-video";
+import { VideoMaterial, sheetSummary, type SheetBlock, type SheetPerson, type SheetShot } from "@/components/gravai/material-video";
 import { BackLink } from "@/components/gravai/voltar";
 import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
 import { createClient } from "@/lib/supabase/client";
@@ -22,6 +22,8 @@ const NEXT_STEPS: Record<string, string> = {
   gravar: "No celular: lista de planos, teleprompter e nada esquecido no dia.",
 };
 
+const menuItem = "flex min-h-12 items-center gap-2.5 px-4 text-left text-sm font-semibold";
+
 // A página do vídeo. Sem roteiro ainda, mostra a ideia e o que vem pela frente na trilha.
 // Com roteiro, vira a folha do vídeo: o material do dia de gravar, com o passo a passo como opção.
 export default function VideoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,6 +34,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   const [people, setPeople] = useState<SheetPerson[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [name, setName] = useState("");
   const { confirm, sheet } = useConfirm();
   const router = useRouter();
@@ -55,6 +58,8 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   const hasScript = blocks.length > 0;
   const ready = video?.stage === "gravar" || video?.stage === "pronto";
   const sheetOpen = Boolean(video && hasScript);
+  const allFilmed = shots.length > 0 && shots.every((s) => s.recorded);
+  const summary = video && hasScript ? sheetSummary(video, people) : "";
 
   // Ninguém para chamar: segue direto para os planos (dá para voltar em Pessoas depois).
   async function skipPeople() {
@@ -120,8 +125,95 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
 
       {video && (
         <>
-          <div className="flex flex-col gap-3">
-            <p className="label-set text-muted-foreground">{stageLabel(video.stage)}</p>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="label-set min-w-0 text-muted-foreground">
+                {[stageLabel(video.stage), hasScript && platformsLabel(videoPlatforms(video)), hasScript && video.duration_s && durationLabel(video.duration_s)].filter(Boolean).join(" · ")}
+              </p>
+                <div className="relative -mr-2.5 -mt-3 shrink-0">
+                  <button type="button" aria-label="Mais opções do vídeo" aria-expanded={menu} onClick={() => setMenu((m) => !m)} className="flex size-11 items-center justify-center rounded-full">
+                    <MoreHorizontal className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                  {menu && (
+                    <>
+                      <button type="button" aria-label="Fechar o menu" tabIndex={-1} onClick={() => setMenu(false)} className="fixed inset-0 z-30 cursor-default" />
+                      <div role="menu" className="absolute right-0 top-11 z-40 flex w-60 flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+                        {video.title && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setName(video.title ?? "");
+                              setRenaming(true);
+                              setMenu(false);
+                            }}
+                            className={menuItem}
+                          >
+                            <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                            Mudar o nome
+                          </button>
+                        )}
+                        {hasScript && (
+                          <Link role="menuitem" href={`/video/${video.id}/roteiro`} className={menuItem}>
+                            <FileText className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                            Mudar o roteiro
+                          </Link>
+                        )}
+                        {shots.length > 0 && (
+                          <Link role="menuitem" href={`/video/${video.id}/planos`} className={menuItem}>
+                            <Clapperboard className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                            Mudar o que filmar
+                          </Link>
+                        )}
+                        {hasScript && (
+                          <Link role="menuitem" href={`/video/${video.id}/pessoas`} className={menuItem}>
+                            <Users className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                            Mudar pessoas, dia e lugar
+                          </Link>
+                        )}
+                        {hasScript && !ready && (
+                          <Link role="menuitem" href={`/video/${video.id}/ideia`} className={menuItem}>
+                            <Lightbulb className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                            Trocar de ideia
+                          </Link>
+                        )}
+                        {ready && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setMenu(false);
+                              toggleRecorded();
+                            }}
+                            className={menuItem}
+                          >
+                            {video.stage === "pronto" ? <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden="true" /> : <Check className="size-4" strokeWidth={2} aria-hidden="true" />}
+                            {video.stage === "pronto" ? "Ainda não gravei" : "Já gravei"}
+                          </button>
+                        )}
+                        {video.hook && (
+                          <Link role="menuitem" href={`/video/${video.id}/exportar`} className={menuItem}>
+                            <Share2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                            Exportar o vídeo
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenu(false);
+                            removeVideo();
+                          }}
+                          className={cn(menuItem, "text-destructive")}
+                        >
+                          <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                          Apagar este vídeo
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+            </div>
             {renaming ? (
               <form
                 className="flex flex-col gap-2"
@@ -151,33 +243,21 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
                 </div>
               </form>
             ) : (
-              <div className="flex items-start justify-between gap-2">
-                <h1 className="font-display text-[28px]">{video.title || "Vídeo sem ideia ainda"}</h1>
-                {video.title && (
-                  <button
-                    type="button"
-                    aria-label="Mudar o nome do vídeo"
-                    onClick={() => {
-                      setName(video.title ?? "");
-                      setRenaming(true);
-                    }}
-                    className="-mr-2.5 -mt-1 flex size-11 shrink-0 items-center justify-center text-muted-foreground"
-                  >
-                    <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />
-                  </button>
-                )}
-              </div>
+              <h1 className="font-display text-[28px]">{video.title || "Vídeo sem ideia ainda"}</h1>
             )}
             {!ready && <Trail stage={video.stage} />}
-            <p className="font-mono text-sm text-muted-foreground">
-              {[
-                video.objective && OBJECTIVES[video.objective],
-                platformsLabel(videoPlatforms(video)),
-                video.duration_s && durationLabel(video.duration_s),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            {summary && <p className="text-sm leading-relaxed text-muted-foreground">{summary}</p>}
+            {!hasScript && (
+              <p className="font-mono text-sm text-muted-foreground">
+                {[
+                  video.objective && OBJECTIVES[video.objective],
+                  platformsLabel(videoPlatforms(video)),
+                  video.duration_s && durationLabel(video.duration_s),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
           </div>
 
           {hasScript && <PlansOutdated videoId={id} blocks={blocks} shots={shots} onUpdated={setShots} />}
@@ -264,30 +344,6 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
             </button>
           )}
 
-          {hasScript && !ready && (
-            <Link href={`/video/${video.id}/ideia`} className="flex min-h-11 items-center self-start text-sm font-semibold underline">
-              Trocar de ideia
-            </Link>
-          )}
-
-          {ready && (
-            <button type="button" onClick={toggleRecorded} className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-semibold">
-              {video.stage === "pronto" ? <RotateCcw className="size-5" strokeWidth={1.75} aria-hidden="true" /> : <Check className="size-5" strokeWidth={2} aria-hidden="true" />}
-              {video.stage === "pronto" ? "Ainda não gravei" : "Já gravei"}
-            </button>
-          )}
-
-          {video.hook && (
-            <Link href={`/video/${video.id}/exportar`} className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-semibold">
-              <Share2 className="size-5" strokeWidth={1.75} aria-hidden="true" />
-              Exportar o vídeo
-            </Link>
-          )}
-
-          <button type="button" onClick={removeVideo} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold text-destructive">
-            <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
-            Apagar este vídeo
-          </button>
           {deleteError && (
             <p role="alert" className="text-sm text-destructive">
               {deleteError}
@@ -298,7 +354,12 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
           {sheetOpen && (
             <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] print:hidden">
               <div className="mx-auto max-w-lg px-4 py-3">
-                {video.stage === "gravar" ? (
+                {video.stage === "gravar" && allFilmed ? (
+                  <button type="button" onClick={toggleRecorded} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-primary font-bold text-primary-foreground">
+                    <Check className="size-5" strokeWidth={2} aria-hidden="true" />
+                    Já gravei
+                  </button>
+                ) : video.stage === "gravar" ? (
                   <Link href={`/video/${video.id}/gravar`} className="flex min-h-13 items-center justify-center gap-2.5 rounded-full bg-primary font-bold text-primary-foreground">
                     <span className="size-2.5 rounded-full bg-rec" aria-hidden="true" />
                     Gravar passo a passo
