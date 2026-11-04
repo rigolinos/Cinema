@@ -160,6 +160,23 @@ export function shotTags(shot: Pick<Shot, "framing" | "angle" | "movement">): st
   ].filter(Boolean);
 }
 
+// O enquadramento em palavras de todo dia, para a folha do vídeo; a edição do plano mantém os termos técnicos.
+export const FRAMING_PLAIN: Record<Framing, string> = {
+  detalhe: "Detalhe",
+  close: "De perto",
+  medio: "Meio corpo",
+  americano: "Do joelho para cima",
+  aberto: "De longe",
+};
+
+export function shotPlainTags(shot: Pick<Shot, "framing" | "angle" | "movement">): string[] {
+  return [
+    FRAMING_PLAIN[shot.framing],
+    shot.angle !== "altura_olhos" ? ANGLES[shot.angle].label : "",
+    shot.movement !== "parado" ? MOVEMENTS[shot.movement].label : "",
+  ].filter(Boolean);
+}
+
 // Lugar e roupa só no plano em que mudam (o primeiro sempre mostra): repetir em todo cartão vira ruído.
 export function setupLabel(shots: Pick<Shot, "location" | "wardrobe">[], index: number): string {
   const shot = shots[index];

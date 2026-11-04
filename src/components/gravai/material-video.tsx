@@ -1,15 +1,17 @@
-import Link from "next/link";
-import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
+import { Check } from "lucide-react";
+import { FramingIcon } from "@/components/gravai/framing-icon";
 import { isMe, speechLines, splitAction } from "@/lib/convidado";
-import { ROLES, firstNameOf, formatShootDate, sortRoles, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import { firstNameOf, formatShootDate, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import type { Resource } from "@/lib/ideas";
-import { shotPeople, type Shot } from "@/lib/planos";
+import { castOf, shotPeople, shotPlainTags, type Shot } from "@/lib/planos";
 import { speakerOf, type ScriptBlock } from "@/lib/roteiro";
-import { byPlace, setOrder } from "@/lib/set";
+import { cn } from "@/lib/utils";
 
 export type SheetBlock = ScriptBlock & { id: string; position: number; updated_at?: string; person_id?: string | null };
 export type SheetShot = Shot & { id: string; created_at?: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
 export type SheetPerson = { id: string; name: string; role: PersonRole; roles: GuestRole[]; confirmed_at: string | null };
+
+const names = new Intl.ListFormat("pt-BR", { style: "long", type: "conjunction" });
 
 // Quem diz esta linha e o que é dito. "Primeiro erro: pouca água" fica inteiro: o que vem antes dos dois-pontos só conta como nome se for de alguém do vídeo.
 function dialogLine(line: { speaker: string | null; text: string; raw: string }, fallback: string | null, people: SheetPerson[]): { who: string | null; text: string } {
@@ -17,117 +19,92 @@ function dialogLine(line: { speaker: string | null; text: string; raw: string },
   return people.some((p) => isMe(line.speaker as string, p.name)) ? { who: firstNameOf(line.speaker), text: line.text } : { who: null, text: line.raw };
 }
 
-// Cada seção da folha, com o atalho para mudar o que está nela.
-function Part({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
-  return (
-    <section aria-label={title} className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <h2 className="label-set text-muted-foreground">{title}</h2>
-        <Link href={href} className="flex min-h-11 items-center text-sm font-semibold underline">
-          Mudar
-        </Link>
-      </div>
-      {children}
-    </section>
-  );
+// Uma linha embaixo do título: quem está no vídeo, quem ajuda, o dia e o lugar.
+export function sheetSummary(video: { resources?: Resource[]; shoot_date?: string | null; shoot_place?: string | null }, people: SheetPerson[]): string {
+  const resources = video.resources ?? [];
+  const guests = people.filter((p) => p.role !== "eu");
+  const cast = castOf(people).map((c) => c.label);
+  const crew = guests.flatMap((p) => {
+    const jobs = [p.roles?.includes("filma") && "filma", p.roles?.includes("equipe") && "ajuda no set"].filter(Boolean) as string[];
+    return jobs.length ? [`${firstNameOf(p.name)} ${names.format(jobs)}`] : [];
+  });
+  const alone = resources.includes("com_alguem") ? "Mais de uma pessoa, ainda sem nomes" : resources.includes("sozinho") ? "Só você" : "";
+  const date = formatShootDate(video.shoot_date ?? null);
+  return [
+    guests.length ? names.format(cast) : alone,
+    ...crew,
+    date ? date.charAt(0).toLocaleUpperCase("pt-BR") + date.slice(1) : "",
+    video.shoot_place,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
-// A folha do vídeo: tudo o que a pessoa precisa no dia de gravar, na ordem em que ela consulta. Dá para gravar só com isto.
-export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { video: { id: string; resources?: Resource[]; shoot_date?: string | null; shoot_place?: string | null }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[]; onToggleShot: (id: string) => void }) {
-  const base = `/video/${video.id}`;
-  const ordered = setOrder(shots);
-  const script = new Map([...shots].sort((a, b) => blocks.findIndex((x) => x.id === a.block_id) - blocks.findIndex((x) => x.id === b.block_id) || a.position - b.position).map((s, i) => [s.id, i + 1]));
-  const rows: PlanRow[] = ordered.map((s, i) => ({
-    id: s.id,
-    number: script.get(s.id) ?? i + 1,
-    description: s.description,
-    framing: s.framing,
-    angle: s.angle,
-    movement: s.movement,
-    orientation: s.orientation,
-    location: s.location,
-    recorded: s.recorded,
-    good: s.good_take,
-    takes: s.takes,
-    skipped: false,
-    current: false,
-    people: shotPeople(s, people),
-  }));
-  const guests = people.filter((p) => p.role !== "eu");
+// A folha do vídeo: uma lista só, cena por cena, com o que precisa ser filmado dentro de cada uma.
+// Dá para gravar só com isto; o passo a passo do set segue a ordem de gravação.
+export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { video: { resources?: Resource[] }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[]; onToggleShot?: (id: string) => void }) {
   const resources = video.resources ?? [];
-  const alone = resources.includes("com_alguem") ? "Mais de uma pessoa, ainda sem nomes." : resources.includes("sozinho") ? "Só você." : "Ainda não definido.";
-  const places = byPlace(ordered).filter((g) => g.place);
-  const when = [formatShootDate(video.shoot_date ?? null), video.shoot_place].filter(Boolean).join(" · ");
+  const solo = resources.includes("sozinho") && !resources.includes("com_alguem");
+  const number = new Map([...shots].sort((a, b) => blocks.findIndex((x) => x.id === a.block_id) - blocks.findIndex((x) => x.id === b.block_id) || a.position - b.position).map((s, i) => [s.id, i + 1]));
 
   return (
-    <div className="flex flex-col gap-5">
-      <Part title="Roteiro" href={`${base}/roteiro`}>
-        <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
-          {blocks.map((b, i) => {
-            const action = splitAction(b.action).text;
-            const speaker = speakerOf(b, people, resources.includes("sozinho") && !resources.includes("com_alguem"));
-            return (
-              <article key={b.id} className="flex flex-col gap-1.5 py-3.5">
-                <h3 className="label-set text-muted-foreground">Cena {i + 1}</h3>
-                {action && <p className="text-sm italic leading-snug text-muted-foreground">{action}</p>}
-                {/* Como num roteiro de audiovisual: o nome em cima da fala, só quando muda quem fala. */}
-                {speechLines(b.speech).map((l, n, all) => {
-                  const line = dialogLine(l, speaker, people);
-                  const before = n > 0 ? dialogLine(all[n - 1], speaker, people).who : null;
-                  return (
-                    <div key={n} className="flex flex-col gap-0.5">
-                      {line.who && line.who !== before && <p className="label-set text-foreground">{line.who}</p>}
-                      <p className="text-[17px] font-semibold leading-snug">{line.text}</p>
-                    </div>
-                  );
-                })}
-                {b.on_screen && (
-                  <p className="text-sm text-muted-foreground">
-                    <span className="label-set mr-2">Escrito na tela</span>
-                    {b.on_screen}
-                  </p>
-                )}
-              </article>
-            );
-          })}
-        </div>
-      </Part>
+    <div className="flex flex-col gap-3">
+      {blocks.map((b, i) => {
+        const action = splitAction(b.action).text;
+        const speaker = speakerOf(b, people, solo);
+        const toFilm = shots.filter((s) => s.block_id === b.id).sort((x, y) => x.position - y.position);
+        return (
+          <article key={b.id} aria-label={`Cena ${i + 1}`} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
+            <h2 className="label-set text-muted-foreground">Cena {i + 1}</h2>
+            {action && <p className="text-sm italic leading-snug text-muted-foreground">{action}</p>}
+            {/* Como num roteiro de audiovisual: o nome em cima da fala, só quando muda quem fala. */}
+            {speechLines(b.speech).map((l, n, all) => {
+              const line = dialogLine(l, speaker, people);
+              const before = n > 0 ? dialogLine(all[n - 1], speaker, people).who : null;
+              return (
+                <div key={n} className="flex flex-col gap-0.5">
+                  {line.who && line.who !== before && <p className="label-set text-foreground">{line.who}</p>}
+                  <p className="text-[17px] font-semibold leading-snug">{line.text}</p>
+                </div>
+              );
+            })}
+            {b.on_screen && (
+              <p className="text-sm text-muted-foreground">
+                <span className="label-set mr-2">Escrito na tela</span>
+                {b.on_screen}
+              </p>
+            )}
 
-      {rows.length > 0 && (
-        <Part title="Planos · na ordem de gravar" href={`${base}/planos`}>
-          <div className="rounded-2xl bg-card p-2">
-            <PlanList rows={rows} wrap onToggle={onToggleShot} />
-          </div>
-        </Part>
-      )}
-
-      <Part title="Pessoas" href={`${base}/pessoas`}>
-        <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
-          {guests.length === 0 && <p className="py-3.5 text-[15px]">{alone}</p>}
-          {guests.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-3.5">
-              <span className="min-w-0 break-words text-[15px] font-semibold">{p.name}</span>
-              <span className="label-set text-muted-foreground">{sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
-            </div>
-          ))}
-        </div>
-      </Part>
-
-      {(places.length > 0 || when) && (
-        <Part title="Onde gravar" href={`${base}/pessoas`}>
-          <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
-            {when && <p className="py-3.5 text-[15px] font-semibold first-letter:uppercase">{when}</p>}
-            {places.map((g) => (
-              <div key={g.place} className="flex items-baseline justify-between gap-3 py-3.5">
-                <span className="min-w-0 break-words text-[15px] font-semibold">{g.place}</span>
-                <span className="label-set shrink-0 text-muted-foreground">
-                  {g.rows.length} {g.rows.length === 1 ? "plano" : "planos"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Part>
-      )}
+            {toFilm.length > 0 && (
+              <section aria-label={`Para filmar na cena ${i + 1}`} className="mt-2 flex flex-col gap-1.5 border-t border-border pt-3">
+                <h3 className="label-set text-muted-foreground">Para filmar</h3>
+                <ul className="flex flex-col">
+                  {toFilm.map((s) => (
+                    <li key={s.id} className="flex min-h-14 items-center gap-3 py-1.5">
+                      <button
+                        type="button"
+                        aria-pressed={s.recorded}
+                        aria-label={`Plano ${number.get(s.id)} já gravado`}
+                        onClick={() => onToggleShot?.(s.id)}
+                        className="-m-2.5 flex size-11 shrink-0 items-center justify-center rounded-full"
+                      >
+                        <span className={cn("flex size-6 items-center justify-center rounded-full", s.recorded ? "bg-foreground text-background" : "border-[1.5px] border-input")}>
+                          {s.recorded && <Check className="size-3.5" strokeWidth={3} />}
+                        </span>
+                      </button>
+                      <FramingIcon framing={s.framing} orientation={s.orientation} size="sm" />
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[15px] leading-snug">{s.description || shotPlainTags(s)[0]}</span>
+                        <span className="label-set text-muted-foreground">{[...shotPlainTags(s), s.location.trim(), ...shotPeople(s, people)].filter(Boolean).join(" · ")}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </article>
+        );
+      })}
     </div>
   );
 }
