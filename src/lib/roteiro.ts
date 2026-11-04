@@ -202,6 +202,15 @@ export function normalizeSuggestions(raw: unknown, blocks: Pick<ScriptBlock, "sp
   return { note: clip(r.note, 400), suggestions };
 }
 
+// O roteiro com quem fala escrito na fala, para a IA saber quem precisa aparecer nos planos.
+export function withSpeakers<B extends { speech: string; person_id?: string | null }>(blocks: B[], people: { id: string; name: string; role: string }[], solo: boolean): B[] {
+  return blocks.map((b) => {
+    const who = speakerOf(b, people, solo);
+    if (!who || !b.speech.trim() || /^[^\n:]{1,30}:/.test(b.speech.trim())) return b;
+    return { ...b, speech: `${who}: ${b.speech}` };
+  });
+}
+
 // O roteiro como vai no contexto: blocos numerados a partir de 1; o marcado com >>> é o que muda.
 export function scriptForPrompt(blocks: Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action">[], marked?: number): string {
   return blocks

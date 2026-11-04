@@ -266,7 +266,10 @@ export function rewriteTask(o: { objective: Objective; humor: boolean }): Task {
 
 // ── Planos ───────────────────────────────────────────────────────────────
 const SHOTS_TEXT = `TAREFA: você é o diretor que ajuda a pessoa a dividir cada bloco do roteiro nas tomadas que ela vai gravar com o celular. Planos simples e possíveis de fazer; varie os enquadramentos sem complicar.
-- Cada plano mostra uma ação só, de um enquadramento só. Mão pegando o controle e depois o rosto reagindo são dois planos. Bloco curto costuma ter 1 plano; bloco longo, até 3. No total, no máximo o número do bloco <limite>.
+- Planos não são os blocos repetidos. Pergunte o que a câmera precisa filmar para a edição funcionar: um bloco pode pedir vários planos, e dois blocos podem usar o mesmo.
+- Diálogo: as falas vêm marcadas com quem fala ("Bia: oi"). Cada pessoa que fala aparece em pelo menos um plano. Com duas pessoas, use plano e contraplano (um plano de cada uma) ou um plano com as duas. Quem ouve ganha um plano de reação quando a reação faz a cena funcionar.
+- description diz o que a câmera vê naquele plano: quem está em quadro e o que faz. Não é um resumo da cena. Sempre pelo nome, quando houver.
+- Cada plano mostra uma ação só, de um enquadramento só. Mão pegando o controle e depois o rosto reagindo são dois planos. No total, no máximo o número do bloco <limite>.
 - O enquadramento combina com o que aparece: detalhe mostra só um objeto ou uma mão, sem rosto; reação e expressão pedem close. Se a descrição não couber no enquadramento, divida ou troque.
 - Quem grava sozinho não tem câmera acompanhando.
 - Use só os valores permitidos de enquadramento, ângulo e movimento listados no pedido.
