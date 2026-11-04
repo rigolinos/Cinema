@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ArrowRight, Check, ChevronLeft, Lock, RotateCcw, Share2, Trash2 } from "lucide-react";
+import { PlansOutdated } from "@/components/gravai/aviso-planos";
 import { VideoMaterial, type SheetBlock, type SheetPerson, type SheetShot } from "@/components/gravai/material-video";
 import { BackLink } from "@/components/gravai/voltar";
 import { READY_STAGES as READY, Trail, STAGES, nextReadyStage, reachableIndex, stageLabel } from "@/components/gravai/trail";
@@ -105,6 +106,8 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
                 .join(" · ")}
             </p>
           </div>
+
+          {hasScript && <PlansOutdated videoId={id} blocks={blocks} shots={shots} onUpdated={setShots} />}
 
           {hasScript && <VideoMaterial video={video} blocks={blocks} shots={shots} people={people} />}
 

@@ -6,8 +6,8 @@ import type { Shot } from "@/lib/planos";
 import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
 import { byPlace, setOrder } from "@/lib/set";
 
-export type SheetBlock = ScriptBlock & { id: string; position: number };
-export type SheetShot = Shot & { id: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
+export type SheetBlock = ScriptBlock & { id: string; position: number; updated_at?: string };
+export type SheetShot = Shot & { id: string; created_at?: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
 export type SheetPerson = { id: string; name: string; role: PersonRole; roles: GuestRole[]; confirmed_at: string | null };
 
 // Cada parte da folha, com o atalho para mudar o que está nela.

@@ -8,6 +8,7 @@ import { ReportAi } from "@/components/gravai/denunciar";
 import { AlertTriangle, ArrowUp, Check, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Explain } from "@/components/gravai/explain";
 import { StepHeader } from "@/components/gravai/step-header";
+import { useLeave } from "@/components/gravai/voltar";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { Folha } from "@/components/gravai/folha";
 import { isSolo, shootingOrder, type Shot } from "@/lib/planos";
@@ -287,6 +288,7 @@ function BlockCard({
 export default function RoteiroPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const leave = useLeave();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
@@ -541,7 +543,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
         return;
       }
     }
-    router.push(`/video/${id}`);
+    leave(`/video/${id}`);
   }
 
   const times = timeline(blocks);

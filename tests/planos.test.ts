@@ -5,6 +5,8 @@ import {
   MOVEMENTS,
   defaultOrientation,
   isSolo,
+  newestChange,
+  plansOutdated,
   maxShots,
   normalizeShots,
   normalizeWardrobe,
@@ -27,6 +29,29 @@ describe("shootingOrder", () => {
     const shots = [s(0, "Sala"), s(1, "Rua"), s(2, "Sala"), s(3, "Rua"), s(4, "Sala")];
     expect(setupChanges(shots)).toBe(4);
     expect(setupChanges(shootingOrder(shots))).toBe(1);
+  });
+});
+
+describe("planos desatualizados", () => {
+  const at = (min: number) => `2026-11-04T10:${String(min).padStart(2, "0")}:00Z`;
+
+  it("avisa só se o roteiro mudou depois de os planos serem feitos", () => {
+    expect(plansOutdated([{ updated_at: at(5) }, { updated_at: at(1) }], [{ created_at: at(3) }])).toBe(true);
+    expect(plansOutdated([{ updated_at: at(1) }], [{ created_at: at(3) }])).toBe(false);
+  });
+
+  it("um plano adicionado depois não esconde o aviso", () => {
+    expect(plansOutdated([{ updated_at: at(5) }], [{ created_at: at(3) }, { created_at: at(9) }])).toBe(true);
+  });
+
+  it("sem planos ou sem datas não avisa", () => {
+    expect(plansOutdated([{ updated_at: at(5) }], [])).toBe(false);
+    expect(plansOutdated([], [{ created_at: at(3) }])).toBe(false);
+    expect(plansOutdated([{}], [{}])).toBe(false);
+  });
+
+  it("acha a mudança mais recente", () => {
+    expect(newestChange([{ updated_at: at(1) }, { updated_at: at(5) }, {}])).toBe(at(5));
   });
 });
 

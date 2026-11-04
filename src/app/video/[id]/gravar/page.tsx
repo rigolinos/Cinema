@@ -2,8 +2,8 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Minus, Plus, RotateCcw, X } from "lucide-react";
+import { LeaveLink, useLeave } from "@/components/gravai/voltar";
 import { Folha } from "@/components/gravai/folha";
 import { FramingIcon } from "@/components/gravai/framing-icon";
 import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
@@ -36,7 +36,7 @@ function useWakeLock(active: boolean) {
 
 export default function GravarPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
+  const leave = useLeave();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<{ id: string; name: string; role: string }[]>([]);
@@ -126,7 +126,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   async function finishVideo(to: "publicar" | "visao") {
     const { error } = await createClient().from("videos").update({ stage: "pronto" }).eq("id", id);
     if (error) setError("Não deu para concluir. Tente de novo.");
-    else router.push(to === "publicar" ? `/video/${id}/publicar` : `/video/${id}`);
+    else leave(to === "publicar" ? `/video/${id}/publicar` : `/video/${id}`);
   }
 
   const p = progress(shots);
@@ -187,9 +187,9 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
       <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
         <header className="flex flex-col gap-3 px-5 pb-3 pt-3">
           <div className="flex items-center justify-between">
-            <Link href={`/video/${id}`} aria-label="Sair do modo set" className="-ml-3 flex size-11 items-center justify-center">
+            <LeaveLink href={`/video/${id}`} label="Sair do modo set" className="-ml-3 flex size-11 items-center justify-center">
               <X className="size-6" strokeWidth={1.75} aria-hidden="true" />
-            </Link>
+            </LeaveLink>
             <span className="label-set flex items-center gap-2">
               <span className={cn("size-2.5 rounded-full bg-rec", phase === "set" && "animate-pulse")} aria-hidden="true" />
               Modo set

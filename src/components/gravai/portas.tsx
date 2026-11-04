@@ -227,6 +227,11 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
         </div>
       )}
 
+      {!canSave && (
+        <p role="status" className="text-sm font-semibold">
+          Escreva o seu gancho lá em cima ou escolha uma das opções para seguir.
+        </p>
+      )}
       <button type="button" onClick={() => save(false)} disabled={busy !== null || !canSave} className={primary}>
         {busy === "salvar" ? "Salvando…" : "Seguir para o roteiro"}
       </button>
