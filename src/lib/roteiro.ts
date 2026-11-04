@@ -78,7 +78,7 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
   if (!hook) {
     checks.push({ level: "alerta", text: "Falta o gancho: sem ele, a pessoa rola o feed antes de entender o vídeo." });
   } else if (blocks[0]?.kind !== "gancho") {
-    checks.push({ level: "alerta", text: "O gancho precisa ser a primeira parte." });
+    checks.push({ level: "alerta", text: "O gancho precisa ser a primeira cena." });
   } else if (wordCount(hook.speech) > HOOK_MAX_WORDS) {
     checks.push({ level: "alerta", text: `Gancho longo (${wordCount(hook.speech)} palavras). Para caber em 3 segundos, fique em até ${HOOK_MAX_WORDS}.` });
   }

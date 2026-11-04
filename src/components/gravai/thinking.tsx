@@ -32,7 +32,7 @@ export const STEPS = {
   ideias: ["Lendo o que você me contou", "Pensando em várias situações", "Testando ganchos", "Escolhendo as melhores"],
   roteiro: ["Lendo a sua ideia", "Montando o começo", "Escrevendo as falas", "Conferindo o tempo"],
   sugestoes: ["Lendo o seu roteiro", "Olhando o gancho", "Conferindo o ritmo", "Separando o que vale mudar"],
-  organizar: ["Lendo o seu roteiro", "Separando as partes", "Conferindo que nada mudou"],
+  organizar: ["Lendo o seu roteiro", "Separando as cenas", "Conferindo que nada mudou"],
   publicar: ["Lendo o roteiro", "Escrevendo a legenda de cada plataforma", "Escolhendo a capa"],
   historia: ["Lendo a sua ideia", "Pensando no que acontece", "Escrevendo as piadas e o final"],
   planos: ["Lendo o roteiro", "Escolhendo os enquadramentos", "Organizando por lugar"],

@@ -141,7 +141,7 @@ export function PasteBox({ videoId, initial }: { videoId: string; initial: strin
 
   return (
     <div className="flex flex-col gap-3">
-      <Gravai>Cole o seu roteiro aqui, do jeito que está no bloco de notas. Eu só organizo em partes; não mudo nenhuma palavra.</Gravai>
+      <Gravai>Cole o seu roteiro aqui, do jeito que está no bloco de notas. Eu só organizo em cenas; não mudo nenhuma palavra.</Gravai>
       <label htmlFor="roteiro-colado" className="sr-only">
         Seu roteiro
       </label>

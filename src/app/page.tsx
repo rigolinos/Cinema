@@ -12,7 +12,7 @@ const questions = ["O que eu falo nos 3 primeiros segundos?", "O que aparece em 
 
 const steps = [
   { n: "01", title: "Ideia", desc: "Ideias novas a cada 15 dias, já com o gancho dos 3 primeiros segundos." },
-  { n: "02", title: "Roteiro", desc: "Escrito com você, parte por parte. Ou cole o seu e ele organiza." },
+  { n: "02", title: "Roteiro", desc: "Escrito com você, cena por cena. Ou cole o seu e ele organiza." },
   { n: "03", title: "Pessoas", desc: "Cada pessoa recebe um link só com a parte dela, sem criar conta." },
   { n: "04", title: "Planos", desc: "Cada plano decidido antes de gravar, com o porquê." },
   { n: "05", title: "Gravar", desc: "No set, o teleprompter e um plano por vez." },
@@ -22,7 +22,7 @@ const questionsAndAnswers = [
   { q: "É de graça?", a: "Dá para começar sem pagar nada." },
   { q: "Precisa baixar?", a: "Não. Abre no navegador do celular, no Android e no iPhone." },
   { q: "Preciso entender de cinema?", a: "Não. O Gravaí explica cada termo na hora em que ele aparece." },
-  { q: "Já tenho meu roteiro. Serve?", a: "Serve. Cole do jeito que está: ele organiza em partes e planos." },
+  { q: "Já tenho meu roteiro. Serve?", a: "Serve. Cole do jeito que está: ele organiza em cenas e planos." },
 ];
 
 const HIDE_BAR_ON = ["topo", "fim"];

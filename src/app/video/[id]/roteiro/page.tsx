@@ -147,23 +147,23 @@ function BlockCard({
   };
 
   return (
-    <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Parte ${index + 1}: ${block.label || kind.label}`}>
+    <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Cena ${index + 1}: ${block.label || kind.label}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="label-set">
-          Parte {index + 1}
+          Cena {index + 1}
         </h2>
         <span className="flex items-center gap-1">
           <span className="font-mono text-sm text-muted-foreground">
             {time.start}–{time.end} s
           </span>
           {onRemove && (
-            <button type="button" disabled={busy} onClick={onRemove} aria-label={`Excluir a parte ${index + 1}`} className="-mr-2.5 flex size-11 items-center justify-center text-muted-foreground disabled:opacity-40">
+            <button type="button" disabled={busy} onClick={onRemove} aria-label={`Excluir a cena ${index + 1}`} className="-mr-2.5 flex size-11 items-center justify-center text-muted-foreground disabled:opacity-40">
               <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
             </button>
           )}
         </span>
       </div>
-      <Explain id={`bloco-${block.kind}`} question="Para que serve esta parte?" closed={repeated} className="-mt-1">
+      <Explain id={`bloco-${block.kind}`} question="Para que serve esta cena?" closed={repeated} className="-mt-1">
         {kind.hint}
       </Explain>
 
@@ -237,7 +237,7 @@ function BlockCard({
           className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-40"
         >
           <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          Pedir ajuste nesta parte
+          Pedir ajuste nesta cena
         </button>
       ) : (
         <form
@@ -256,7 +256,7 @@ function BlockCard({
           </div>
           <div className="flex gap-2">
             <label htmlFor={`ajuste-${block.id}`} className="sr-only">
-              O que mudar nesta parte
+              O que mudar nesta cena
             </label>
             <input
               id={`ajuste-${block.id}`}
@@ -360,7 +360,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     const { error } = await createClient().from("script_blocks").delete().eq("id", r.block.id);
     if (error) {
       setBlocks((list) => [...list.slice(0, r.index), r.block, ...list.slice(r.index)]);
-      setError("Não deu para excluir a parte. Tente de novo.");
+      setError("Não deu para excluir a cena. Tente de novo.");
     }
   }
 
@@ -393,7 +393,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       .single();
     setBusy(null);
     if (error || !data) {
-      setError("Não deu para adicionar a parte. Tente de novo.");
+      setError("Não deu para adicionar a cena. Tente de novo.");
       return;
     }
     setBlocks((list) => [...list, data as Block]);
@@ -665,7 +665,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 </span>
                 <p className="leading-relaxed">
                   {review.note ||
-                    (review.suggestions.length ? "Deixei sugestões nas partes. Nada muda se você não tocar." : "Seu roteiro já está bom. Não mudaria nada.")}
+                    (review.suggestions.length ? "Deixei sugestões nas cenas. Nada muda se você não tocar." : "Seu roteiro já está bom. Não mudaria nada.")}
                 </p>
               </div>
             )}
@@ -697,7 +697,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input text-sm font-semibold disabled:opacity-40"
               >
                 <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
-                Adicionar parte
+                Adicionar cena
               </button>
             )}
 
@@ -746,7 +746,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       {removed && (
         <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full bg-foreground py-1.5 pl-5 pr-1.5 text-sm font-semibold text-background">
           <span>
-            Parte {removed.index + 1} excluída
+            Cena {removed.index + 1} excluída
             {shotCount[removed.block.id] ? ` com ${shotCount[removed.block.id] === 1 ? "1 plano" : `${shotCount[removed.block.id]} planos`}` : ""}
           </span>
           <button type="button" onClick={undoRemoval} className="min-h-11 rounded-full px-4 underline">
