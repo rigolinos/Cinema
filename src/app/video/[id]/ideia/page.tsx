@@ -133,6 +133,8 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [incoming, setIncoming] = useState<Pick<VideoIdea, "title" | "hook" | "situation" | "format_slug">[]>([]);
   const [requests, setRequests] = useState<Record<number, string>>({});
   const [ask, setAsk] = useState("");
+  const [adjusting, setAdjusting] = useState<string | null>(null); // a ideia com a caixa de ajuste aberta
+  const [adjustText, setAdjustText] = useState("");
   const [knowsYou, setKnowsYou] = useState(false);
   const [busy, setBusy] = useState<"ideas" | "choose" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -606,9 +608,6 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             <Assistant>
               Separei estas para quem fala de <strong>{nicheInSentence(answers.niche ?? "")}</strong>. Escolha uma ou peça outras.
             </Assistant>
-            <Explain id="gancho" question="O que é o gancho?" learn="gancho">
-              É o que você fala ou mostra nos 3 primeiros segundos. É ali que a pessoa decide se fica ou rola o feed.
-            </Explain>
           </div>
         )}
 
@@ -620,15 +619,34 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
               {ideas
                 .filter((i) => i.round === round)
                 .map((idea, i) => {
-                  const format = findFormat(idea.format_slug);
                   const best = i === 0;
                   return (
                     <article key={idea.id} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", best && "border-[1.5px] border-foreground")}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="label-set text-muted-foreground">
-                          {[best ? "Mais forte" : "", format?.name ?? ""].filter(Boolean).join(" · ")}
-                        </span>
+                      {best && <span className="label-set text-muted-foreground">Mais forte</span>}
+                      <h2 className="idea-title">{idea.title}</h2>
+                      {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+                      {(idea.payoff || idea.why) && (
+                        <Explain id="ideia-porque" question={idea.payoff ? "Ver como termina" : "Por que funciona?"} closed>
+                          {idea.payoff && (
+                            <>
+                              <strong className="font-semibold text-foreground">Como termina:</strong> {idea.payoff}{" "}
+                            </>
+                          )}
+                          {idea.why}
+                          <ReportAi area="ideia" content={[idea.title, idea.hook, idea.situation, idea.payoff].filter(Boolean).join("\n")} refId={id} label="Denunciar esta ideia" />
+                        </Explain>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={busy !== null}
+                          onClick={() => choose(idea)}
+                          className="min-h-12 flex-1 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+                        >
+                          {idea.chosen ? "Seguir com esta" : "Quero essa"}
+                        </button>
                         <SaveButton
+                          solid
                           idea={{
                             source: "video",
                             source_id: idea.id,
@@ -641,39 +659,50 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                           }}
                         />
                       </div>
-                      <h2 className="idea-title">{idea.title}</h2>
-                      <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
-                        <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-                        <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
-                      </div>
-                      {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
-                      {(idea.payoff || idea.why) && (
-                        <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho e por que funciona" : "Por que funciona?"} closed>
-                          {idea.payoff && (
-                            <>
-                              <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
-                            </>
-                          )}
-                          {idea.why}
-                          <ReportAi area="ideia" content={[idea.title, idea.hook, idea.situation, idea.payoff].filter(Boolean).join("\n")} refId={id} label="Denunciar esta ideia" />
-                        </Explain>
-                      )}
-                      <button
-                        type="button"
-                        disabled={busy !== null}
-                        onClick={() => choose(idea)}
-                        className="min-h-12 rounded-full border-[1.5px] border-foreground font-bold disabled:opacity-40"
-                      >
-                        {idea.chosen ? "Seguir com esta" : "Quero essa"}
-                      </button>
                       <div className="flex justify-center gap-6 text-sm font-semibold">
                         <button type="button" disabled={busy !== null} onClick={() => requestIdeas(undefined, idea.title)} className="min-h-11 underline disabled:opacity-40">
-                          Mais assim
+                          Parecidas com esta
                         </button>
-                        <button type="button" disabled={busy !== null} onClick={() => setAsk(`Ajuste a ideia "${idea.title}": `)} className="min-h-11 underline disabled:opacity-40">
+                        <button
+                          type="button"
+                          disabled={busy !== null}
+                          aria-expanded={adjusting === idea.id}
+                          onClick={() => {
+                            setAdjusting((current) => (current === idea.id ? null : idea.id));
+                            setAdjustText("");
+                          }}
+                          className="min-h-11 underline disabled:opacity-40"
+                        >
                           Ajustar
                         </button>
                       </div>
+                      {adjusting === idea.id && (
+                        <form
+                          className="flex items-center gap-2"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!adjustText.trim() || busy) return;
+                            requestIdeas(`Ajuste a ideia "${idea.title}": ${adjustText.trim()}`);
+                            setAdjusting(null);
+                          }}
+                        >
+                          <label className="sr-only" htmlFor={`ajustar-${idea.id}`}>
+                            O que mudar nesta ideia?
+                          </label>
+                          <input
+                            id={`ajustar-${idea.id}`}
+                            autoFocus
+                            value={adjustText}
+                            maxLength={280}
+                            onChange={(e) => setAdjustText(e.target.value)}
+                            placeholder="O que mudar nesta ideia?"
+                            className="min-h-12 min-w-0 flex-1 rounded-xl border border-input bg-background px-3.5 text-base outline-none focus:border-foreground"
+                          />
+                          <button type="submit" aria-label="Pedir o ajuste" disabled={!adjustText.trim() || busy !== null} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
+                            <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                          </button>
+                        </form>
+                      )}
                     </article>
                   );
                 })}
@@ -694,13 +723,9 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
           <div className="flex flex-col gap-3.5">
             {incoming.map((idea, i) => (
               <article key={`${i}-${idea.title}`} className={cn("flex flex-col gap-2.5 rounded-2xl bg-card p-4", i === 0 && "border-[1.5px] border-foreground")}>
-                <span className="label-set text-muted-foreground">{i === 0 ? "Mais forte" : findFormat(idea.format_slug)?.name ?? ""}</span>
+                {i === 0 && <span className="label-set text-muted-foreground">Mais forte</span>}
                 <h2 className="idea-title">{idea.title}</h2>
-                <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
-                  <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-                  <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
-                </div>
-                {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
+                {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
               </article>
             ))}
             <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-input p-4">

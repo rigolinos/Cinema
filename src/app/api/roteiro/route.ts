@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
   const mode: Mode = (["bloco", "sugestoes", "organizar", "historia"] as const).find((m) => m === body?.mode) ?? "rascunho";
   const blockId = typeof body?.blockId === "string" ? body.blockId : "";
   const ask = typeof body?.request === "string" ? body.request.trim().slice(0, 300) : "";
+  const titled = body?.title === true;
   const pasted = typeof body?.text === "string" ? body.text.slice(0, PASTE_MAX_CHARS) : "";
   if (!videoId) return fail("Vídeo não informado.", 400);
   if (mode === "bloco" && (!blockId || !ask)) return fail("Diga o que mudar nesta parte.", 400);
@@ -95,16 +96,20 @@ export async function POST(request: NextRequest) {
 
   if (mode === "historia") {
     let story;
+    let title = "";
     try {
-      story = normalizeStory(await generateJson(storyRequest({ ...idea, ask })));
+      const raw = await generateJson(storyRequest({ ...idea, ask, titled }));
+      story = normalizeStory(raw);
+      const named = (raw as { title?: unknown })?.title;
+      if (titled && typeof named === "string") title = named.trim().slice(0, 140);
     } catch (err) {
       return aiFailure(err);
     }
     if (!story) return fail("A IA não trouxe a história desta vez. Tente de novo.", 502);
-    const { error } = await supabase.from("videos").update(story).eq("id", videoId);
+    const { error } = await supabase.from("videos").update(title ? { ...story, title } : story).eq("id", videoId);
     if (error) return fail("Não foi possível guardar a história.", 500);
     if (ask) await supabase.from("creator_signals").insert({ kind: "pedido_ideia", video_id: videoId, detail: { pedido: ask.slice(0, 160) } });
-    return NextResponse.json({ story });
+    return NextResponse.json({ story: title ? { ...story, title } : story });
   }
 
   if (mode === "rascunho") {

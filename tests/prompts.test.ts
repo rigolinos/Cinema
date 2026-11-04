@@ -2,7 +2,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { withExample } from "@/lib/ai";
 import { findFormat } from "@/lib/formats";
-import { normalizeOwnIdea } from "@/lib/ideia-propria";
 import { normalizeIdeas } from "@/lib/ideas";
 import { assembleBlocks, fallbackBlocks, sameWords, scriptFacts, segmentScript, speakersIn } from "@/lib/organizar";
 import { normalizeShots } from "@/lib/planos";
@@ -172,14 +171,6 @@ Segue pra parte 2`;
   });
 });
 
-describe("já tenho a ideia", () => {
-  it("o desfecho escrito tem prioridade sobre as opções; sem gancho, não há ideia", () => {
-    const idea = normalizeOwnIdea({ title: "Mãe e a comida", hooks: ["a", "b", "c", "d"], payoff: "Ela já tinha comido", payoff_options: ["x"], questions: ["q1", "q2", "q3"] }, "minha ideia");
-    expect(idea).toMatchObject({ hooks: ["a", "b", "c"], payoff: "Ela já tinha comido", payoff_options: [], questions: ["q1", "q2"] });
-    expect(normalizeOwnIdea({ title: "t", hooks: [] }, "x")).toBeNull();
-  });
-});
-
 // Pedido 3 do revisor: os prompts finais como saem para o Gemini, montados pelo mesmo código das rotas.
 // Gera docs/prompts-montados.md quando a variável GRAVAI_DUMP=1 está definida.
 describe("prompts montados", () => {
@@ -238,6 +229,22 @@ describe("a história antes do roteiro", () => {
     expect(normalizeStory({ hook: "x", situation: " ", payoff: "y" })).toBeNull();
     expect(normalizeStory(null)).toBeNull();
     expect(normalizeStory({ hook: "x", situation: "y" })?.payoff).toBe("");
+  });
+});
+
+describe("POV e a ideia de quem escreveu", () => {
+  it("as ideias conhecem os dois sentidos de POV e pedem variedade", () => {
+    const r = ideasRequest({ video, person, seen: [], trends: [] });
+    expect(r.system).toContain("linguagem da internet");
+    expect(r.system).toContain("no máximo 1 ideia em cada 5");
+  });
+
+  it("a história fica com a ideia da pessoa, e só pede nome quando falta", () => {
+    const base = { video: { ...video, title: "T", hook: "G", situation: "", payoff: "", formatSlug: null }, person };
+    expect(storyRequest(base).system).toContain("não troque a ideia");
+    expect(JSON.stringify(storyRequest(base).schema)).not.toContain("title");
+    expect(JSON.stringify(storyRequest({ ...base, titled: true }).schema)).toContain("title");
+    expect(storyRequest({ ...base, titled: true }).example).toContain("title");
   });
 });
 

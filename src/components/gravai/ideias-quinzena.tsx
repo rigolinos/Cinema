@@ -262,12 +262,10 @@ export function IdeiasQuinzena() {
       )}
 
       {ideas?.map((idea) => {
-        const format = findFormat(idea.format_slug);
         return (
           <article key={idea.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2">
-                {format && <span className="label-set text-muted-foreground">{format.name}</span>}
                 {idea.video_id && <span className="rounded-md bg-foreground px-2 py-1 font-mono text-xs uppercase text-background">Em vídeo</span>}
               </span>
               <SaveButton
@@ -284,17 +282,13 @@ export function IdeiasQuinzena() {
               />
             </div>
             <h3 className="idea-title">{idea.title}</h3>
-            <div className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2.5">
-              <span className="label-set text-muted-foreground">Gancho · 0–3 s</span>
-              <p className="text-[15px] font-medium leading-snug">“{idea.hook}”</p>
-            </div>
-            {idea.situation && <p className="text-sm italic leading-relaxed text-muted-foreground">{idea.situation}</p>}
+            {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
             <div className="flex items-end justify-between gap-3">
               {(idea.payoff || idea.why) && (
-                <Explain id="ideia-porque" question={idea.payoff ? "Ver o desfecho" : "Por que funciona?"} closed className="min-w-0 flex-1">
+                <Explain id="ideia-porque" question={idea.payoff ? "Ver como termina" : "Por que funciona?"} closed className="min-w-0 flex-1">
                   {idea.payoff && (
                     <>
-                      <strong className="font-semibold text-foreground">Desfecho:</strong> {idea.payoff}{" "}
+                      <strong className="font-semibold text-foreground">Como termina:</strong> {idea.payoff}{" "}
                     </>
                   )}
                   {idea.why}
