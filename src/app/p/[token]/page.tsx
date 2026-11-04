@@ -4,7 +4,6 @@ import { Logo } from "@/components/logo";
 import { COMPANY } from "@/lib/legal";
 import { cn } from "@/lib/utils";
 import { cueParts, isMe, myLines, speechLines, splitAction } from "@/lib/convidado";
-import { BLOCK_KINDS } from "@/lib/roteiro";
 import { firstNameOf, formatShootDate, rolesYou } from "@/lib/pessoas";
 import { Abas } from "./abas";
 import { Acompanhar } from "./acompanhar";
@@ -77,11 +76,11 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
         return (
           <article key={b.number} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
             <h3 className="label-set text-muted-foreground">
-              {String(b.number).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
+              Parte {b.number}
             </h3>
             {b.on_screen && (
               <p className="text-sm">
-                <span className="label-set mr-2 text-muted-foreground">Tela</span>
+                <span className="label-set mr-2 text-muted-foreground">Escrito na tela</span>
                 {b.on_screen}
               </p>
             )}

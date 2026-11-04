@@ -11,7 +11,7 @@ import { durationLabel } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { FRAMINGS, isSolo, shotTags, shotTerms, type Shot } from "@/lib/planos";
-import { BLOCK_KINDS, speakerOf, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
+import { speakerOf, totalSeconds, type ScriptBlock } from "@/lib/roteiro";
 import { firstPending, nextPending, progress, setOrder, setupChange, tipFor } from "@/lib/set";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
@@ -288,7 +288,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 <section aria-label="Teleprompter" className="flex flex-col gap-3 rounded-2xl bg-card p-5">
                   <div className="flex items-center justify-between">
                     <span className="label-set text-muted-foreground">
-                      {["Fala", speakerOf(block, people, isSolo(video.resources ?? [])), block.label || BLOCK_KINDS[block.kind].label].filter(Boolean).join(" · ")}
+                      {["Fala", speakerOf(block, people, isSolo(video.resources ?? []))].filter(Boolean).join(" · ")}
                     </span>
                     <span className="flex gap-1">
                       <button type="button" aria-label="Diminuir o texto" disabled={size === 0} onClick={() => setSize((s) => s - 1)} className="flex size-11 items-center justify-center rounded-full disabled:opacity-30">
@@ -300,7 +300,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                     </span>
                   </div>
                   {block.speech && <p className={cn("font-semibold leading-snug", TEXT_SIZES[size])}>{block.speech}</p>}
-                  {block.on_screen && <p className="text-sm text-muted-foreground">Na tela (entra na edição): {block.on_screen}</p>}
+                  {block.on_screen && <p className="text-sm text-muted-foreground">Escrito na tela (entra na edição): {block.on_screen}</p>}
                 </section>
               )}
 

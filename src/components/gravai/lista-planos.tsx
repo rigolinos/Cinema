@@ -31,7 +31,8 @@ function detail(r: PlanRow): string {
 }
 
 // `wrap` mostra a descrição inteira: na folha do vídeo, ela é o que a pessoa lê para gravar.
-export function PlanList({ rows, onPick, wrap = false }: { rows: PlanRow[]; onPick?: (id: string) => void; wrap?: boolean }) {
+// `onToggle` deixa marcar o plano como gravado direto na lista, para quem gravou sem o passo a passo.
+export function PlanList({ rows, onPick, wrap = false, onToggle }: { rows: PlanRow[]; onPick?: (id: string) => void; wrap?: boolean; onToggle?: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-3">
       {byPlace(rows).map((group, g) => (
@@ -39,17 +40,33 @@ export function PlanList({ rows, onPick, wrap = false }: { rows: PlanRow[]; onPi
           {group.place && <h3 className="label-set px-2 pt-1 text-muted-foreground">{group.place}</h3>}
           <ul className="flex flex-col gap-1">
             {group.rows.map((r) => {
+              const mark = (
+                <span
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-full",
+                    r.recorded ? "bg-foreground text-background" : r.skipped ? "border-[1.5px] border-dashed border-muted-foreground" : "border-[1.5px] border-input",
+                  )}
+                >
+                  {r.recorded && <Check className="size-3.5" strokeWidth={3} />}
+                </span>
+              );
               const body = (
                 <>
-                  <span
-                    className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-full",
-                      r.recorded ? "bg-foreground text-background" : r.skipped ? "border-[1.5px] border-dashed border-muted-foreground" : "border-[1.5px] border-input",
-                    )}
-                    aria-hidden="true"
-                  >
-                    {r.recorded && <Check className="size-3.5" strokeWidth={3} />}
-                  </span>
+                  {onToggle ? (
+                    <button
+                      type="button"
+                      aria-pressed={r.recorded}
+                      aria-label={`Plano ${r.number} já gravado`}
+                      onClick={() => onToggle(r.id)}
+                      className="-m-2.5 flex size-11 shrink-0 items-center justify-center rounded-full"
+                    >
+                      {mark}
+                    </button>
+                  ) : (
+                    <span className="contents" aria-hidden="true">
+                      {mark}
+                    </span>
+                  )}
                   <FramingIcon framing={r.framing} orientation={r.orientation} size="sm" />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className={cn("text-[15px] font-semibold", !wrap && "truncate")}>

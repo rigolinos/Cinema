@@ -232,6 +232,16 @@ describe("a história antes do roteiro", () => {
   });
 });
 
+describe("regras do roteiro e dos planos", () => {
+  it("o texto na tela é só o que está escrito, e cada plano tem uma ação", () => {
+    const draft = draftRequest({ video: { ...video, title: "T", hook: "G", situation: "", payoff: "", formatSlug: null }, person });
+    expect(draft.system).toContain("só o texto escrito");
+    const shots = shotsTask({ objective: "divertir" }).system;
+    expect(shots).toContain("uma ação só");
+    expect(shots).toContain("detalhe mostra só um objeto");
+  });
+});
+
 describe("POV e a ideia de quem escreveu", () => {
   it("as ideias conhecem os dois sentidos de POV e pedem variedade", () => {
     const r = ideasRequest({ video, person, seen: [], trends: [] });

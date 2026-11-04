@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
-import { ArrowRight, Check, ChevronLeft, Lock, RotateCcw, Share2, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, Lock, Pencil, RotateCcw, Share2, Trash2 } from "lucide-react";
 import { PlansOutdated } from "@/components/gravai/aviso-planos";
 import { VideoMaterial, type SheetBlock, type SheetPerson, type SheetShot } from "@/components/gravai/material-video";
 import { BackLink } from "@/components/gravai/voltar";
@@ -31,6 +31,8 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   const [shots, setShots] = useState<SheetShot[]>([]);
   const [people, setPeople] = useState<SheetPerson[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState("");
   const { confirm, sheet } = useConfirm();
   const router = useRouter();
 
@@ -61,6 +63,32 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
     const { error } = await createClient().from("videos").update({ stage }).eq("id", id);
     if (error) setDeleteError("Não deu para pular. Tente de novo.");
     else router.push(`/video/${id}/${stage}`);
+  }
+
+  async function saveName() {
+    const title = name.trim().slice(0, 140);
+    if (!video || !title) return;
+    const { error } = await createClient().from("videos").update({ title }).eq("id", id);
+    if (error) {
+      setDeleteError("Não deu para mudar o nome. Tente de novo.");
+      return;
+    }
+    setVideo({ ...video, title });
+    setRenaming(false);
+  }
+
+  // Marcar direto na lista, para quem gravou sem o passo a passo. Conta como um take bom, e desmarcar desfaz.
+  async function toggleShot(shotId: string) {
+    const shot = shots.find((s) => s.id === shotId);
+    if (!shot) return;
+    const patch = shot.recorded ? { recorded: false, good_take: false } : { recorded: true, good_take: true, takes: Math.max(shot.takes, 1) };
+    const before = shots;
+    setShots(shots.map((s) => (s.id === shotId ? { ...s, ...patch } : s)));
+    const { error } = await createClient().from("shots").update(patch).eq("id", shotId);
+    if (error) {
+      setShots(before);
+      setDeleteError("Não deu para marcar o plano. Confira a conexão.");
+    }
   }
 
   // Marcar sem passar pelo set: muita gente grava fora do app e só quer deixar organizado.
@@ -94,7 +122,52 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
         <>
           <div className="flex flex-col gap-3">
             <p className="label-set text-muted-foreground">{stageLabel(video.stage)}</p>
-            <h1 className="font-display text-[28px]">{video.title || "Vídeo sem ideia ainda"}</h1>
+            {renaming ? (
+              <form
+                className="flex flex-col gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveName();
+                }}
+              >
+                <label className="sr-only" htmlFor="nome-do-video">
+                  Nome do vídeo
+                </label>
+                <input
+                  id="nome-do-video"
+                  autoFocus
+                  value={name}
+                  maxLength={140}
+                  onChange={(e) => setName(e.target.value)}
+                  className="min-h-12 w-full rounded-xl border border-input bg-card px-3.5 text-lg font-bold outline-none focus:border-foreground"
+                />
+                <div className="flex gap-4 text-sm font-semibold">
+                  <button type="submit" disabled={!name.trim()} className="min-h-11 underline disabled:opacity-40">
+                    Salvar o nome
+                  </button>
+                  <button type="button" onClick={() => setRenaming(false)} className="min-h-11 text-muted-foreground">
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="font-display text-[28px]">{video.title || "Vídeo sem ideia ainda"}</h1>
+                {video.title && (
+                  <button
+                    type="button"
+                    aria-label="Mudar o nome do vídeo"
+                    onClick={() => {
+                      setName(video.title ?? "");
+                      setRenaming(true);
+                    }}
+                    className="-mr-2.5 -mt-1 flex size-11 shrink-0 items-center justify-center text-muted-foreground"
+                  >
+                    <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
             {!ready && <Trail stage={video.stage} />}
             <p className="font-mono text-sm text-muted-foreground">
               {[
@@ -109,7 +182,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
 
           {hasScript && <PlansOutdated videoId={id} blocks={blocks} shots={shots} onUpdated={setShots} />}
 
-          {hasScript && <VideoMaterial video={video} blocks={blocks} shots={shots} people={people} />}
+          {hasScript && <VideoMaterial video={video} blocks={blocks} shots={shots} people={people} onToggleShot={toggleShot} />}
 
           {!hasScript && video.hook && (
             <section className="flex flex-col gap-2.5 rounded-2xl bg-card p-4" aria-labelledby="ideia">

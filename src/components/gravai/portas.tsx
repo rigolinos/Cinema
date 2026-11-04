@@ -151,7 +151,7 @@ export function PasteBox({ videoId, initial }: { videoId: string; initial: strin
         onChange={(e) => setText(e.target.value)}
         rows={10}
         maxLength={PASTE_MAX_CHARS}
-        placeholder={"Cole aqui.\nDica: o que é cena pode ficar entre colchetes, [abre a porta]."}
+        placeholder={"Cole aqui.\nDica: o que é ação pode ficar entre colchetes, [abre a porta]."}
         className={cn(box, "resize-y font-mono text-[15px]")}
       />
       <button type="button" onClick={organize} disabled={busy || !text.trim()} className={primary}>

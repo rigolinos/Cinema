@@ -691,7 +691,11 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                           </label>
                           <input
                             id={`ajustar-${idea.id}`}
-                            autoFocus
+                            ref={(el) => {
+                              if (!el || el === document.activeElement) return;
+                              el.focus({ preventScroll: true });
+                              el.scrollIntoView({ block: "center" });
+                            }}
                             value={adjustText}
                             maxLength={280}
                             onChange={(e) => setAdjustText(e.target.value)}
