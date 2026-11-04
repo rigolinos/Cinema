@@ -2,10 +2,11 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
+import { PlansOutdated } from "@/components/gravai/aviso-planos";
 import { StepHeader } from "@/components/gravai/step-header";
+import { useLeave } from "@/components/gravai/voltar";
 import { Explain } from "@/components/gravai/explain";
 import { FramingIcon } from "@/components/gravai/framing-icon";
 import { Thinking } from "@/components/gravai/thinking";
@@ -33,8 +34,8 @@ import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
-type Block = ScriptBlock & { id: string; position: number };
-type SavedShot = Shot & { id: string };
+type Block = ScriptBlock & { id: string; position: number; updated_at?: string };
+type SavedShot = Shot & { id: string; created_at?: string };
 
 const ORIENTATIONS: Record<Orientation, Term> = {
   vertical: { label: "Vertical", what: "Celular em pé (9:16).", why: "É o formato de Reels, TikTok e Shorts: ocupa a tela toda." },
@@ -155,7 +156,7 @@ function ShotCard({
 
 export default function PlanosPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
+  const leave = useLeave();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [shots, setShots] = useState<SavedShot[]>([]);
@@ -245,7 +246,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
       setError("Não deu para salvar a ordem de gravação. Tente de novo.");
       return;
     }
-    router.push(`/video/${id}`);
+    leave(`/video/${id}`);
   }
 
   const blockIndex = new Map(blocks.map((b, i) => [b.id, i]));
@@ -263,6 +264,8 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-36 pt-5">
         {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
         {video === null && <p className="text-sm text-destructive">Não encontramos este vídeo.</p>}
+
+        {video && <PlansOutdated videoId={id} blocks={blocks} shots={shots} onUpdated={setShots} />}
 
         {video && blocks.length === 0 && (
           <p className="rounded-2xl bg-card p-4 text-sm leading-relaxed">

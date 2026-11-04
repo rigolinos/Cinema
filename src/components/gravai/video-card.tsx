@@ -20,7 +20,7 @@ export function videoHref(v: Video): string {
 }
 
 // O que o cartão mostra, igual para vídeo próprio e convite. O rótulo fica junto do nome: fala do vídeo e não aperta o título.
-function CardFace({ title, guest = false, durationS, stage, status, action }: { title: string; guest?: boolean; durationS: number | null; stage: VideoStage; status: React.ReactNode; action: string }) {
+function CardFace({ title, guest = false, durationS, stage, status, action }: { title: string; guest?: boolean; durationS: number | null; stage: VideoStage; status: React.ReactNode; action?: string }) {
   return (
     <>
       <span className="flex items-baseline justify-between gap-3">
@@ -38,7 +38,7 @@ function CardFace({ title, guest = false, durationS, stage, status, action }: { 
       <Trail stage={stage} />
       <span className="flex items-center justify-between gap-2">
         <span className="label-set text-muted-foreground">{status}</span>
-        <span className="text-sm font-semibold">{action}</span>
+        {action && <span className="text-sm font-semibold">{action}</span>}
       </span>
     </>
   );
@@ -67,7 +67,7 @@ export function InviteCard({ invite, onRemove }: { invite: InviteRow; onRemove: 
     <div className="relative">
       {sheet}
       <Link href={`/p/${invite.token}`} className="flex flex-col gap-3 rounded-2xl bg-card p-4 pr-14">
-        <CardFace title={invite.title} guest durationS={invite.duration_s} stage={invite.stage} status={invite.published_at ? "Publicado" : stageLabel(invite.stage)} action="Abrir" />
+        <CardFace title={invite.title} guest durationS={invite.duration_s} stage={invite.stage} status={invite.published_at ? "Publicado" : stageLabel(invite.stage)} />
       </Link>
 
       <button
@@ -149,7 +149,7 @@ export function VideoCard({ video, onChange }: { video: VideoRow; onChange: (v: 
               {video.published_at ? "Publicado" : stageLabel(video.stage)}
             </>
           }
-          action={video.stage === "pronto" || video.stage === "gravar" ? "Abrir" : "Continuar"}
+          action={video.stage === "pronto" || video.stage === "gravar" ? undefined : "Continuar"}
         />
       </Link>
 

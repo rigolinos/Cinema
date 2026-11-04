@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/gravai/confirm";
 import { Check, Copy, Link2Off, MessageCircle, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { nextReadyStage } from "@/components/gravai/trail";
+import { useLeave } from "@/components/gravai/voltar";
 import { createClient } from "@/lib/supabase/client";
 import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
 import { isMe } from "@/lib/convidado";
@@ -31,6 +32,7 @@ const field = "min-h-12 w-full rounded-xl border border-input bg-card px-3.5 tex
 export default function PessoasPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const leave = useLeave();
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [people, setPeople] = useState<Person[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -155,7 +157,9 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     if (video?.stage === "pessoas") {
       await createClient().from("videos").update({ stage: nextReadyStage("pessoas") }).eq("id", id);
     }
-    router.push(`/video/${id}/${nextReadyStage("pessoas")}`);
+    // O vídeo já está pronto: a pessoa veio da folha só para mudar quem aparece.
+    if (video?.stage === "gravar" || video?.stage === "pronto") leave(`/video/${id}`);
+    else router.push(`/video/${id}/${nextReadyStage("pessoas")}`);
   }
 
   const onCamera = people.filter((p) => p.role === "eu" || p.roles.includes("ator"));

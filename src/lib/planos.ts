@@ -63,6 +63,19 @@ export interface Shot {
   recorded?: boolean;
 }
 
+// O que mudou por último no roteiro.
+export function newestChange(blocks: { updated_at?: string }[]): string {
+  return blocks.reduce((latest, b) => ((b.updated_at ?? "") > latest ? (b.updated_at ?? "") : latest), "");
+}
+
+// O roteiro mudou depois de os planos serem feitos? Conta a criação, não a edição: mexer num plano não atualiza o roteiro.
+export function plansOutdated(blocks: { updated_at?: string }[], shots: { created_at?: string }[]): boolean {
+  const newest = Date.parse(newestChange(blocks));
+  const made = shots.map((s) => Date.parse(s.created_at ?? "")).filter((t) => !Number.isNaN(t));
+  if (Number.isNaN(newest) || made.length === 0) return false;
+  return newest > Math.min(...made);
+}
+
 const norm = (s: string) => s.trim().toLowerCase();
 
 // Ordem de gravação: junta os planos do mesmo lugar e, dentro dele, da mesma roupa.
