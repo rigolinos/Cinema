@@ -1,3 +1,4 @@
+import { firstNameOf } from "./pessoas";
 import { durationLabel } from "./ideas";
 
 export type BlockKind = "gancho" | "contexto" | "conteudo" | "virada" | "chamada";
@@ -157,15 +158,18 @@ export function normalizeRewrite(raw: unknown): Pick<ScriptBlock, "speech" | "on
   return block.speech || block.on_screen || block.action ? block : null;
 }
 
-// Quem fala neste bloco: a pessoa marcada em Pessoas; gravando sozinho, você para a câmera.
+// Quem fala neste bloco: a pessoa marcada em Pessoas; gravando sozinho, a própria pessoa. Pelo nome, sempre que o app souber.
 export function speakerOf(
   block: { person_id?: string | null },
   people: { id: string; name: string; role: string }[],
   solo: boolean,
 ): string | null {
   const person = people.find((p) => p.id === block.person_id);
-  if (person) return person.role === "eu" ? "você" : person.name;
-  return solo ? "você, para a câmera" : null;
+  const named = (p: { name: string }) => (p.name.trim() && p.name !== "Eu" ? firstNameOf(p.name) : "você");
+  if (person) return person.role === "eu" ? named(person) : person.name;
+  if (!solo) return null;
+  const me = people.find((p) => p.role === "eu");
+  return me ? named(me) : "você";
 }
 
 // ── Sugestões por bloco (no roteiro que a pessoa trouxe ou editou) ─────────

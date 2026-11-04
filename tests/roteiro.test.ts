@@ -145,8 +145,10 @@ describe("quem fala", () => {
   ];
   it("a pessoa marcada no bloco; você mesmo; ou você para a câmera quando grava sozinho", () => {
     expect(speakerOf({ person_id: "p1" }, people, false)).toBe("Natasha");
-    expect(speakerOf({ person_id: "p2" }, people, false)).toBe("você");
-    expect(speakerOf({ person_id: null }, people, true)).toBe("você, para a câmera");
+    expect(speakerOf({ person_id: "p2" }, people, false)).toBe("Rodrigo");
+    expect(speakerOf({ person_id: null }, people, true)).toBe("Rodrigo");
+    expect(speakerOf({ person_id: null }, [], true)).toBe("você");
+    expect(speakerOf({ person_id: "x" }, [{ id: "x", name: "Eu", role: "eu" }], false)).toBe("você");
     expect(speakerOf({}, people, false)).toBeNull();
   });
 });

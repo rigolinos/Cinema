@@ -44,9 +44,9 @@ import { cn } from "@/lib/utils";
 import type { Video, VideoIdea } from "@/types/database";
 
 const QUESTIONS: Record<QuestionId, string> = {
-  niche: "Sobre o que é o seu perfil? Pode ser bem simples, tipo “treino em casa” ou “receitas baratas”.",
-  objective: "O que esse vídeo precisa fazer por você?",
-  produto: "O que você vende, e por que alguém compraria de você e não de outro?",
+  niche: "Sobre o que é o seu perfil?",
+  objective: "Qual o objetivo deste vídeo?",
+  produto: "O que você vende ou divulga, e por que alguém compraria?",
   platform: "Onde ele vai sair? Pode marcar mais de um.",
   duration: "E quanto tempo, mais ou menos?",
   resources: "Quantas pessoas aparecem e onde?",

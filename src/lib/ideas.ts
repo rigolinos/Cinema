@@ -1,8 +1,8 @@
 import { findFormat } from "./formats";
 
 export const OBJECTIVES = {
-  crescer: "Crescer",
-  vender: "Vender",
+  crescer: "Alcançar mais gente",
+  vender: "Vender ou divulgar",
   divertir: "Divertir",
   ensinar: "Ensinar",
 } as const;

@@ -8,9 +8,9 @@ import { StepHeader } from "@/components/gravai/step-header";
 import { nextReadyStage } from "@/components/gravai/trail";
 import { useLeave } from "@/components/gravai/voltar";
 import { createClient } from "@/lib/supabase/client";
-import { BLOCK_KINDS, type ScriptBlock } from "@/lib/roteiro";
+import { type ScriptBlock } from "@/lib/roteiro";
 import { isMe } from "@/lib/convidado";
-import { GUEST_ROLES, ROLES, inviteMessage, shareUrl, sortRoles, whatsappLink, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import { GUEST_ROLES, ROLES, firstNameOf, inviteMessage, shareUrl, sortRoles, whatsappLink, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -334,13 +334,13 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                 {blocks.map((b, i) => (
                   <div key={b.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
                     <span className="label-set text-muted-foreground">
-                      Parte {String(i + 1).padStart(2, "0")} · {b.label || BLOCK_KINDS[b.kind].label}
+                      Parte {i + 1}
                     </span>
                     {b.speech && <p className="line-clamp-2 text-sm leading-relaxed">“{b.speech}”</p>}
                     <div className="flex flex-wrap gap-2">
                       {onCamera.map((p) => (
                         <button key={p.id} type="button" aria-pressed={b.person_id === p.id} onClick={() => assign(b, b.person_id === p.id ? null : p.id)} className={cn(chip, b.person_id === p.id && chipOn)}>
-                          {p.role === "eu" ? "Eu" : p.name}
+                          {p.role === "eu" && p.name !== "Eu" ? firstNameOf(p.name) : p.name}
                         </button>
                       ))}
                     </div>

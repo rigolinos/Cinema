@@ -68,7 +68,7 @@ export function PlansOutdated<S extends Shot & { id: string; created_at?: string
   return (
     <section aria-label="O roteiro mudou" className="flex flex-col gap-3 rounded-2xl border-[1.5px] border-foreground bg-card p-4">
       {sheet}
-      <p className="font-semibold leading-snug">O roteiro mudou depois destes planos. Atualizar os planos?</p>
+      <p className="font-semibold leading-snug">Você mudou o roteiro. Quer atualizar os planos?</p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
