@@ -58,7 +58,7 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
         return (
           <article key={i} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">
             <p className="label-set text-muted-foreground">
-              Parte {String(l.block).padStart(2, "0")} · {cue ? `deixa${cue.speaker ? ` de ${cue.speaker}` : ""}` : "você começa"}
+              Cena {l.block} · {cue ? `deixa${cue.speaker ? ` de ${cue.speaker}` : ""}` : "você começa"}
             </p>
             {cue?.tail && <p className="text-sm text-muted-foreground">{cue.tail}</p>}
             <p className="text-xl font-semibold leading-snug">{l.text}</p>
@@ -76,7 +76,7 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
         return (
           <article key={b.number} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
             <h3 className="label-set text-muted-foreground">
-              Parte {b.number}
+              Cena {b.number}
             </h3>
             {b.on_screen && (
               <p className="text-sm">

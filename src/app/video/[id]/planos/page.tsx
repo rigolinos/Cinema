@@ -302,10 +302,10 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
             )}
 
             {blocks.map((b, i) => (
-                <section key={b.id} className="flex flex-col gap-3" aria-label={`Parte ${i + 1}`}>
+                <section key={b.id} className="flex flex-col gap-3" aria-label={`Cena ${i + 1}`}>
                   <div className="flex flex-col gap-1">
                     <h2 className="label-set">
-                      Parte {i + 1}
+                      Cena {i + 1}
                     </h2>
                     {b.speech && <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">“{b.speech}”</p>}
                   </div>
@@ -316,7 +316,7 @@ export default function PlanosPage({ params }: { params: Promise<{ id: string }>
                     ))}
                   <button type="button" onClick={() => add(b)} className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold">
                     <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
-                    Adicionar plano nesta parte
+                    Adicionar plano nesta cena
                   </button>
                 </section>
               ))}

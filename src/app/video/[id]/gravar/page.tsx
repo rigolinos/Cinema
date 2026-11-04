@@ -274,7 +274,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                   <FramingIcon framing={shot.framing} orientation={shot.orientation} size="lg" />
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <p className="font-mono text-sm tracking-wide text-muted-foreground">
-                      PARTE {String(blockNumber).padStart(2, "0")} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
+                      CENA {blockNumber} · PLANO {String(scriptNumber.get(shot.id)).padStart(2, "0")}
                       {shot.takes > 0 ? ` · TAKE ${shot.takes + 1}` : ""}
                     </p>
                     <p className="label-set">{shotTags(shot).join(" · ")}</p>

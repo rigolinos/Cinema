@@ -22,7 +22,7 @@ export interface Video {
   platform: 'reels' | 'tiktok' | 'shorts' | 'youtube' | null; // a principal: decide vertical ou horizontal
   platforms: ('reels' | 'tiktok' | 'shorts' | 'youtube')[];
   duration_s: number | null;
-  resources: ('sozinho' | 'com_alguem' | 'em_casa' | 'na_rua')[];
+  resources: ('sozinho' | 'com_alguem' | 'em_casa' | 'na_rua' | 'outro_lugar')[];
   stage: VideoStage;
   situation?: string; // a cena da ideia escolhida
   payoff?: string; // o desfecho exato da ideia escolhida

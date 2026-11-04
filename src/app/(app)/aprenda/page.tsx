@@ -46,12 +46,12 @@ const TERMS = [
   },
   {
     term: "Roteiro",
-    what: "O texto do vídeo dividido em partes: o que você fala, o que aparece escrito e o que acontece em cena.",
+    what: "O texto do vídeo dividido em cenas: o que você fala, o que aparece escrito e o que acontece em cena.",
     why: "Com roteiro você grava mais rápido e não esquece o que ia dizer.",
   },
   {
     term: "Dividir em planos",
-    what: "Separar cada parte do roteiro nas tomadas que você vai gravar. No cinema, isso se chama decupagem.",
+    what: "Separar cada cena do roteiro nas tomadas que você vai gravar. No cinema, isso se chama decupagem.",
     why: "Fazer isso antes evita descobrir na edição que faltou um take.",
   },
   {

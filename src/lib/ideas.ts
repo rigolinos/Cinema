@@ -19,6 +19,7 @@ export const RESOURCES = {
   com_alguem: "Mais de uma",
   em_casa: "Em casa",
   na_rua: "Na rua",
+  outro_lugar: "Outro lugar",
 } as const;
 
 // São duas escolhas únicas: quantas pessoas aparecem e onde ("Nos dois" marca casa e rua).
@@ -28,6 +29,7 @@ export const PLACES = [
   { label: "Em casa", value: ["em_casa"] },
   { label: "Na rua", value: ["na_rua"] },
   { label: "Nos dois", value: ["em_casa", "na_rua"] },
+  { label: "Outro lugar", value: ["outro_lugar"] },
 ] as const satisfies readonly { label: string; value: readonly Resource[] }[];
 
 export function withWho(list: readonly Resource[], who: Resource): Resource[] {

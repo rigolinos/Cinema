@@ -64,7 +64,7 @@ describe("checkScript", () => {
 
   it("avisa quando falta o gancho ou ele não é o primeiro", () => {
     expect(checkScript([b("conteudo", "x"), b("chamada", "y")], null)[0].text).toMatch(/Falta o gancho/);
-    expect(checkScript([b("conteudo", "x"), b("gancho", "y"), b("chamada", "z")], null)[0].text).toMatch(/primeira parte/);
+    expect(checkScript([b("conteudo", "x"), b("gancho", "y"), b("chamada", "z")], null)[0].text).toMatch(/primeira cena/);
   });
 });
 

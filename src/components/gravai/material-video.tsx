@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PlanList, type PlanRow } from "@/components/gravai/lista-planos";
-import { speechLines, splitAction } from "@/lib/convidado";
-import { ROLES, formatShootDate, sortRoles, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import { isMe, speechLines, splitAction } from "@/lib/convidado";
+import { ROLES, firstNameOf, formatShootDate, sortRoles, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import type { Resource } from "@/lib/ideas";
 import type { Shot } from "@/lib/planos";
 import { speakerOf, type ScriptBlock } from "@/lib/roteiro";
@@ -11,7 +11,13 @@ export type SheetBlock = ScriptBlock & { id: string; position: number; updated_a
 export type SheetShot = Shot & { id: string; created_at?: string; shoot_order: number | null; recorded: boolean; good_take: boolean; takes: number };
 export type SheetPerson = { id: string; name: string; role: PersonRole; roles: GuestRole[]; confirmed_at: string | null };
 
-// Cada parte da folha, com o atalho para mudar o que está nela.
+// Quem diz esta linha e o que é dito. "Primeiro erro: pouca água" fica inteiro: o que vem antes dos dois-pontos só conta como nome se for de alguém do vídeo.
+function dialogLine(line: { speaker: string | null; text: string; raw: string }, fallback: string | null, people: SheetPerson[]): { who: string | null; text: string } {
+  if (!line.speaker) return { who: fallback, text: line.raw };
+  return people.some((p) => isMe(line.speaker as string, p.name)) ? { who: firstNameOf(line.speaker), text: line.text } : { who: null, text: line.raw };
+}
+
+// Cada seção da folha, com o atalho para mudar o que está nela.
 function Part({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
   return (
     <section aria-label={title} className="flex flex-col gap-1.5">
@@ -61,15 +67,19 @@ export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { 
             const speaker = speakerOf(b, people, resources.includes("sozinho") && !resources.includes("com_alguem"));
             return (
               <article key={b.id} className="flex flex-col gap-1.5 py-3.5">
-                <h3 className="label-set text-muted-foreground">Parte {i + 1}</h3>
+                <h3 className="label-set text-muted-foreground">Cena {i + 1}</h3>
                 {action && <p className="text-sm italic leading-snug text-muted-foreground">{action}</p>}
-                {speechLines(b.speech).map((l, n) => (
-                  <p key={n} className="text-[17px] font-semibold leading-snug">
-                    {/* Quem fala fica claro: o nome já escrito na fala ou, se não houver, o da parte. */}
-                    {!l.speaker && speaker && <span className="font-normal text-muted-foreground">{speaker}: </span>}
-                    {l.raw}
-                  </p>
-                ))}
+                {/* Como num roteiro de audiovisual: o nome em cima da fala, só quando muda quem fala. */}
+                {speechLines(b.speech).map((l, n, all) => {
+                  const line = dialogLine(l, speaker, people);
+                  const before = n > 0 ? dialogLine(all[n - 1], speaker, people).who : null;
+                  return (
+                    <div key={n} className="flex flex-col gap-0.5">
+                      {line.who && line.who !== before && <p className="label-set text-foreground">{line.who}</p>}
+                      <p className="text-[17px] font-semibold leading-snug">{line.text}</p>
+                    </div>
+                  );
+                })}
                 {b.on_screen && (
                   <p className="text-sm text-muted-foreground">
                     <span className="label-set mr-2">Escrito na tela</span>

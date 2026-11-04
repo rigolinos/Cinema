@@ -336,6 +336,12 @@ ok((await one('SELECT count(*)::int AS n FROM public.image_consents WHERE accept
 await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo roteiro' }])]);
 ok((await one('SELECT count(*)::int AS n FROM public.shots WHERE video_id = $1', [vidA])).n === 0, 'roteiro novo apaga os planos dos blocos antigos');
 
+console.log('Lugares:');
+r = await as('authenticated', A, `UPDATE public.videos SET resources = '{com_alguem,outro_lugar}' WHERE id = $1 RETURNING resources`, [vidA]);
+ok(r.rows?.[0]?.resources?.includes('outro_lugar'), 'dá para gravar em outro lugar' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `UPDATE public.videos SET resources = '{marte}' WHERE id = $1`, [vidA]);
+ok(r.err, 'lugar fora da lista continua recusado');
+
 console.log('Convites na conta:');
 const convite = (await pessoa(A, 'Bia', 'ator')).rows[0].share_token;
 const estado = async (role, uid) => (await as(role, uid, 'SELECT public.invite_state($1) AS s', [convite])).rows?.[0]?.s;

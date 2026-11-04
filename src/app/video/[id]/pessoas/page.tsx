@@ -144,7 +144,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   async function assign(block: Block, personId: string | null) {
     setBlocks((l) => l.map((b) => (b.id === block.id ? { ...b, person_id: personId } : b)));
     const { error } = await createClient().from("script_blocks").update({ person_id: personId }).eq("id", block.id);
-    if (error) setError("Não deu para salvar quem aparece nesta parte.");
+    if (error) setError("Não deu para salvar quem aparece nesta cena.");
   }
 
   async function copy(person: Person) {
@@ -327,14 +327,14 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
               <section aria-labelledby="partes" className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
                   <h2 id="partes" className="label-set">
-                    Quem aparece em cada parte
+                    Quem aparece em cada cena
                   </h2>
-                  <p className="text-sm leading-relaxed text-muted-foreground">Cada um recebe só as partes com o nome dele.</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">Cada um recebe só as cenas com o nome dele.</p>
                 </div>
                 {blocks.map((b, i) => (
                   <div key={b.id} className="flex flex-col gap-2.5 rounded-2xl bg-card p-4">
                     <span className="label-set text-muted-foreground">
-                      Parte {i + 1}
+                      Cena {i + 1}
                     </span>
                     {b.speech && <p className="line-clamp-2 text-sm leading-relaxed">“{b.speech}”</p>}
                     <div className="flex flex-wrap gap-2">
