@@ -258,6 +258,26 @@ export function normalizeWardrobe<T extends { wardrobe: string }>(shots: T[]): T
   });
 }
 
+// "Sala" e "Sala de estar" no mesmo vídeo são o mesmo lugar: fica o nome mais completo.
+// Se o nome curto cabe em dois lugares diferentes ("Sala de estar" e "Sala de jantar"), não junta.
+// Maiúscula e acento diferentes também viram o mesmo lugar.
+export function unifyPlaces<T extends { location: string }>(shots: T[]): T[] {
+  const fold = (s: string) => s.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim();
+  const shown = new Map<string, string>();
+  for (const s of shots) {
+    const name = s.location.trim();
+    if (name && !shown.has(fold(name))) shown.set(fold(name), name);
+  }
+  const keys = [...shown.keys()];
+  const target = new Map<string, string>();
+  for (const k of keys) {
+    const inside = new RegExp(`(^| )${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}( |$)`);
+    const wider = keys.filter((o) => o !== k && inside.test(o));
+    target.set(k, wider.length === 1 ? wider[0] : k);
+  }
+  return shots.map((s) => (s.location.trim() ? { ...s, location: shown.get(target.get(fold(s.location))!)! } : s));
+}
+
 // Confere a decupagem da IA: só blocos que existem, valores válidos, no máximo `max` planos
 // (todo bloco garante pelo menos um), e nada de câmera andando para quem grava sozinho.
 export function normalizeShots(
@@ -301,7 +321,7 @@ export function normalizeShots(
   ordered.forEach((_, i) => {
     if (keep.size < opts.max) keep.add(i);
   });
-  return normalizeWardrobe(ordered.filter((_, i) => keep.has(i)));
+  return normalizeWardrobe(unifyPlaces(ordered.filter((_, i) => keep.has(i))));
 }
 
 // Plano em poucas palavras ("Médio, Altura dos olhos, Parado"), para a memória do criador.

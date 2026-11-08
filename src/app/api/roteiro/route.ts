@@ -8,7 +8,8 @@ import { PASTE_MAX_CHARS, assembleBlocks, fallbackBlocks, scriptFacts, segmentSc
 import { context, tag, usesHumor } from "@/lib/prompts/base";
 import { draftRequest, storyRequest } from "@/lib/prompts/montagem";
 import { assembleTask, castTag, organizerTask, personTag, readingTask, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
-import { normalizeDraft, normalizeRewrite, normalizeStory, normalizeSuggestions, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
+import { firstNameOf, onCamera } from "@/lib/pessoas";
+import { normalizeDraft, normalizeRewrite, normalizeStory, normalizeSuggestions, polishBlock, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
@@ -69,6 +70,13 @@ export async function POST(request: NextRequest) {
   const memoryText = memoryLines(memory?.items);
   const humor = usesHumor({ objective, texts: [profile?.niche, v.brief, ask, ...memoryText] });
   const cast = castTag(profile?.display_name, people ?? []);
+  // Para o acabamento do que a IA escreve: os nomes com maiúscula e quem é o "você" das ações.
+  const eu = (people ?? []).find((p) => p.role === "eu");
+  const myName = eu && eu.name.trim() && eu.name.trim() !== "Eu" ? eu.name : (profile?.display_name ?? "");
+  const polish = {
+    names: [...(people ?? []).filter((p) => p.role !== "eu").map((p) => p.name), myName].map((n) => firstNameOf(n ?? "")).filter(Boolean),
+    me: myName.trim() && (!eu || onCamera(eu)) ? firstNameOf(myName) : null,
+  };
   const shared = [
     cast,
     videoTag({ objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: (v.resources ?? []) as Resource[] }),
@@ -116,7 +124,7 @@ export async function POST(request: NextRequest) {
     const call = draftRequest(idea);
     let blocks: ScriptBlock[];
     try {
-      blocks = normalizeDraft(await generateJson(call));
+      blocks = normalizeDraft(await generateJson(call)).map((b) => polishBlock(b, polish));
     } catch (err) {
       return aiFailure(err);
     }
@@ -137,7 +145,7 @@ export async function POST(request: NextRequest) {
       const result = normalizeSuggestions(await generateJson({ ...suggestionsTask({ objective, humor }), prompt }), blocks);
       return NextResponse.json({
         note: result.note,
-        suggestions: result.suggestions.map((s) => ({ ...s, blockId: blocks[s.block - 1].id })),
+        suggestions: result.suggestions.map((s) => ({ ...polishBlock(s, polish), blockId: blocks[s.block - 1].id })),
       });
     } catch (err) {
       return aiFailure(err);
@@ -155,6 +163,7 @@ export async function POST(request: NextRequest) {
     return aiFailure(err);
   }
   if (!rewrite) return fail("A IA não trouxe a cena desta vez. Tente de novo.", 502);
+  rewrite = polishBlock(rewrite, polish);
 
   const { data: updated, error } = await supabase.from("script_blocks").update(rewrite).eq("id", blockId).select().single();
   if (error) return fail("Não foi possível guardar a cena.", 500);
