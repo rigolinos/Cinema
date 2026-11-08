@@ -274,6 +274,17 @@ describe("quem aparece no vídeo", () => {
     expect(cast).not.toContain("Bia");
   });
 
+  it("quem criou o vídeo e não aparece fica fora das cenas", () => {
+    const cast = castTag(null, [
+      { name: "Natasha", role: "eu", roles: ["filma"] },
+      { name: "Manu", role: "ator", roles: ["ator"] },
+    ]);
+    expect(cast).toContain("NÃO aparece em cena");
+    expect(cast).toContain("Natasha");
+    expect(cast).toContain("Quem aparece: Manu");
+    expect(cast).not.toContain("Também aparecem");
+  });
+
   it("sem nome nenhum, não manda nada", () => {
     expect(castTag(null, [])).toBe("");
     expect(castTag("Ana Lima", [])).toContain("Ana Lima");

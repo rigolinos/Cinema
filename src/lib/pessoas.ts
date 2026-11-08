@@ -34,6 +34,15 @@ export function sortRoles(roles: readonly GuestRole[]): GuestRole[] {
   return GUEST_ROLES.filter((r) => roles.includes(r));
 }
 
+// Aparece no vídeo? Quem criou o vídeo aparece até dizer que não; sem as funções lidas do banco, também.
+export function onCamera(p: { role: string; roles?: readonly string[] | null }): boolean {
+  if (p.role === "eu") return p.roles == null || p.roles.includes("ator");
+  return p.role === "ator" || Boolean(p.roles?.includes("ator"));
+}
+
+// As funções de quem criou o vídeo, na primeira pessoa, para o cartão dela em Pessoas.
+export const MY_ROLES: Record<GuestRole, string> = { ator: "Apareço no vídeo", filma: "Filmo", equipe: "Ajudo no set" };
+
 // "para aparecer no vídeo e filmar"
 const VERBS: Record<GuestRole, string> = { ator: "aparecer no vídeo", filma: "filmar", equipe: "ajudar no set" };
 export function rolesAs(roles: readonly GuestRole[]): string {

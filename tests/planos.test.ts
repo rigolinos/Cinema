@@ -23,7 +23,7 @@ import {
 const s = (position: number, location: string, wardrobe = "") => ({ position, location, wardrobe });
 
 describe("quem está no plano", () => {
-  const eu = { id: "p0", name: "Natasha Lima", role: "eu", roles: [] };
+  const eu = { id: "p0", name: "Natasha Lima", role: "eu", roles: ["ator"] };
   const manu = { id: "p1", name: "manu", role: "ator", roles: ["ator"] };
   const filma = { id: "p2", name: "Caio", role: "filma", roles: ["filma"] };
   const opts = { orientation: "vertical" as const, max: 24, solo: false, people: [manu, filma, eu] };
@@ -56,6 +56,16 @@ describe("quem está no plano", () => {
     expect(names(["Godofredo", "Caio"])).toEqual([]);
     expect(names("Manu")).toEqual([]);
     expect(names(undefined)).toEqual([]);
+  });
+
+  it("quem criou o vídeo e não aparece fica fora da lista", () => {
+    const naoAparece = { ...eu, roles: ["filma"] };
+    expect(castOf([naoAparece, manu])).toEqual([{ id: "p1", label: "Manu" }]);
+    expect(castOf([{ ...eu, roles: [] }, manu]).map((c) => c.id)).toEqual(["p1"]);
+  });
+
+  it("sem as funções lidas do banco, quem criou o vídeo aparece", () => {
+    expect(castOf([{ id: "p0", name: "Natasha", role: "eu" }, manu]).map((c) => c.id)).toEqual(["p0", "p1"]);
   });
 
   it("vídeo com uma pessoa só fica sem marcação", () => {

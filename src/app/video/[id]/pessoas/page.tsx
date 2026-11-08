@@ -10,7 +10,7 @@ import { useLeave } from "@/components/gravai/voltar";
 import { createClient } from "@/lib/supabase/client";
 import { type ScriptBlock } from "@/lib/roteiro";
 import { isMe } from "@/lib/convidado";
-import { GUEST_ROLES, ROLES, firstNameOf, inviteMessage, shareUrl, sortRoles, whatsappLink, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import { GUEST_ROLES, MY_ROLES, ROLES, firstNameOf, inviteMessage, onCamera, shareUrl, sortRoles, whatsappLink, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -18,7 +18,7 @@ interface Person {
   id: string;
   name: string;
   role: PersonRole;
-  roles: GuestRole[]; // vazio no "eu"; quem atua e filma tem os dois
+  roles: GuestRole[]; // quem atua e filma tem os dois; quem criou o vídeo pode não ter nenhum (só escreve)
   share_token: string;
   share_enabled: boolean;
   confirmed_at: string | null;
@@ -141,6 +141,17 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     }
   }
 
+  // O que quem criou o vídeo faz nele: aparece, filma, ajuda. Um toque marca ou tira, e já salva.
+  async function setMyRoles(person: Person, roles: GuestRole[]) {
+    const before = people;
+    setPeople((l) => l.map((x) => (x.id === person.id ? { ...x, roles } : x)));
+    const { error } = await createClient().from("video_people").update({ roles: sortRoles(roles) }).eq("id", person.id);
+    if (error) {
+      setPeople(before);
+      setError("Não deu para salvar o que você faz neste vídeo.");
+    }
+  }
+
   async function assign(block: Block, personId: string | null) {
     setBlocks((l) => l.map((b) => (b.id === block.id ? { ...b, person_id: personId } : b)));
     const { error } = await createClient().from("script_blocks").update({ person_id: personId }).eq("id", block.id);
@@ -162,7 +173,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
     else router.push(`/video/${id}/${nextReadyStage("pessoas")}`);
   }
 
-  const onCamera = people.filter((p) => p.role === "eu" || p.roles.includes("ator"));
+  const appearing = people.filter(onCamera);
   // Nomes que a leitura do roteiro achou e que ainda não estão no vídeo: um toque preenche o nome.
   const suggested = (video?.script_reading?.people ?? []).filter((n) => !people.some((p) => isMe(n, p.name))).slice(0, 6);
   const title = video?.title ?? "o vídeo";
@@ -233,8 +244,24 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                 <article key={p.id} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <h3 className="min-w-0 break-words text-lg font-bold">{p.role === "eu" ? `${p.name} (você)` : p.name}</h3>
-                    <span className="label-set text-muted-foreground">{p.role === "eu" ? ROLES.eu.label : sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>
+                    {p.role !== "eu" && <span className="label-set text-muted-foreground">{sortRoles(p.roles).map((r) => ROLES[r].label).join(" · ")}</span>}
                   </div>
+
+                  {p.role === "eu" && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-wrap gap-2" role="group" aria-label="O que você faz neste vídeo">
+                        {GUEST_ROLES.map((r) => {
+                          const on = p.roles.includes(r);
+                          return (
+                            <button key={r} type="button" aria-pressed={on} onClick={() => setMyRoles(p, on ? p.roles.filter((x) => x !== r) : [...p.roles, r])} className={cn(chip, on && chipOn)}>
+                              {MY_ROLES[r]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!p.roles.includes("ator") && <span className="text-sm text-muted-foreground">{p.roles.length ? "Você não aparece neste vídeo." : "Você não aparece: só escreve e dirige."}</span>}
+                    </div>
+                  )}
 
                   {p.role !== "eu" && (
                     <>
@@ -323,7 +350,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
               </form>
             </section>
 
-            {blocks.length > 0 && onCamera.length > 0 && (
+            {blocks.length > 0 && appearing.length > 0 && (
               <section aria-labelledby="partes" className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
                   <h2 id="partes" className="label-set">
@@ -338,7 +365,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                     </span>
                     {b.speech && <p className="line-clamp-2 text-sm leading-relaxed">“{b.speech}”</p>}
                     <div className="flex flex-wrap gap-2">
-                      {onCamera.map((p) => (
+                      {appearing.map((p) => (
                         <button key={p.id} type="button" aria-pressed={b.person_id === p.id} onClick={() => assign(b, b.person_id === p.id ? null : p.id)} className={cn(chip, b.person_id === p.id && chipOn)}>
                           {p.role === "eu" && p.name !== "Eu" ? firstNameOf(p.name) : p.name}
                         </button>

@@ -325,6 +325,23 @@ for (const [i, s] of salvos.entries()) {
   await q('INSERT INTO public.shots (id, video_id, block_id, position, framing, angle, movement, orientation, description, location, wardrobe, why, recorded, good_take, takes, shoot_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)', [planosAgora[i], vidA, s.block_id, i, s.framing, s.angle, s.movement, s.orientation, s.description, s.location, s.wardrobe, s.why, s.recorded, s.good_take, s.takes, s.shoot_order]);
 }
 
+console.log('Quem cria o vídeo também tem funções:');
+r = await as('authenticated', A, 'SELECT roles FROM public.video_people WHERE id = $1', [eu.id]);
+ok(r.rows?.[0]?.roles?.join() === 'ator', 'quem cria começa aparecendo' + (r.err ? ': ' + r.err : ''));
+await as('authenticated', A, 'UPDATE public.shots SET person_ids = $1 WHERE id = $2', [[eu.id], planosAgora[0]]);
+r = await as('authenticated', A, `UPDATE public.video_people SET roles = '{filma}' WHERE id = $1 RETURNING roles, role`, [eu.id]);
+ok(!r.err && r.rows?.[0]?.roles?.join() === 'filma' && r.rows[0].role === 'eu', 'quem cria pode só filmar, e continua sendo quem cria' + (r.err ? ': ' + r.err : ''));
+ok((await one('SELECT person_ids FROM public.shots WHERE id = $1', [planosAgora[0]]))?.person_ids?.length === 0, 'quem deixa de aparecer sai dos planos');
+r = await as('authenticated', A, `UPDATE public.video_people SET roles = '{}' WHERE id = $1 RETURNING roles`, [eu.id]);
+ok(!r.err && r.rows?.[0]?.roles?.length === 0, 'quem cria pode não ter função nenhuma: só escreve');
+r = await as('authenticated', A, `UPDATE public.video_people SET roles = '{diretor}' WHERE id = $1`, [eu.id]);
+ok(r.err, 'função fora da lista continua recusada');
+r = await as('authenticated', B, `UPDATE public.video_people SET roles = '{ator}' WHERE id = $1 RETURNING id`, [eu.id]);
+ok(!r.err && r.rows.length === 0, 'ninguém mexe nas funções de quem cria em outro vídeo');
+r = await as('authenticated', A, `UPDATE public.video_people SET roles = '{}' WHERE id = $1 RETURNING roles`, [ator.id]);
+ok(r.rows?.[0]?.roles?.join() === 'ator', 'convidado continua precisando de uma função');
+await as('authenticated', A, `UPDATE public.video_people SET roles = '{ator}' WHERE id = $1`, [eu.id]);
+
 r = await as('anon', null, 'SELECT public.confirm_presence($1) AS ok', [ator.share_token]);
 ok(r.rows?.[0]?.ok === true, 'a pessoa confirma presença pelo link');
 r = await as('authenticated', A, `UPDATE public.video_people SET confirmed_at = now() WHERE id = $1`, [filma.id]);
