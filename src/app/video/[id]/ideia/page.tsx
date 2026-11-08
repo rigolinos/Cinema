@@ -135,6 +135,13 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   const [ask, setAsk] = useState("");
   const [adjusting, setAdjusting] = useState<string | null>(null); // a ideia com a caixa de ajuste aberta
   const [adjustText, setAdjustText] = useState("");
+  const adjustBox = useRef<HTMLTextAreaElement>(null);
+  // O foco vai para a caixa só quando ela abre; atualizar a tela depois não pode puxar o teclado de volta.
+  useEffect(() => {
+    if (!adjusting) return;
+    adjustBox.current?.focus({ preventScroll: true });
+    adjustBox.current?.scrollIntoView({ block: "center" });
+  }, [adjusting]);
   const [knowsYou, setKnowsYou] = useState(false);
   const [busy, setBusy] = useState<"ideas" | "choose" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +196,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
   // Pedido: "outras ideias", um botão rápido, um pedido escrito, ou "mais assim" (like) sobre uma ideia.
   const requestIdeas = useCallback(
     async (request?: string, like?: string) => {
+      setAdjusting(null);
       setBusy("ideas");
       setError(null);
       setIncoming([]);
@@ -625,13 +633,14 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                       {best && <span className="label-set text-muted-foreground">Mais forte</span>}
                       <h2 className="idea-title">{idea.title}</h2>
                       {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+                      {/* O final é a graça do vídeo: sem ele, nenhuma ideia dá para escolher. Fica à vista, sem toque. */}
+                      {idea.payoff && (
+                        <p className="text-[15px] leading-relaxed">
+                          <span className="text-muted-foreground">Termina:</span> {idea.payoff}
+                        </p>
+                      )}
                       {(idea.payoff || idea.why) && (
-                        <Explain id="ideia-porque" question={idea.payoff ? "Ver como termina" : "Por que funciona?"} closed>
-                          {idea.payoff && (
-                            <>
-                              <strong className="font-semibold text-foreground">Como termina:</strong> {idea.payoff}{" "}
-                            </>
-                          )}
+                        <Explain id="ideia-porque" question="Por que funciona?" closed>
                           {idea.why}
                           <ReportAi area="ideia" content={[idea.title, idea.hook, idea.situation, idea.payoff].filter(Boolean).join("\n")} refId={id} label="Denunciar esta ideia" />
                         </Explain>
@@ -678,7 +687,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                       </div>
                       {adjusting === idea.id && (
                         <form
-                          className="flex items-center gap-2"
+                          className="flex items-end gap-2"
                           onSubmit={(e) => {
                             e.preventDefault();
                             if (!adjustText.trim() || busy) return;
@@ -689,18 +698,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                           <label className="sr-only" htmlFor={`ajustar-${idea.id}`}>
                             O que mudar nesta ideia?
                           </label>
-                          <input
+                          <textarea
                             id={`ajustar-${idea.id}`}
-                            ref={(el) => {
-                              if (!el || el === document.activeElement) return;
-                              el.focus({ preventScroll: true });
-                              el.scrollIntoView({ block: "center" });
-                            }}
+                            ref={adjustBox}
+                            rows={1}
                             value={adjustText}
-                            maxLength={280}
+                            maxLength={1500}
                             onChange={(e) => setAdjustText(e.target.value)}
                             placeholder="O que mudar nesta ideia?"
-                            className="min-h-12 min-w-0 flex-1 rounded-xl border border-input bg-background px-3.5 text-base outline-none focus:border-foreground"
+                            className="field-sizing-content max-h-60 min-h-12 min-w-0 flex-1 resize-none rounded-xl border border-input bg-background px-3.5 py-3 text-base leading-snug outline-none focus:border-foreground"
                           />
                           <button type="submit" aria-label="Pedir o ajuste" disabled={!adjustText.trim() || busy !== null} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
                             <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden="true" />
@@ -771,7 +777,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 id="pedido"
                 value={ask}
                 onChange={(e) => setAsk(e.target.value)}
-                maxLength={300}
+                maxLength={1500}
                 placeholder="Escreva ou peça algo…"
                 className="min-h-12 flex-1 rounded-full border border-input bg-muted px-4 text-base outline-none focus:border-foreground"
               />

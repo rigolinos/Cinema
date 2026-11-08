@@ -291,6 +291,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [creator, setCreator] = useState<string | null>(null);
   const [review, setReview] = useState<{ note: string; suggestions: BlockSuggestion[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null); // "rascunho", "historia", id de um bloco ou "seguir"
   const [error, setError] = useState<string | null>(null);
@@ -313,7 +314,9 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("video_people").select("id, name, role").eq("video_id", id),
       db.from("shots").select("block_id").eq("video_id", id),
-    ]).then(([v, b, p, s]) => {
+      db.from("creator_profiles").select("display_name").maybeSingle(),
+    ]).then(([v, b, p, s, perfil]) => {
+      setCreator((perfil.data as { display_name: string | null } | null)?.display_name ?? null);
       setVideo((v.data as Video | null) ?? null);
       const loaded = v.data as (Video & { situation?: string; payoff?: string }) | null;
       setStory({ hook: loaded?.hook ?? "", situation: loaded?.situation ?? "", payoff: loaded?.payoff ?? "" });
@@ -678,7 +681,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 time={times[i]}
                 busy={busy !== null}
                 repeated={blocks.slice(0, i).some((x) => x.kind === b.kind)}
-                speaker={speakerOf(b, people, isSolo(video.resources ?? []))}
+                speaker={speakerOf(b, people, isSolo(video.resources ?? []), creator)}
                 quick={QUICK_BLOCK[(video.objective ?? "crescer") as Objective]}
                 suggestion={review?.suggestions.find((s) => s.blockId === b.id)}
                 onSuggestion={(accept) => decide(b, accept)}

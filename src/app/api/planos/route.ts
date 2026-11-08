@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       await generateJson({
         ...shotsTask({ objective: v.objective }),
         prompt: context([
-          tag("roteiro", scriptForPrompt(withSpeakers(script, people ?? [], isSolo(v.resources ?? [])))),
+          tag("roteiro", scriptForPrompt(withSpeakers(script, people ?? [], isSolo(v.resources ?? []), profile?.display_name))),
           tag("limite", `No máximo ${maxShots(v.duration_s)} planos no total.`),
           castTag(profile?.display_name, people ?? []),
           videoTag({ objective: v.objective, platforms: videoPlatforms(v), durationS: v.duration_s, resources: v.resources ?? [] }),

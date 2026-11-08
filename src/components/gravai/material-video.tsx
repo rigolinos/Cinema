@@ -42,7 +42,7 @@ export function sheetSummary(video: { resources?: Resource[]; shoot_date?: strin
 
 // A folha do vídeo: uma lista só, cena por cena, com o que precisa ser filmado dentro de cada uma.
 // Dá para gravar só com isto; o passo a passo do set segue a ordem de gravação.
-export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { video: { resources?: Resource[] }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[]; onToggleShot?: (id: string) => void }) {
+export function VideoMaterial({ video, blocks, shots, people, creator, onToggleShot }: { video: { resources?: Resource[] }; blocks: SheetBlock[]; shots: SheetShot[]; people: SheetPerson[]; creator?: string | null; onToggleShot?: (id: string) => void }) {
   const resources = video.resources ?? [];
   const solo = resources.includes("sozinho") && !resources.includes("com_alguem");
   const number = new Map([...shots].sort((a, b) => blocks.findIndex((x) => x.id === a.block_id) - blocks.findIndex((x) => x.id === b.block_id) || a.position - b.position).map((s, i) => [s.id, i + 1]));
@@ -51,7 +51,7 @@ export function VideoMaterial({ video, blocks, shots, people, onToggleShot }: { 
     <div className="flex flex-col gap-3">
       {blocks.map((b, i) => {
         const action = splitAction(b.action).text;
-        const speaker = speakerOf(b, people, solo);
+        const speaker = speakerOf(b, people, solo, creator);
         const toFilm = shots.filter((s) => s.block_id === b.id).sort((x, y) => x.position - y.position);
         return (
           <article key={b.id} aria-label={`Cena ${i + 1}`} className="flex flex-col gap-1.5 rounded-2xl bg-card p-4">

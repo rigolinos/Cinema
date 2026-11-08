@@ -32,6 +32,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   const [blocks, setBlocks] = useState<SheetBlock[]>([]);
   const [shots, setShots] = useState<SheetShot[]>([]);
   const [people, setPeople] = useState<SheetPerson[]>([]);
+  const [creator, setCreator] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -46,7 +47,9 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("shots").select("*").eq("video_id", id),
       db.from("video_people").select("id, name, role, roles, confirmed_at").eq("video_id", id).order("created_at"),
-    ]).then(([v, b, s, p]) => {
+      db.from("creator_profiles").select("display_name").maybeSingle(),
+    ]).then(([v, b, s, p, perfil]) => {
+      setCreator((perfil.data as { display_name: string | null } | null)?.display_name ?? null);
       setBlocks((b.data ?? []) as SheetBlock[]);
       setShots((s.data ?? []) as SheetShot[]);
       setPeople((p.data ?? []) as SheetPerson[]);
@@ -262,7 +265,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
 
           {hasScript && <PlansOutdated videoId={id} blocks={blocks} shots={shots} onUpdated={setShots} />}
 
-          {hasScript && <VideoMaterial video={video} blocks={blocks} shots={shots} people={people} onToggleShot={toggleShot} />}
+          {hasScript && <VideoMaterial video={video} blocks={blocks} shots={shots} people={people} creator={creator} onToggleShot={toggleShot} />}
 
           {!hasScript && video.hook && (
             <section className="flex flex-col gap-2.5 rounded-2xl bg-card p-4" aria-labelledby="ideia">
