@@ -138,6 +138,43 @@ export function normalizeDraft(raw: unknown): ScriptBlock[] {
   return blocks;
 }
 
+// ── Acabamento do que a IA escreveu ──────────────────────────────────────────
+// Só no texto que a IA escreveu: o roteiro que a pessoa colou nunca passa por aqui.
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const word = (w: string, flags = "gu") => new RegExp(`(?<![\\p{L}])${w}(?![\\p{L}])`, flags);
+
+// "natasha" vira "Natasha": o nome de quem está no vídeo com a maiúscula certa.
+export function capitalizeNames(text: string, names: readonly string[]): string {
+  return names.reduce((t, name) => {
+    const lower = name.toLocaleLowerCase("pt-BR");
+    return lower === name ? t : t.replace(word(escapeRe(lower)), name);
+  }, text);
+}
+
+// Texto da tela que na verdade descreve a cena ("Hambúrguer na mão"). Texto em maiúsculas,
+// entre aspas ou começando com "POV" é texto de tela de verdade e fica onde está.
+const STAGE = word("(n[ao]s? m[ãa]os?|close|c[âa]mera|em cena|aparece|mostra|segura|pega|olha|entra|sai|coloca|abre)", "iu");
+export function isStageNote(text: string): boolean {
+  const t = text.trim();
+  if (!t || /^pov\b/i.test(t) || /["“”]/.test(t)) return false;
+  const letters = t.replace(/[^\p{L}]/gu, "");
+  if (letters && letters === letters.toLocaleUpperCase("pt-BR")) return false;
+  return STAGE.test(t);
+}
+
+// Nomes com maiúscula, "você" na ação vira o nome de quem cria (quando aparece), e descrição de cena
+// que caiu no texto da tela volta para a ação. Na fala, "você" fica: é com quem assiste que se fala.
+export function polishBlock<B extends Pick<ScriptBlock, "speech" | "on_screen" | "action">>(block: B, cast: { names: readonly string[]; me: string | null }): B {
+  let action = capitalizeNames(block.action, cast.names);
+  if (cast.me) action = action.replace(word("[Vv]ocê"), cast.me);
+  let onScreen = capitalizeNames(block.on_screen, cast.names);
+  if (isStageNote(onScreen)) {
+    action = [action.trim().replace(/[.\s]+$/, ""), onScreen.trim()].filter(Boolean).join(". ");
+    onScreen = "";
+  }
+  return { ...block, speech: capitalizeNames(block.speech, cast.names), on_screen: onScreen, action };
+}
+
 // A história que a IA conta antes do roteiro. Os limites são os das colunas do vídeo.
 export function normalizeStory(raw: unknown): { hook: string; situation: string; payoff: string } | null {
   const r = (raw ?? {}) as Record<string, unknown>;

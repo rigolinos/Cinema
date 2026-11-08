@@ -17,6 +17,7 @@ import {
   shotPeople,
   shotPlainTags,
   shotTags,
+  unifyPlaces,
   shotsPrompt,
 } from "@/lib/planos";
 
@@ -233,5 +234,21 @@ describe("cartão do plano", () => {
       { location: "", wardrobe: "" },
     ];
     expect([0, 1, 2, 3].map((i) => setupLabel(list, i))).toEqual(["Quarto", "", "Sala · Camiseta", ""]);
+  });
+});
+
+describe("mesmo lugar com nomes diferentes", () => {
+  const l = (location: string) => ({ location });
+  it("Sala e Sala de estar viram o mesmo lugar, com o nome mais completo", () => {
+    expect(unifyPlaces([l("Sala de estar"), l("Sala"), l("cozinha"), l("Cozinha")]).map((s) => s.location)).toEqual(["Sala de estar", "Sala de estar", "cozinha", "cozinha"]);
+  });
+  it("não junta quando o nome curto cabe em dois lugares", () => {
+    expect(unifyPlaces([l("Sala de estar"), l("Sala de jantar"), l("Sala")]).map((s) => s.location)).toEqual(["Sala de estar", "Sala de jantar", "Sala"]);
+  });
+  it("não junta palavras que só começam igual", () => {
+    expect(unifyPlaces([l("Rua"), l("Ruazinha")]).map((s) => s.location)).toEqual(["Rua", "Ruazinha"]);
+  });
+  it("lugar vazio continua vazio", () => {
+    expect(unifyPlaces([l(""), l("Sala")]).map((s) => s.location)).toEqual(["", "Sala"]);
   });
 });

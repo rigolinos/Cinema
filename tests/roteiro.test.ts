@@ -6,6 +6,9 @@ import {
   normalizeSuggestions,
   scriptForPrompt,
   speakerOf,
+  capitalizeNames,
+  isStageNote,
+  polishBlock,
   storyFromText,
   storyText,
   withSpeakers,
@@ -192,5 +195,37 @@ describe("história em texto corrido", () => {
 
   it("texto vazio fica vazio", () => {
     expect(storyFromText("  \n\n ")).toEqual({ hook: "", situation: "", payoff: "" });
+  });
+});
+
+describe("acabamento do que a IA escreveu", () => {
+  const cast = { names: ["Natasha", "Manu"], me: "Natasha" };
+
+  it("põe maiúscula nos nomes de quem está no vídeo", () => {
+    expect(capitalizeNames("natasha comendo sorvete com manu", ["Natasha", "Manu"])).toBe("Natasha comendo sorvete com Manu");
+    expect(capitalizeNames("manualmente", ["Manu"])).toBe("manualmente");
+  });
+
+  it("troca o você da ação pelo nome, mas não o da fala", () => {
+    const b = polishBlock({ speech: "Você já fez isso?", on_screen: "", action: "Lembrança 3: você na mesa, mordendo um hambúrguer" }, cast);
+    expect(b.action).toBe("Lembrança 3: Natasha na mesa, mordendo um hambúrguer");
+    expect(b.speech).toBe("Você já fez isso?");
+  });
+
+  it("quem cria e não aparece não vira o você da ação", () => {
+    expect(polishBlock({ speech: "", on_screen: "", action: "você olha" }, { names: ["Manu"], me: null }).action).toBe("você olha");
+  });
+
+  it("descrição de cena no texto da tela volta para a ação", () => {
+    const b = polishBlock({ speech: "", on_screen: "Hambúrguer na mão", action: "Ela olha para a câmera." }, cast);
+    expect(b.on_screen).toBe("");
+    expect(b.action).toBe("Ela olha para a câmera. Hambúrguer na mão");
+  });
+
+  it("texto de tela de verdade fica onde está", () => {
+    for (const t of ["3 ERROS", "POV: o cliente que nunca aceita o corte", "Eu, de verdade", "“Mostra pra ele”"]) {
+      expect(isStageNote(t)).toBe(false);
+    }
+    expect(isStageNote("Close no pote de sorvete")).toBe(true);
   });
 });
