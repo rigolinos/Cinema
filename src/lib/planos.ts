@@ -1,7 +1,7 @@
 import { BLOCK_KINDS, type ScriptBlock } from "./roteiro";
 import { PLATFORMS, RESOURCES, type Platform, type Resource } from "./ideas";
 import { isMe } from "./convidado";
-import { firstNameOf } from "./pessoas";
+import { firstNameOf, onCamera } from "./pessoas";
 
 // Vocabulário da decupagem: cada termo com o que é e por que usar. Serve à tela, ao Aprenda e à IA.
 export interface Term {
@@ -71,7 +71,7 @@ type CastPerson = { id: string; name: string; role: string; roles?: string[] | n
 // Quem pode estar num plano, com o nome curto: quem criou o vídeo primeiro e quem aparece no vídeo.
 // Quem só filma ou ajuda no set fica de fora. Dois com o mesmo primeiro nome vão com o nome inteiro.
 export function castOf(people: CastPerson[]): { id: string; label: string }[] {
-  const cast = people.filter((p) => p.role === "eu" || p.role === "ator" || p.roles?.includes("ator"));
+  const cast = people.filter(onCamera);
   const ordered = [...cast.filter((p) => p.role === "eu"), ...cast.filter((p) => p.role !== "eu")];
   const short = (p: CastPerson) => (p.name.trim() && p.name.trim() !== "Eu" ? firstNameOf(p.name) : "Você");
   return ordered.map((p) => ({

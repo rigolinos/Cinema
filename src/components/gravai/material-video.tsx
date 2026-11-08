@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { FramingIcon } from "@/components/gravai/framing-icon";
 import { isMe, speechLines, splitAction } from "@/lib/convidado";
-import { firstNameOf, formatShootDate, type GuestRole, type PersonRole } from "@/lib/pessoas";
+import { firstNameOf, formatShootDate, onCamera, type GuestRole, type PersonRole } from "@/lib/pessoas";
 import type { Resource } from "@/lib/ideas";
 import { castOf, shotPeople, shotPlainTags, type Shot } from "@/lib/planos";
 import { speakerOf, type ScriptBlock } from "@/lib/roteiro";
@@ -24,14 +24,17 @@ export function sheetSummary(video: { resources?: Resource[]; shoot_date?: strin
   const resources = video.resources ?? [];
   const guests = people.filter((p) => p.role !== "eu");
   const cast = castOf(people).map((c) => c.label);
-  const crew = guests.flatMap((p) => {
+  const eu = people.find((p) => p.role === "eu");
+  const meOnCamera = !eu || onCamera(eu);
+  const crew = people.flatMap((p) => {
     const jobs = [p.roles?.includes("filma") && "filma", p.roles?.includes("equipe") && "ajuda no set"].filter(Boolean) as string[];
-    return jobs.length ? [`${firstNameOf(p.name)} ${names.format(jobs)}`] : [];
+    const who = p.role === "eu" ? (p.name.trim() && p.name.trim() !== "Eu" ? firstNameOf(p.name) : "Você") : firstNameOf(p.name);
+    return jobs.length ? [`${who} ${names.format(jobs)}`] : [];
   });
   const alone = resources.includes("com_alguem") ? "Mais de uma pessoa, ainda sem nomes" : resources.includes("sozinho") ? "Só você" : "";
   const date = formatShootDate(video.shoot_date ?? null);
   return [
-    guests.length ? names.format(cast) : alone,
+    guests.length || !meOnCamera ? names.format(cast) : alone,
     ...crew,
     date ? date.charAt(0).toLocaleUpperCase("pt-BR") + date.slice(1) : "",
     video.shoot_place,

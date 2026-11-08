@@ -5,6 +5,7 @@ import type { Thinking } from "../ai";
 import { FORMATS } from "../formats";
 import { OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, platformsLabel, type Objective, type Platform, type Resource } from "../ideas";
 import { ANGLES, FRAMINGS, MOVEMENTS, type Term } from "../planos";
+import { onCamera } from "../pessoas";
 import { BLOCK_KINDS } from "../roteiro";
 import { buildSystem, line, tag } from "./base";
 
@@ -371,12 +372,15 @@ export function videoTag(v: VideoFacts): string {
 
 // Quem aparece no vídeo. Sem isto, a IA inventa "A1" e "amiga" mesmo com os nomes já cadastrados.
 export function castTag(creator: string | null | undefined, people: { name: string; role: string; roles?: string[] | null }[]): string {
-  const me = people.find((p) => p.role === "eu")?.name.trim() || creator?.trim() || "";
-  const guests = people.filter((p) => p.role !== "eu" && (p.role === "ator" || p.roles?.includes("ator"))).map((p) => p.name.trim()).filter(Boolean);
+  const eu = people.find((p) => p.role === "eu");
+  const me = eu?.name.trim() || creator?.trim() || "";
+  const guests = people.filter((p) => p.role !== "eu" && onCamera(p)).map((p) => p.name.trim()).filter(Boolean);
   if (!me && guests.length === 0) return "";
+  // Quem cria pode não aparecer: só escreve, filma ou dirige. Aí a IA não põe essa pessoa em cena.
+  const meOnCamera = !eu || onCamera(eu);
   return tag("pessoas", [
-    line("Quem faz o vídeo e aparece", me),
-    line("Também aparecem", guests.join(", ")),
+    meOnCamera ? line("Quem faz o vídeo e aparece", me) : line("Quem faz o vídeo, mas NÃO aparece em cena (não ponha esta pessoa em nenhuma cena nem fala)", me),
+    line(meOnCamera ? "Também aparecem" : "Quem aparece", guests.join(", ")),
     "Use estes nomes nas falas e nas ações. Sem nome para alguém da cena, use um papel fácil de entender.",
   ]);
 }
