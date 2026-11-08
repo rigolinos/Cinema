@@ -278,6 +278,44 @@ export function unifyPlaces<T extends { location: string }>(shots: T[]): T[] {
   return shots.map((s) => (s.location.trim() ? { ...s, location: shown.get(target.get(fold(s.location))!)! } : s));
 }
 
+// Palavras que contam numa descrição de plano: sem acento, sem as pequenas ("a", "de", "com"),
+// e pelo começo, para "sorri" e "sorrindo" contarem como a mesma.
+const SMALL_WORDS = new Set("a o as os e de da do das dos em na no nas nos um uma uns umas com para pra por que se ao aos à às sua seu suas seus ela ele".split(" "));
+function descriptionWords(text: string): Set<string> {
+  return new Set(
+    text
+      .toLocaleLowerCase("pt-BR")
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((w) => w.length > 1 && !SMALL_WORDS.has(w))
+      .map((w) => w.slice(0, 5)),
+  );
+}
+
+// Dois planos dizem quase o mesmo: a maior parte das palavras é igual, ou um está todo dentro do outro.
+export function similarDescriptions(a: string, b: string): boolean {
+  const x = descriptionWords(a);
+  const y = descriptionWords(b);
+  if (x.size === 0 || y.size === 0) return false;
+  const shared = [...x].filter((w) => y.has(w)).length;
+  return shared / new Set([...x, ...y]).size >= 0.6 || shared === Math.min(x.size, y.size);
+}
+
+// Plano repetido sai: mesma cena ou a vizinha, mesmo enquadramento, ângulo e pessoas, e quase a mesma descrição.
+// Fica o primeiro, e nenhuma cena fica sem plano por causa disso.
+export function dropNearDuplicates<T extends Pick<Shot, "block_id" | "framing" | "angle" | "description" | "person_ids">>(shots: T[], blockIds: string[]): T[] {
+  const kept: T[] = [];
+  const samePeople = (a: T, b: T) => [...(a.person_ids ?? [])].sort().join() === [...(b.person_ids ?? [])].sort().join();
+  shots.forEach((s, i) => {
+    const near = (o: T) => Math.abs(blockIds.indexOf(o.block_id) - blockIds.indexOf(s.block_id)) <= 1;
+    const twin = kept.find((o) => near(o) && o.framing === s.framing && o.angle === s.angle && samePeople(o, s) && similarDescriptions(o.description, s.description));
+    const lastOfScene = !kept.some((o) => o.block_id === s.block_id) && !shots.slice(i + 1).some((o) => o.block_id === s.block_id);
+    if (!twin || lastOfScene) kept.push(s);
+  });
+  return kept;
+}
+
 // Confere a decupagem da IA: só blocos que existem, valores válidos, no máximo `max` planos
 // (todo bloco garante pelo menos um), e nada de câmera andando para quem grava sozinho.
 export function normalizeShots(
@@ -307,7 +345,10 @@ export function normalizeShots(
     });
   }
   // A ordem do roteiro manda: planos agrupados pelo bloco, na ordem dos blocos.
-  const ordered = all.sort((a, b) => blockIds.indexOf(a.block_id) - blockIds.indexOf(b.block_id));
+  const ordered = dropNearDuplicates(
+    all.sort((a, b) => blockIds.indexOf(a.block_id) - blockIds.indexOf(b.block_id)),
+    blockIds,
+  );
 
   // Primeiro o primeiro plano de cada bloco; depois os outros, na ordem, até o limite.
   const keep = new Set<number>();
