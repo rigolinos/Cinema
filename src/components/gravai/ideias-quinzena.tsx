@@ -283,14 +283,14 @@ export function IdeiasQuinzena() {
             </div>
             <h3 className="idea-title">{idea.title}</h3>
             {idea.situation && <p className="text-[15px] leading-relaxed">{idea.situation}</p>}
+            {idea.payoff && (
+              <p className="text-[15px] leading-relaxed">
+                <span className="text-muted-foreground">Termina:</span> {idea.payoff}
+              </p>
+            )}
             <div className="flex items-end justify-between gap-3">
               {(idea.payoff || idea.why) && (
-                <Explain id="ideia-porque" question={idea.payoff ? "Ver como termina" : "Por que funciona?"} closed className="min-w-0 flex-1">
-                  {idea.payoff && (
-                    <>
-                      <strong className="font-semibold text-foreground">Como termina:</strong> {idea.payoff}{" "}
-                    </>
-                  )}
+                <Explain id="ideia-porque" question="Por que funciona?" closed className="min-w-0 flex-1">
                   {idea.why}
                   <ReportAi area="ideia" content={[idea.title, idea.hook, idea.situation, idea.payoff].filter(Boolean).join("\n")} refId={idea.id} label="Denunciar esta ideia" />
                 </Explain>

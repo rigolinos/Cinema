@@ -155,6 +155,7 @@ describe("quem fala", () => {
     expect(speakerOf({ person_id: "p2" }, people, false)).toBe("Rodrigo");
     expect(speakerOf({ person_id: null }, people, true)).toBe("Rodrigo");
     expect(speakerOf({ person_id: null }, [], true)).toBe("você");
+    expect(speakerOf({ person_id: null }, [], true, "natasha lima")).toBe("Natasha");
     expect(speakerOf({ person_id: "x" }, [{ id: "x", name: "Eu", role: "eu" }], false)).toBe("você");
     expect(speakerOf({}, people, false)).toBeNull();
   });

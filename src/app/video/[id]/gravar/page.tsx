@@ -40,6 +40,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [people, setPeople] = useState<{ id: string; name: string; role: string; roles: string[] | null }[]>([]);
+  const [creator, setCreator] = useState<string | null>(null);
   const [shots, setShots] = useState<SetShot[]>([]);
   const [phase, setPhase] = useState<Phase>("abertura");
   const [current, setCurrent] = useState(0);
@@ -73,8 +74,10 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("shots").select("*").eq("video_id", id),
       db.from("video_people").select("id, name, role, roles").eq("video_id", id),
-    ]).then(([v, b, s, p]) => {
+      db.from("creator_profiles").select("display_name").maybeSingle(),
+    ]).then(([v, b, s, p, perfil]) => {
       setPeople(p.data ?? []);
+      setCreator((perfil.data as { display_name: string | null } | null)?.display_name ?? null);
       setVideo((v.data as Video | null) ?? null);
       setBlocks((b.data ?? []) as Block[]);
       const ordered = setOrder((s.data ?? []) as SetShot[]);
@@ -290,7 +293,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 <section aria-label="Teleprompter" className="flex flex-col gap-3 rounded-2xl bg-card p-5">
                   <div className="flex items-center justify-between">
                     <span className="label-set text-muted-foreground">
-                      {["Fala", speakerOf(block, people, isSolo(video.resources ?? []))].filter(Boolean).join(" · ")}
+                      {["Fala", speakerOf(block, people, isSolo(video.resources ?? []), creator)].filter(Boolean).join(" · ")}
                     </span>
                     <span className="flex gap-1">
                       <button type="button" aria-label="Diminuir o texto" disabled={size === 0} onClick={() => setSize((s) => s - 1)} className="flex size-11 items-center justify-center rounded-full disabled:opacity-30">

@@ -163,13 +163,15 @@ export function speakerOf(
   block: { person_id?: string | null },
   people: { id: string; name: string; role: string }[],
   solo: boolean,
+  creator?: string | null, // nome do perfil, para quando quem criou o vídeo ainda não está em Pessoas
 ): string | null {
   const person = people.find((p) => p.id === block.person_id);
   const named = (p: { name: string }) => (p.name.trim() && p.name !== "Eu" ? firstNameOf(p.name) : "você");
   if (person) return person.role === "eu" ? named(person) : person.name;
   if (!solo) return null;
   const me = people.find((p) => p.role === "eu");
-  return me ? named(me) : "você";
+  if (me) return named(me);
+  return creator?.trim() ? firstNameOf(creator) : "você";
 }
 
 // ── Sugestões por bloco (no roteiro que a pessoa trouxe ou editou) ─────────
@@ -203,9 +205,9 @@ export function normalizeSuggestions(raw: unknown, blocks: Pick<ScriptBlock, "sp
 }
 
 // O roteiro com quem fala escrito na fala, para a IA saber quem precisa aparecer nos planos.
-export function withSpeakers<B extends { speech: string; person_id?: string | null }>(blocks: B[], people: { id: string; name: string; role: string }[], solo: boolean): B[] {
+export function withSpeakers<B extends { speech: string; person_id?: string | null }>(blocks: B[], people: { id: string; name: string; role: string }[], solo: boolean, creator?: string | null): B[] {
   return blocks.map((b) => {
-    const who = speakerOf(b, people, solo);
+    const who = speakerOf(b, people, solo, creator);
     if (!who || !b.speech.trim() || /^[^\n:]{1,30}:/.test(b.speech.trim())) return b;
     return { ...b, speech: `${who}: ${b.speech}` };
   });

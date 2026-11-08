@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as { videoId?: unknown; request?: unknown; like?: unknown } | null;
   const videoId = typeof body?.videoId === "string" ? body.videoId : "";
-  const ask = typeof body?.request === "string" ? body.request.trim().slice(0, 300) : "";
+  const ask = typeof body?.request === "string" ? body.request.trim().slice(0, 1500) : "";
   const like = typeof body?.like === "string" ? body.like.trim().slice(0, 200) : ""; // título da ideia em "Mais assim"
   if (!videoId) return fail("Vídeo não informado.", 400);
 
