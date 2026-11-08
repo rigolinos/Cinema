@@ -152,6 +152,55 @@ export function normalizeStory(raw: unknown): { hook: string; situation: string;
   return story.hook && story.situation ? story : null;
 }
 
+// ── A história em texto corrido ────────────────────────────────────────────
+// Na tela, a história é um texto só, sem títulos. Por dentro, o roteiro ainda usa começo, meio e fim:
+// o primeiro parágrafo é o começo, o último é o fim e o que está no meio é o meio.
+export type StoryParts = { hook: string; situation: string; payoff: string };
+export const STORY_LIMITS = { hook: 300, situation: 600, payoff: 600 } as const;
+
+export function storyText(story: StoryParts): string {
+  return [story.hook, story.situation, story.payoff].map((p) => p.trim()).filter(Boolean).join("\n\n");
+}
+
+const sentences = (text: string) => text.match(/[^.!?…]+[.!?…]+["”»)]?|[^.!?…]+$/g)?.map((s) => s.trim()).filter(Boolean) ?? [text.trim()];
+
+// Corta no fim de uma frase para caber no limite; o que sobra vai para a próxima parte.
+function fit(text: string, max: number): [string, string] {
+  if (text.length <= max) return [text, ""];
+  let kept = "";
+  for (const s of sentences(text)) {
+    const next = kept ? `${kept} ${s}` : s;
+    if (next.length > max) break;
+    kept = next;
+  }
+  if (!kept) kept = text.slice(0, max).replace(/\s+\S*$/, "");
+  return [kept, text.slice(kept.length).trim()];
+}
+
+export function storyFromText(text: string): StoryParts {
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean);
+  if (paragraphs.length === 0) return { hook: "", situation: "", payoff: "" };
+  let hook: string;
+  let middle: string;
+  let payoff = "";
+  if (paragraphs.length === 1) {
+    // Um parágrafo só: a primeira frase é o começo, e o resto segue junto.
+    const [first, ...rest] = sentences(paragraphs[0]);
+    hook = first;
+    middle = rest.join(" ");
+  } else if (paragraphs.length === 2) {
+    [hook, middle] = paragraphs;
+  } else {
+    hook = paragraphs[0];
+    middle = paragraphs.slice(1, -1).join("\n\n");
+    payoff = paragraphs[paragraphs.length - 1];
+  }
+  const [h, hookRest] = fit(hook, STORY_LIMITS.hook);
+  const [s, middleRest] = fit([hookRest, middle].filter(Boolean).join(" "), STORY_LIMITS.situation);
+  const [p] = fit([middleRest, payoff].filter(Boolean).join(" "), STORY_LIMITS.payoff);
+  return { hook: h, situation: s, payoff: p };
+}
+
 export function normalizeRewrite(raw: unknown): Pick<ScriptBlock, "speech" | "on_screen" | "action"> | null {
   const r = (raw ?? {}) as Record<string, unknown>;
   const block = { speech: clip(r.speech, 1500), on_screen: clip(r.on_screen, 300), action: clip(r.action, 500) };
