@@ -17,6 +17,8 @@ import {
   shotPeople,
   shotPlainTags,
   shotTags,
+  dropNearDuplicates,
+  similarDescriptions,
   unifyPlaces,
   shotsPrompt,
 } from "@/lib/planos";
@@ -250,5 +252,45 @@ describe("mesmo lugar com nomes diferentes", () => {
   });
   it("lugar vazio continua vazio", () => {
     expect(unifyPlaces([l(""), l("Sala")]).map((s) => s.location)).toEqual(["", "Sala"]);
+  });
+});
+
+describe("planos quase iguais", () => {
+  const blocks = ["b1", "b2", "b3"];
+  const s = (block_id: string, description: string, framing: "close" | "aberto" | "detalhe" = "close", person_ids: string[] = []) => ({ block_id, description, framing, angle: "altura_olhos" as const, person_ids });
+
+  it("reconhece descrições quase iguais e diferentes", () => {
+    expect(similarDescriptions("Natasha sorri para a câmera", "Natasha sorri olhando para a câmera")).toBe(true);
+    expect(similarDescriptions("Mãos lavando o arroz", "Mãos colocando água na panela")).toBe(false);
+    expect(similarDescriptions("", "Natasha sorri")).toBe(false);
+  });
+
+  it("tira o repetido da mesma cena e da cena vizinha", () => {
+    const out = dropNearDuplicates([s("b1", "Natasha sorri para a câmera"), s("b1", "Natasha sorri olhando para a câmera"), s("b2", "Mãos no pote"), s("b2", "Natasha sorrindo para a câmera")], blocks);
+    expect(out.map((x) => x.description)).toEqual(["Natasha sorri para a câmera", "Mãos no pote"]);
+  });
+
+  it("mantém quando muda o enquadramento ou as pessoas", () => {
+    expect(dropNearDuplicates([s("b1", "Natasha sorri"), s("b1", "Natasha sorri", "aberto")], blocks)).toHaveLength(2);
+    expect(dropNearDuplicates([s("b1", "Reação ao ouvir", "close", ["p1"]), s("b1", "Reação ao ouvir", "close", ["p2"])], blocks)).toHaveLength(2);
+  });
+
+  it("não tira de cenas longe uma da outra", () => {
+    expect(dropNearDuplicates([s("b1", "Natasha sorri"), s("b3", "Natasha sorri")], blocks)).toHaveLength(2);
+  });
+
+  it("nenhuma cena fica sem plano", () => {
+    const out = dropNearDuplicates([s("b1", "Natasha sorri para a câmera"), s("b2", "Natasha sorri para a câmera")], blocks);
+    expect(out.map((x) => x.block_id)).toEqual(["b1", "b2"]);
+  });
+
+  it("a IA repetindo planos não ocupa o lugar de outros", () => {
+    const raw = { shots: [
+      { block: 1, framing: "close", description: "Natasha sorri para a câmera" },
+      { block: 1, framing: "close", description: "Natasha sorrindo para a câmera" },
+      { block: 1, framing: "detalhe", description: "Colher no pote" },
+    ] };
+    const out = normalizeShots(raw, ["b1"], { orientation: "vertical", max: 2, solo: false });
+    expect(out.map((x) => x.description)).toEqual(["Natasha sorri para a câmera", "Colher no pote"]);
   });
 });
