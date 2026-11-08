@@ -5,43 +5,73 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ReportAi } from "@/components/gravai/denunciar";
-import { AlertTriangle, ArrowUp, Check, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
-import { Explain } from "@/components/gravai/explain";
+import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Plus, Sparkles, Trash2, Type } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { useLeave } from "@/components/gravai/voltar";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { Folha } from "@/components/gravai/folha";
-import { isSolo, shootingOrder, type Shot } from "@/lib/planos";
+import { isMe, speechLines } from "@/lib/convidado";
+import { firstNameOf } from "@/lib/pessoas";
+import { castOf, isSolo, shootingOrder, type Shot } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, timeline, totalSeconds, type ScriptBlock, type Suggestion } from "@/lib/roteiro";
+import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, storyFromText, storyText, timeline, totalSeconds, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
 type Block = ScriptBlock & { id: string; position: number; person_id?: string | null };
-type Person = { id: string; name: string; role: string };
+type Person = { id: string; name: string; role: string; roles?: string[] | null };
 type Field = "speech" | "on_screen" | "action";
 type BlockSuggestion = Suggestion & { blockId: string };
 
-type Story = { hook: string; situation: string; payoff: string };
+const input =
+  "w-full rounded-xl border border-input bg-background px-3.5 py-3 text-base leading-relaxed outline-none focus:border-foreground";
+// Sem caixa: o texto aparece como numa folha de roteiro, e uma linha fina mostra onde se está escrevendo.
+const bareInput = "w-full border-b border-transparent bg-transparent pb-0.5 text-base leading-relaxed outline-none placeholder:text-muted-foreground/70 focus:border-input";
+const menuItem = "flex min-h-12 items-center gap-2.5 px-4 text-left text-sm font-semibold";
 
-// A história em três partes: o que a pessoa aprova antes do roteiro, e o que muda quando não gostou do desenrolar.
-function StoryFields({ story, onChange, onBlur }: { story: Story; onChange: (story: Story) => void; onBlur: () => void }) {
-  const fields: [keyof Story, string, string][] = [
-    ["hook", "Como começa", "Os primeiros segundos do vídeo"],
-    ["situation", "O que acontece", "A cena ou o conteúdo"],
-    ["payoff", "Como termina", "A virada, o resultado ou a dica final"],
-  ];
+// Caixa de texto que cresce com o que está escrito: nada fica escondido nem cortado.
+function GrowingText({
+  bare = false,
+  inputRef,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string; bare?: boolean; inputRef?: (el: HTMLTextAreaElement | null) => void }) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [props.value]);
   return (
-    <>
-      {fields.map(([key, label, placeholder]) => (
-        <label key={key} className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold">{label}</span>
-          <GrowingText value={story[key]} maxLength={key === "hook" ? 200 : 600} placeholder={placeholder} onChange={(e) => onChange({ ...story, [key]: e.target.value })} onBlur={onBlur} />
-        </label>
-      ))}
-    </>
+    <textarea
+      ref={(el) => {
+        ref.current = el;
+        inputRef?.(el);
+      }}
+      rows={1}
+      {...props}
+      className={cn(bare ? bareInput : input, "resize-none overflow-hidden", props.className)}
+    />
+  );
+}
+
+// A história em texto corrido, sem títulos: a pessoa lê e muda como um texto qualquer.
+function StoryEditor({ text, onChange, onBlur }: { text: string; onChange: (text: string) => void; onBlur: () => void }) {
+  return (
+    <div className="rounded-2xl bg-card p-4">
+      <GrowingText
+        bare
+        aria-label="A história"
+        value={text}
+        maxLength={1500}
+        placeholder="Como o vídeo começa, o que acontece e como termina."
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className="text-[17px] leading-relaxed"
+      />
+    </div>
   );
 }
 
@@ -50,7 +80,7 @@ function StoryAsk({ busy, onAsk }: { busy: boolean; onAsk: (request: string) => 
   const [ask, setAsk] = useState("");
   return (
     <form
-      className="flex items-center gap-2"
+      className="flex items-end gap-2"
       onSubmit={async (e) => {
         e.preventDefault();
         if (!ask.trim()) return;
@@ -58,20 +88,21 @@ function StoryAsk({ busy, onAsk }: { busy: boolean; onAsk: (request: string) => 
         setAsk("");
       }}
     >
-      <label className="sr-only" htmlFor="pedido-historia">
-        Peça uma mudança na história
-      </label>
-      <input id="pedido-historia" value={ask} maxLength={300} onChange={(e) => setAsk(e.target.value)} placeholder="Peça uma mudança" className={input} />
-      <button type="submit" aria-label="Pedir mudança na história" disabled={!ask.trim() || busy} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
+      <GrowingText
+        bare
+        aria-label="Peça uma mudança na história"
+        value={ask}
+        maxLength={1500}
+        onChange={(e) => setAsk(e.target.value)}
+        placeholder="Pedir mudança, ex.: troca o final"
+        className="border-input pb-2 focus:border-foreground"
+      />
+      <button type="submit" aria-label="Pedir mudança na história" disabled={!ask.trim() || busy} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
         <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden="true" />
       </button>
     </form>
   );
 }
-
-const chip = "min-h-11 rounded-full border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap";
-const input =
-  "w-full rounded-xl border border-input bg-background px-3.5 py-3 text-base leading-relaxed outline-none focus:border-foreground";
 
 async function callApi(body: Record<string, unknown>) {
   const res = await fetch("/api/roteiro", {
@@ -84,16 +115,124 @@ async function callApi(body: Record<string, unknown>) {
   return data;
 }
 
-// Caixa de texto que cresce com o que está escrito: nada fica escondido nem cortado.
-function GrowingText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight + 2}px`;
-  }, [props.value]);
-  return <textarea ref={ref} rows={1} {...props} className={cn(input, "resize-none overflow-hidden", props.className)} />;
+type Line = { who: string | null; named: boolean; text: string }; // named: o nome está escrito na fala ("Manu: …")
+
+// "Nome: texto" vira uma linha com o nome, se for de alguém do vídeo. "Primeiro erro: pouca água" fica inteiro.
+function toLines(speech: string, cast: string[]): Line[] {
+  return speechLines(speech).map((l) => {
+    const name = l.speaker ? cast.find((c) => isMe(l.speaker as string, c)) : undefined;
+    return name ? { who: name, named: true, text: l.text } : { who: null, named: false, text: l.raw };
+  });
+}
+
+function fromLines(lines: Line[]): string {
+  return lines
+    .filter((l) => l.text.trim())
+    .map((l) => (l.named && l.who ? `${l.who}: ${l.text.trim()}` : l.text.trim()))
+    .join("\n");
+}
+
+// Cada fala com o nome em cima, como num roteiro. Tocar no nome troca quem fala; "+ Fala" põe outra pessoa na conversa.
+function Dialogue({
+  speech,
+  fallback,
+  cast,
+  scene,
+  autoFocus,
+  onSave,
+}: {
+  speech: string;
+  fallback: string | null; // quem fala quando a linha não diz
+  cast: string[];
+  scene: number;
+  autoFocus: boolean;
+  onSave: (speech: string) => void;
+}) {
+  const [lines, setLines] = useState<Line[]>(() => {
+    const parsed = toLines(speech, cast);
+    return parsed.length === 0 && autoFocus ? [{ who: fallback, named: false, text: "" }] : parsed;
+  });
+  const [synced, setSynced] = useState(speech);
+  const focusNext = useRef(autoFocus); // fala nova (ou cena nova): o cursor vai para ela
+  const refs = useRef<(HTMLTextAreaElement | null)[]>([]);
+
+  // Quando a IA reescreve a cena, as falas mostram o texto novo.
+  if (synced !== speech) {
+    setSynced(speech);
+    setLines(toLines(speech, cast));
+  }
+
+  useEffect(() => {
+    if (!focusNext.current) return;
+    focusNext.current = false;
+    refs.current[lines.length - 1]?.focus();
+  }, [lines.length]);
+
+  // Fala vazia sai; o resto vira o texto da cena, com o nome escrito só onde ele foi escolhido.
+  const commit = (next: Line[]) => {
+    const kept = next.filter((l) => l.text.trim());
+    setLines(kept);
+    const value = fromLines(kept);
+    if (value !== speech.trim()) onSave(value);
+  };
+
+  function addLine() {
+    const last = lines[lines.length - 1];
+    const current = last ? (last.who ?? fallback) : fallback;
+    // Numa conversa, a próxima fala costuma ser da outra pessoa.
+    const who = last ? (cast.find((c) => c !== current) ?? current) : fallback;
+    setLines([...lines, { who, named: cast.length > 1 && who !== null, text: "" }]);
+    focusNext.current = true;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {lines.map((l, i) => {
+        const name = l.who ?? fallback;
+        return (
+          <div key={i} className="flex flex-col">
+            {cast.length > 1 ? (
+              <label className="relative self-start">
+                <span className="sr-only">Quem fala</span>
+                <select
+                  value={name ?? ""}
+                  onChange={(e) => commit(lines.map((x, k) => (k === i ? { ...x, who: e.target.value, named: true } : x)))}
+                  className="label-set -ml-1 min-h-8 cursor-pointer appearance-none bg-transparent py-1 pl-1 pr-5 text-foreground outline-none"
+                >
+                  {!name && <option value="">Quem fala?</option>}
+                  {cast.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-0 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" strokeWidth={2} aria-hidden="true" />
+              </label>
+            ) : (
+              name && <p className="label-set py-1 text-foreground">{name}</p>
+            )}
+            <GrowingText
+              bare
+              inputRef={(el) => {
+                refs.current[i] = el;
+              }}
+              aria-label={`Fala${name ? ` de ${name}` : ""} na cena ${scene}`}
+              value={l.text}
+              maxLength={1500}
+              placeholder="Escreva a fala"
+              onChange={(e) => setLines(lines.map((x, k) => (k === i ? { ...x, text: e.target.value } : x)))}
+              onBlur={() => commit(lines)}
+              className="text-[17px] font-semibold leading-snug"
+            />
+          </div>
+        );
+      })}
+      <button type="button" onClick={addLine} aria-label={`Adicionar fala na cena ${scene}`} className="flex min-h-11 items-center gap-1.5 self-start text-sm text-muted-foreground">
+        <Plus className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        Fala
+      </button>
+    </div>
+  );
 }
 
 function BlockCard({
@@ -101,8 +240,8 @@ function BlockCard({
   index,
   time,
   busy,
-  repeated,
   speaker,
+  cast,
   quick,
   suggestion,
   onSuggestion,
@@ -112,34 +251,42 @@ function BlockCard({
   autoFocus,
 }: {
   block: Block;
-  onRemove?: () => void; // ausente quando é a única parte: o roteiro não fica vazio
-  autoFocus: boolean; // parte recém-adicionada: o cursor já vai para a fala
-  quick: string[]; // botões rápidos do objetivo do vídeo
-  suggestion?: BlockSuggestion; // sugestão do Gravaí para este bloco: só muda se a pessoa aceitar
+  onRemove?: () => void; // ausente quando é a única cena: o roteiro não fica vazio
+  autoFocus: boolean; // cena recém-adicionada: o cursor já vai para a fala
+  quick: string[]; // pedidos rápidos do objetivo do vídeo
+  suggestion?: BlockSuggestion; // sugestão do Gravaí para esta cena: só muda se a pessoa aceitar
   onSuggestion: (accept: boolean) => void;
-  repeated: boolean; // outro bloco do mesmo tipo já veio antes: a explicação não abre de novo
   speaker: string | null;
+  cast: string[]; // quem pode falar, pelo primeiro nome
   index: number;
   time: { start: number; end: number };
   busy: boolean;
   onSave: (field: Field, value: string) => Promise<void>;
   onRewrite: (request: string) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState({ speech: block.speech, on_screen: block.on_screen, action: block.action });
+  const [action, setAction] = useState(block.action);
+  const [screen, setScreen] = useState(block.on_screen);
   const [synced, setSynced] = useState(block);
   const [asking, setAsking] = useState(false);
   const [ask, setAsk] = useState("");
+  const [menu, setMenu] = useState(false);
+  const [hint, setHint] = useState(false);
+  const [screenOpen, setScreenOpen] = useState(false);
+  const screenBox = useRef<HTMLTextAreaElement | null>(null);
 
-  // Quando a IA reescreve o bloco, o formulário mostra o texto novo.
+  // Quando a IA reescreve a cena, o texto novo aparece.
   if (synced !== block) {
     setSynced(block);
-    setDraft({ speech: block.speech, on_screen: block.on_screen, action: block.action });
+    setAction(block.action);
+    setScreen(block.on_screen);
   }
 
+  useEffect(() => {
+    if (screenOpen) screenBox.current?.focus();
+  }, [screenOpen]);
+
   const kind = BLOCK_KINDS[block.kind];
-  const save = (field: Field) => {
-    if (draft[field] !== block[field]) onSave(field, draft[field]);
-  };
+  const scene = index + 1;
   const rewrite = async (request: string) => {
     await onRewrite(request);
     setAsk("");
@@ -147,60 +294,114 @@ function BlockCard({
   };
 
   return (
-    <article className="flex flex-col gap-3 rounded-2xl bg-card p-4" aria-label={`Cena ${index + 1}: ${block.label || kind.label}`}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="label-set">
-          Cena {index + 1}
+    <article className="flex flex-col gap-2 py-4" aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
+      <div className="-my-2 flex items-center justify-between gap-3">
+        <h2 className="label-set text-muted-foreground">
+          Cena {scene} · {time.start}–{time.end} s
         </h2>
-        <span className="flex items-center gap-1">
-          <span className="font-mono text-sm text-muted-foreground">
-            {time.start}–{time.end} s
-          </span>
-          {onRemove && (
-            <button type="button" disabled={busy} onClick={onRemove} aria-label={`Excluir a cena ${index + 1}`} className="-mr-2.5 flex size-11 items-center justify-center text-muted-foreground disabled:opacity-40">
-              <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
-            </button>
+        <div className="relative -mr-2.5">
+          <button type="button" aria-label={`Opções da cena ${scene}`} aria-expanded={menu} onClick={() => setMenu((m) => !m)} className="flex size-11 items-center justify-center text-muted-foreground">
+            <MoreHorizontal className="size-5" strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          {menu && (
+            <>
+              <button type="button" aria-label="Fechar o menu" tabIndex={-1} onClick={() => setMenu(false)} className="fixed inset-0 z-30 cursor-default" />
+              <div role="menu" className="absolute right-0 top-11 z-40 flex w-60 flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={busy}
+                  onClick={() => {
+                    setMenu(false);
+                    setAsking(true);
+                  }}
+                  className={menuItem}
+                >
+                  <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                  Pedir ajuste
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenu(false);
+                    setHint((h) => !h);
+                  }}
+                  className={menuItem}
+                >
+                  <CircleHelp className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                  Para que serve esta cena?
+                </button>
+                {!screen && !screenOpen && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenu(false);
+                      setScreenOpen(true);
+                    }}
+                    className={menuItem}
+                  >
+                    <Type className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                    Texto na tela
+                  </button>
+                )}
+                {onRemove && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenu(false);
+                      onRemove();
+                    }}
+                    className={cn(menuItem, "text-destructive")}
+                  >
+                    <Trash2 className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                    Apagar cena
+                  </button>
+                )}
+              </div>
+            </>
           )}
-        </span>
+        </div>
       </div>
-      <Explain id={`bloco-${block.kind}`} question="Para que serve esta cena?" closed={repeated} className="-mt-1">
-        {kind.hint}
-      </Explain>
+      {hint && <p className="text-sm leading-relaxed text-muted-foreground">{kind.hint}</p>}
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">O que acontece</span>
-        <GrowingText
-          value={draft.action}
-          onChange={(e) => setDraft((d) => ({ ...d, action: e.target.value }))}
-          onBlur={() => save("action")}
-          maxLength={500}
-          placeholder="O que acontece (opcional)"
-          className="min-h-12"
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">Fala{speaker ? ` · ${speaker}` : ""}</span>
-        <GrowingText
-          value={draft.speech}
-          onChange={(e) => setDraft((d) => ({ ...d, speech: e.target.value }))}
-          onBlur={() => save("speech")}
-          maxLength={1500}
-          autoFocus={autoFocus}
-          placeholder="O que você fala neste trecho"
-          className="min-h-20 font-medium"
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold">Texto escrito na tela</span>
-        <GrowingText
-          value={draft.on_screen}
-          onChange={(e) => setDraft((d) => ({ ...d, on_screen: e.target.value }))}
-          onBlur={() => save("on_screen")}
-          maxLength={300}
-          placeholder={index === 0 ? "Título ou legenda que aparece escrito no vídeo (opcional)" : "Legenda que aparece escrita no vídeo (opcional)"}
-          className="min-h-12"
-        />
-      </label>
+      <GrowingText
+        bare
+        aria-label={`O que acontece na cena ${scene}`}
+        value={action}
+        maxLength={500}
+        placeholder="O que acontece (opcional)"
+        onChange={(e) => setAction(e.target.value)}
+        onBlur={() => action !== block.action && onSave("action", action)}
+        className="text-[15px] italic text-muted-foreground"
+      />
+
+      <Dialogue speech={block.speech} fallback={speaker} cast={cast} scene={scene} autoFocus={autoFocus} onSave={(value) => onSave("speech", value)} />
+
+      {(screen || screenOpen) && (
+        <div className="flex items-baseline gap-2">
+          <span className="label-set shrink-0 text-muted-foreground">Na tela</span>
+          <GrowingText
+            bare
+            inputRef={(el) => {
+              screenBox.current = el;
+            }}
+            aria-label={`Texto escrito na tela na cena ${scene}`}
+            value={screen}
+            maxLength={300}
+            placeholder="Título ou legenda escrita no vídeo"
+            onChange={(e) => setScreen(e.target.value)}
+            onBlur={() => {
+              if (screen !== block.on_screen) onSave("on_screen", screen);
+              if (!screen.trim()) setScreenOpen(false);
+            }}
+            className="text-sm"
+          />
+        </div>
+      )}
 
       {suggestion && (
         <div className="flex flex-col gap-2.5 rounded-xl border-[1.5px] border-foreground p-3.5">
@@ -210,7 +411,7 @@ function BlockCard({
           </span>
           {suggestion.speech && <p className="text-[15px] font-medium leading-relaxed">{suggestion.speech}</p>}
           {suggestion.on_screen && <p className="text-sm text-muted-foreground">Escrito na tela: {suggestion.on_screen}</p>}
-          {suggestion.action && <p className="text-sm text-muted-foreground">O que acontece: {suggestion.action}</p>}
+          {suggestion.action && <p className="text-sm italic text-muted-foreground">{suggestion.action}</p>}
           <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>
           <ReportAi
             area="roteiro"
@@ -229,56 +430,40 @@ function BlockCard({
         </div>
       )}
 
-      {!asking ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setAsking(true)}
-          className="flex min-h-11 items-center gap-2 self-start text-sm font-semibold disabled:opacity-40"
-        >
-          <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          Pedir ajuste nesta cena
-        </button>
-      ) : (
-        <form
-          className="flex flex-col gap-2.5 rounded-xl bg-muted p-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (ask.trim()) rewrite(ask.trim());
-          }}
-        >
-          <div className="flex flex-wrap gap-2">
+      {asking && (
+        <div className="flex flex-col gap-1 rounded-xl bg-muted px-3.5 pb-1.5 pt-2">
+          <div className="flex flex-wrap gap-x-4">
             {quick.map((q) => (
-              <button key={q} type="button" disabled={busy} className={chip} onClick={() => rewrite(q)}>
+              <button key={q} type="button" disabled={busy} className="min-h-11 text-sm font-semibold underline disabled:opacity-40" onClick={() => rewrite(q)}>
                 {q}
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <label htmlFor={`ajuste-${block.id}`} className="sr-only">
-              O que mudar nesta cena
-            </label>
-            <input
-              id={`ajuste-${block.id}`}
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (ask.trim()) rewrite(ask.trim());
+            }}
+          >
+            <GrowingText
+              bare
+              autoFocus
+              aria-label={`O que mudar na cena ${scene}`}
               value={ask}
+              maxLength={1500}
               onChange={(e) => setAsk(e.target.value)}
-              maxLength={300}
               placeholder="Ou escreva o que mudar"
-              className="min-h-12 flex-1 rounded-full border border-input bg-card px-4 text-base outline-none focus:border-foreground"
+              className="border-input pb-2 focus:border-foreground"
             />
-            <button
-              type="submit"
-              aria-label="Pedir ajuste"
-              disabled={!ask.trim() || busy}
-              className="flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            >
+            <button type="submit" aria-label="Pedir ajuste" disabled={!ask.trim() || busy} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
               <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden="true" />
             </button>
-          </div>
+          </form>
           <button type="button" onClick={() => setAsking(false)} className="min-h-11 self-start text-sm text-muted-foreground">
             Cancelar
           </button>
-        </form>
+        </div>
       )}
     </article>
   );
@@ -302,7 +487,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [removed, setRemoved] = useState<{ block: Block; index: number } | null>(null);
   const pending = useRef<{ block: Block; index: number; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [fresh, setFresh] = useState<string | null>(null);
-  const [story, setStory] = useState<Story>({ hook: "", situation: "", payoff: "" });
+  const [storyDraft, setStoryDraft] = useState(""); // a história como a pessoa lê e escreve: um texto só
   const [storyOpen, setStoryOpen] = useState(false);
   const [written, setWritten] = useState(""); // o texto de quem trouxe a própria ideia
   const developing = useRef(false);
@@ -312,14 +497,14 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     Promise.all([
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
-      db.from("video_people").select("id, name, role").eq("video_id", id),
+      db.from("video_people").select("id, name, role, roles").eq("video_id", id),
       db.from("shots").select("block_id").eq("video_id", id),
       db.from("creator_profiles").select("display_name").maybeSingle(),
     ]).then(([v, b, p, s, perfil]) => {
       setCreator((perfil.data as { display_name: string | null } | null)?.display_name ?? null);
       setVideo((v.data as Video | null) ?? null);
       const loaded = v.data as (Video & { situation?: string; payoff?: string }) | null;
-      setStory({ hook: loaded?.hook ?? "", situation: loaded?.situation ?? "", payoff: loaded?.payoff ?? "" });
+      setStoryDraft(storyText({ hook: loaded?.hook ?? "", situation: loaded?.situation ?? "", payoff: loaded?.payoff ?? "" }));
       setWritten(loaded?.brief ?? "");
       setBlocks((b.data ?? []) as Block[]);
       setPeople((p.data ?? []) as Person[]);
@@ -334,8 +519,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       setBusy("historia");
       callApi({ videoId: id, mode: "historia", title: loaded.start_door === "ideia" })
         .then((data) => {
-          setStory(data.story as Story);
-          setVideo((current) => (current ? { ...current, ...(data.story as Story) } : current));
+          setStoryDraft(storyText(data.story as StoryParts));
+          setVideo((current) => (current ? { ...current, ...(data.story as StoryParts) } : current));
         })
         .catch(() => setError("Não deu para contar a história inteira agora. Você pode seguir com esta ou tentar de novo."))
         .finally(() => setBusy(null));
@@ -403,9 +588,9 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     setFresh((data as Block).id);
   }
 
-  // Só guarda o que tem começo: sem ele, o roteiro não tem de onde partir.
+  // Só guarda o que tem começo: sem ele, o roteiro não tem de onde partir. O texto volta a ser começo, meio e fim pelos parágrafos.
   async function saveStory(): Promise<boolean> {
-    const clean = { hook: story.hook.trim(), situation: story.situation.trim(), payoff: story.payoff.trim() };
+    const clean = storyFromText(storyDraft);
     if (!clean.hook) return false;
     const { error } = await createClient().from("videos").update(clean).eq("id", id);
     if (error) {
@@ -430,8 +615,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     setError(null);
     try {
       const data = await callApi({ videoId: id, mode: "historia", request, title: fromWritten });
-      setStory(data.story as Story);
-      setVideo((v) => (v ? { ...v, ...(data.story as Story) } : v));
+      setStoryDraft(storyText(data.story as StoryParts));
+      setVideo((v) => (v ? { ...v, ...(data.story as StoryParts) } : v));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -557,6 +742,13 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   }
 
   const times = timeline(blocks);
+  // Quem pode falar, pelo primeiro nome. Quem criou o vídeo e ainda não está em Pessoas entra pelo nome do perfil.
+  const me = creator?.trim() ? firstNameOf(creator) : null;
+  const castNames = (() => {
+    const names = castOf(people).map((c) => (c.label === "Você" ? me : c.label));
+    if (!people.some((p) => p.role === "eu") && me && names.length > 0) names.unshift(me);
+    return names.filter((n): n is string => Boolean(n));
+  })();
   const alerts = video ? checkScript(blocks, video.duration_s, video.objective).filter((c) => c.level !== "ok") : [];
 
   return (
@@ -588,14 +780,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {blocks.length === 0 && (
-              <section aria-label="A história" className="flex flex-col gap-4 rounded-2xl bg-card p-4">
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="label-set flex items-center gap-1.5">
-                    <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
-                    A história
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">O vídeo inteiro, antes do roteiro. Mude o que quiser aqui.</p>
-                </div>
+              <section aria-label="A história" className="flex flex-col gap-4">
+                <h3 className="label-set text-muted-foreground">A história</h3>
                 {busy === "historia" ? (
                   <Thinking label="Contando a história" steps={STEPS.historia} />
                 ) : (
@@ -611,15 +797,15 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                         </button>
                       </div>
                     )}
-                    <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
+                    <StoryEditor text={storyDraft} onChange={setStoryDraft} onBlur={saveStory} />
                     <StoryAsk busy={busy !== null} onAsk={developStory} />
                     <button
                       type="button"
                       onClick={draft}
-                      disabled={busy !== null || !story.hook.trim()}
+                      disabled={busy !== null || !storyDraft.trim()}
                       className="min-h-13 rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
                     >
-                      {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Aprovar e escrever o roteiro"}
+                      {busy === "rascunho" ? <Thinking label="Escrevendo o roteiro" steps={STEPS.roteiro} /> : "Escrever o roteiro"}
                     </button>
                     <div className="flex justify-center gap-6 text-sm font-semibold">
                       <button type="button" onClick={() => developStory()} disabled={busy !== null} className="min-h-11 underline disabled:opacity-40">
@@ -673,6 +859,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               </div>
             )}
 
+            {blocks.length > 0 && (
+              <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
             {blocks.map((b, i) => (
               <BlockCard
                 key={b.id}
@@ -680,7 +868,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 index={i}
                 time={times[i]}
                 busy={busy !== null}
-                repeated={blocks.slice(0, i).some((x) => x.kind === b.kind)}
+                cast={castNames}
                 speaker={speakerOf(b, people, isSolo(video.resources ?? []), creator)}
                 quick={QUICK_BLOCK[(video.objective ?? "crescer") as Objective]}
                 suggestion={review?.suggestions.find((s) => s.blockId === b.id)}
@@ -691,17 +879,11 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 autoFocus={b.id === fresh}
               />
             ))}
-
-            {blocks.length > 0 && (
-              <button
-                type="button"
-                onClick={addBlock}
-                disabled={busy !== null}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-input text-sm font-semibold disabled:opacity-40"
-              >
-                <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
-                Adicionar cena
-              </button>
+                <button type="button" onClick={addBlock} disabled={busy !== null} aria-label="Adicionar cena" className="flex min-h-12 items-center gap-1.5 self-start text-sm font-semibold disabled:opacity-40">
+                  <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
+                  Cena
+                </button>
+              </div>
             )}
 
             {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && busy !== "adicionar" && busy !== "historia" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo a parte" /></p>}
@@ -724,13 +906,13 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                     <Thinking label="Mudando a história" steps={STEPS.historia} />
                   ) : (
                     <>
-                      <StoryFields story={story} onChange={setStory} onBlur={saveStory} />
+                      <StoryEditor text={storyDraft} onChange={setStoryDraft} onBlur={saveStory} />
                       <StoryAsk busy={busy !== null} onAsk={developStory} />
                     </>
                   )}
                   <button
                     type="button"
-                    disabled={busy !== null || !story.hook.trim()}
+                    disabled={busy !== null || !storyDraft.trim()}
                     onClick={() => {
                       setStoryOpen(false);
                       draft();

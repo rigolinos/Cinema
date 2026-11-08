@@ -6,6 +6,8 @@ import {
   normalizeSuggestions,
   scriptForPrompt,
   speakerOf,
+  storyFromText,
+  storyText,
   withSpeakers,
   normalizeDraft,
   normalizeRewrite,
@@ -158,5 +160,37 @@ describe("quem fala", () => {
     expect(speakerOf({ person_id: null }, [], true, "natasha lima")).toBe("Natasha");
     expect(speakerOf({ person_id: "x" }, [{ id: "x", name: "Eu", role: "eu" }], false)).toBe("você");
     expect(speakerOf({}, people, false)).toBeNull();
+  });
+});
+
+describe("história em texto corrido", () => {
+  const parts = { hook: "Ela sai de casa assobiando.", situation: "Na esquina, apalpa os bolsos.\n\nVolta correndo.", payoff: "A chave estava na porta." };
+
+  it("junta as partes em parágrafos e separa de volta", () => {
+    const text = storyText(parts);
+    expect(text).toBe("Ela sai de casa assobiando.\n\nNa esquina, apalpa os bolsos.\n\nVolta correndo.\n\nA chave estava na porta.");
+    expect(storyFromText(text)).toEqual(parts);
+  });
+
+  it("com dois parágrafos, o segundo é o meio", () => {
+    expect(storyFromText("Começa assim.\n\nE segue assado.")).toEqual({ hook: "Começa assim.", situation: "E segue assado.", payoff: "" });
+  });
+
+  it("com um parágrafo só, a primeira frase é o começo", () => {
+    expect(storyFromText("Ela sai feliz. Esquece a chave. Volta correndo.")).toEqual({ hook: "Ela sai feliz.", situation: "Esquece a chave. Volta correndo.", payoff: "" });
+  });
+
+  it("nada passa do limite de cada parte e nenhuma frase se perde no meio", () => {
+    const longo = Array.from({ length: 40 }, (_, i) => `Frase número ${i + 1} da história.`).join(" ");
+    const out = storyFromText(`${longo}\n\nMeio.\n\nFim.`);
+    expect(out.hook.length).toBeLessThanOrEqual(300);
+    expect(out.situation.length).toBeLessThanOrEqual(600);
+    expect(out.payoff.length).toBeLessThanOrEqual(600);
+    expect(out.hook.endsWith(".")).toBe(true);
+    expect(out.situation.startsWith("Frase número")).toBe(true);
+  });
+
+  it("texto vazio fica vazio", () => {
+    expect(storyFromText("  \n\n ")).toEqual({ hook: "", situation: "", payoff: "" });
   });
 });
