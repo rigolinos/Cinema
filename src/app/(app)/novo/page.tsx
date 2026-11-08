@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Bookmark, FileText, Lightbulb, Sparkles } from "lucide-react";
+import { ArrowRight, FileText, Lightbulb, Sparkles } from "lucide-react";
 import { useSavedIdeas } from "@/components/gravai/guardar";
 import { createClient } from "@/lib/supabase/client";
-import { findFormat } from "@/lib/formats";
+import { FORMATS, findFormat } from "@/lib/formats";
 import { doorLabel } from "@/lib/memoria";
 import { logSignal } from "@/lib/sinais";
 
@@ -108,12 +108,26 @@ function Doors() {
           </button>
         ))}
       </div>
-      {saved && saved.length > 0 && (
-        <Link href="/ideias/guardadas" className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-semibold">
-          <Bookmark className="size-4" strokeWidth={1.75} fill="currentColor" aria-hidden="true" />
-          Ideias guardadas ({saved.length})
-        </Link>
-      )}
+      <section aria-labelledby="mais-ideias" className="flex flex-col gap-1.5">
+        <h2 id="mais-ideias" className="label-set text-muted-foreground">
+          Mais ideias
+        </h2>
+        <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
+          {[
+            { href: "/ideias", title: "Ideias da quinzena", text: "Feitas para o seu perfil" },
+            ...(saved && saved.length > 0 ? [{ href: "/ideias/guardadas", title: `Ideias guardadas (${saved.length})`, text: "As que você marcou para depois" }] : []),
+            { href: "/ideias/formatos", title: "Biblioteca de formatos", text: `${FORMATS.length} estruturas que já funcionam` },
+          ].map((row) => (
+            <Link key={row.href} href={row.href} className="flex min-h-14 items-center justify-between gap-3 py-3">
+              <span className="flex flex-col gap-0.5">
+                <span className="font-semibold">{row.title}</span>
+                <span className="text-sm text-muted-foreground">{row.text}</span>
+              </span>
+              <ArrowRight className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          ))}
+        </div>
+      </section>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
