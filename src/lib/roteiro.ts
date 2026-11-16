@@ -36,12 +36,16 @@ export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 }
 
-export function blockSeconds(b: Pick<ScriptBlock, "speech">): number {
-  return Math.max(MIN_BLOCK_SECONDS, wordCount(b.speech) / WORDS_PER_SECOND);
+// Ação se lê rápido, mas leva tempo para acontecer: cerca de 3 palavras da rubrica por segundo de cena.
+export const ACTION_WORDS_PER_SECOND = 3;
+
+// A cena dura o que for maior: a fala ou a ação, que costumam acontecer juntas.
+export function blockSeconds(b: Pick<ScriptBlock, "speech"> & { action?: string }): number {
+  return Math.max(MIN_BLOCK_SECONDS, wordCount(b.speech) / WORDS_PER_SECOND, wordCount(b.action ?? "") / ACTION_WORDS_PER_SECOND);
 }
 
 // Início e fim de cada bloco, em segundos inteiros, para mostrar "0–3 s".
-export function timeline(blocks: Pick<ScriptBlock, "speech">[]): { start: number; end: number }[] {
+export function timeline(blocks: (Pick<ScriptBlock, "speech"> & { action?: string })[]): { start: number; end: number }[] {
   let t = 0;
   return blocks.map((b) => {
     const start = t;
@@ -50,7 +54,7 @@ export function timeline(blocks: Pick<ScriptBlock, "speech">[]): { start: number
   });
 }
 
-export function totalSeconds(blocks: Pick<ScriptBlock, "speech">[]): number {
+export function totalSeconds(blocks: (Pick<ScriptBlock, "speech"> & { action?: string })[]): number {
   return Math.round(blocks.reduce((sum, b) => sum + blockSeconds(b), 0));
 }
 

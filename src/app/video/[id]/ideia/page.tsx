@@ -421,12 +421,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             )}
 
             {question === "objective" && (
+              <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(OBJECTIVES) as (keyof typeof OBJECTIVES)[]).map((o) => (
                   <button key={o} type="button" disabled={busy !== null} className={cn(chip, answers.objective === o && chipOn)} onClick={() => save("objective", { objective: o })}>
                     {OBJECTIVES[o]}
                   </button>
                 ))}
+              </div>
+              <p className="text-sm text-muted-foreground">Toque em uma opção para seguir.</p>
               </div>
             )}
 
@@ -440,7 +443,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 }}
               >
                 <label className="flex flex-col gap-1.5 text-sm font-semibold">
-                  O que você vende
+                  O que você vende ou divulga
                   <input
                     value={productDraft.product}
                     onChange={(e) => setProductDraft((d) => ({ ...d, product: e.target.value }))}
@@ -502,12 +505,15 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
             )}
 
             {question === "duration" && (
+              <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2">
                 {DURATIONS.map((d) => (
                   <button key={d} type="button" disabled={busy !== null} className={cn(chip, "font-mono", answers.durationS === d && chipOn)} onClick={() => save("duration", { durationS: d })}>
                     {durationLabel(d)}
                   </button>
                 ))}
+              </div>
+              <p className="text-sm text-muted-foreground">Toque em uma opção para seguir.</p>
               </div>
             )}
 
@@ -592,6 +598,7 @@ export default function IdeiaPage({ params }: { params: Promise<{ id: string }> 
                 </div>
               );
             }
+            if (q === "produto" && answers.objective !== "vender") return null;
             if (!answerText(q, answers)) return null;
             return (
               <div key={q} className="flex flex-col gap-3">
