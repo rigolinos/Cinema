@@ -232,3 +232,32 @@ describe("acabamento do que a IA escreveu", () => {
     expect(isStageNote("Close no pote de sorvete")).toBe(true);
   });
 });
+
+describe("uma cena por bloco", () => {
+  const draft = (blocks: Record<string, string>[]) => normalizeDraft({ blocks });
+
+  it("corte no meio da ação vira duas cenas, e a fala fica na primeira", () => {
+    const out = draft([
+      { kind: "gancho", speech: "Será que tranquei?", on_screen: "O alarme", action: "Natasha trava o carro e aperta o botão de novo. CORTE. Natasha está na esquina e aperta o controle." },
+      { kind: "chamada", speech: "Segue aí.", on_screen: "", action: "Ela olha para a câmera." },
+    ]);
+    expect(out.map((b) => b.action)).toEqual(["Natasha trava o carro e aperta o botão de novo.", "Natasha está na esquina e aperta o controle.", "Ela olha para a câmera."]);
+    expect(out[0]).toMatchObject({ kind: "gancho", speech: "Será que tranquei?", on_screen: "O alarme" });
+    expect(out[1]).toMatchObject({ kind: "conteudo", speech: "", on_screen: "", label: null });
+  });
+
+  it("entende \"corta para\" e põe maiúscula no começo da cena nova", () => {
+    const out = draft([{ kind: "conteudo", speech: "", on_screen: "", action: "Ela sai de casa, corta para: a janela do apartamento." }]);
+    expect(out.map((b) => b.action)).toEqual(["Ela sai de casa,", "A janela do apartamento."]);
+  });
+
+  it("\"corte de cabelo\" não é corte de cena", () => {
+    const out = draft([{ kind: "conteudo", speech: "", on_screen: "", action: "Ela mostra o corte de cabelo novo." }]);
+    expect(out).toHaveLength(1);
+  });
+
+  it("não passa de 16 cenas", () => {
+    const muitas = Array.from({ length: 12 }, () => ({ kind: "conteudo", speech: "", on_screen: "", action: "A. CORTE. B." }));
+    expect(draft(muitas)).toHaveLength(12);
+  });
+});
