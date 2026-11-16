@@ -16,7 +16,7 @@ import { castOf, isSolo, shootingOrder, type Shot } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, storyFromText, storyText, timeline, totalSeconds, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
+import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, storyFromText, storyText, totalSeconds, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -240,7 +240,6 @@ function Dialogue({
 function BlockCard({
   block,
   index,
-  time,
   busy,
   speaker,
   cast,
@@ -261,7 +260,6 @@ function BlockCard({
   speaker: string | null;
   cast: string[]; // quem pode falar, pelo primeiro nome
   index: number;
-  time: { start: number; end: number };
   busy: boolean;
   onSave: (field: Field, value: string) => Promise<void>;
   onRewrite: (request: string) => Promise<void>;
@@ -299,9 +297,7 @@ function BlockCard({
   return (
     <article className="flex flex-col gap-2 py-4" aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
       <div className="-my-2 flex items-center justify-between gap-3">
-        <h2 className="label-set text-muted-foreground">
-          Cena {scene} · {time.start}–{time.end} s
-        </h2>
+        <h2 className="label-set text-muted-foreground">Cena {scene}</h2>
         <div className="relative -mr-2.5">
           <button type="button" aria-label={`Opções da cena ${scene}`} aria-expanded={menu} onClick={() => setMenu((m) => !m)} className="flex size-11 items-center justify-center text-muted-foreground">
             <MoreHorizontal className="size-5" strokeWidth={1.75} aria-hidden="true" />
@@ -758,7 +754,6 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     leave(`/video/${id}`);
   }
 
-  const times = timeline(blocks);
   // Quem pode falar, pelo primeiro nome. Quem criou o vídeo e ainda não está em Pessoas entra pelo nome do perfil.
   const me = creator?.trim() ? firstNameOf(creator) : null;
   const castNames = (() => {
@@ -888,7 +883,6 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 key={b.id}
                 block={b}
                 index={i}
-                time={times[i]}
                 busy={busy !== null}
                 cast={castNames}
                 speaker={speakerOf(b, people, isSolo(video.resources ?? []), creator)}

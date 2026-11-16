@@ -116,6 +116,18 @@ function clip(value: unknown, max: number): string {
 
 const KINDS = Object.keys(BLOCK_KINDS) as BlockKind[];
 
+// "CORTE" ou "corta para" no meio da ação quer dizer que ali começa outra cena. A fala e o texto da tela
+// ficam com a primeira parte; as outras viram cenas novas só de ação. "corte de cabelo" não conta.
+const CUT = /\s*(?:\bCORTE\b|\b[Cc]orta para\b)[\s.:!—–-]*/u;
+export function splitCuts<B extends Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action">>(blocks: B[]): B[] {
+  return blocks.flatMap((b) => {
+    const parts = b.action.split(CUT).map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2) return [b];
+    const upper = (s: string) => s.charAt(0).toLocaleUpperCase("pt-BR") + s.slice(1);
+    return parts.map((action, i) => (i === 0 ? { ...b, action } : { ...b, kind: "conteudo" as BlockKind, label: null, speech: "", on_screen: "", action: upper(action) }));
+  });
+}
+
 // Confere o rascunho da IA: tipos válidos, gancho primeiro, chamada no fim, no máximo 12 blocos.
 export function normalizeDraft(raw: unknown): ScriptBlock[] {
   const list = (raw as { blocks?: unknown })?.blocks;
@@ -134,6 +146,9 @@ export function normalizeDraft(raw: unknown): ScriptBlock[] {
     })
     .filter((b) => b.speech || b.on_screen || b.action)
     .slice(0, 12);
+  // Cena com corte no meio vira duas, desde que o roteiro não passe de 16 cenas.
+  const split = splitCuts(blocks);
+  if (split.length > blocks.length && split.length <= 16) blocks.splice(0, blocks.length, ...split);
 
   if (blocks.length > 0 && blocks[0].kind !== "gancho") {
     const hookAt = blocks.findIndex((b) => b.kind === "gancho");

@@ -203,11 +203,12 @@ const DRAFT_TEXT = `TAREFA: escreva o roteiro completo desta ideia, pronto para 
 - Quando a situação e o desfecho contam o vídeo cena a cena, siga essa ordem e use essas piadas e viradas. Não invente outro desenrolar.
 - Limite rígido: no máximo o número de palavras de fala do bloco <limite>, no roteiro todo. Conte antes de responder.
 - Divida em blocos do tipo gancho, contexto, conteudo, virada e chamada. Use só os que o vídeo precisa.
+- Cada bloco é uma cena: um lugar só e um momento contínuo. Mudou de lugar, pulou no tempo ou tem corte, começa outro bloco (pode repetir o tipo conteudo). Nunca escreva "CORTE" ou "corta para" dentro de um bloco.
 - A chamada final segue o objetivo: obrigatória em Vender, Ensinar e Crescer, pedindo uma coisa só; opcional em Divertir.
 - Em cada bloco: speech (exatamente o que se fala, como a pessoa falaria), on_screen e action (o que acontece em cena, em uma frase).
 - on_screen é só o texto escrito que aparece sobre o vídeo, palavra por palavra: título ou legenda. Deixe vazio se não houver. "Natasha correndo" ou "hambúrguer na mão" descrevem a cena e vão em action.
 - label: o nome curto do bloco, até 3 palavras ("Erro 1"), usado no título do bloco, nos Planos e no teleprompter. Opcional no gancho e na chamada.
-- Se mais de uma pessoa fala no bloco, comece cada fala com quem fala ("Você: …", "Amiga: …").
+- Se mais de uma pessoa fala no bloco, comece cada fala com o nome de quem fala ("Bia: …", "Manu: …").
 - A virada, o resultado ou a oferta aparecem escritos de verdade, nunca "aqui entra o final".
 - Use o que já sabemos sobre o jeito de falar da pessoa.`;
 
@@ -250,6 +251,7 @@ export function storyTask(o: { objective: Objective; humor: boolean; titled?: bo
 // ── Ajuste de bloco ──────────────────────────────────────────────────────
 const REWRITE_TEXT = `TAREFA: o roteiro inteiro vem no pedido, e o bloco a mudar está marcado com >>>. Reescreva só esse bloco, atendendo exatamente ao pedido.
 - Mantenha o papel do bloco no roteiro (um gancho continua sendo gancho) e o tom dos outros blocos.
+- O bloco continua sendo uma cena só: um lugar e um momento. Não junte outra cena nele nem escreva "CORTE".
 - Mude o mínimo para cumprir o pedido. O gancho continua prometendo o que o fim entrega.
 - "Mais curto" quer dizer cortar palavras, não reescrever com outras.
 - Mantenha as palavras, as gírias e as marcações de quem fala sempre que possível.
