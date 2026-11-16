@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { aiLog } from "@/lib/ai-registro";
 import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
 import { readingLines } from "@/lib/leitura";
 import { memoryLines } from "@/lib/memoria";
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
   let posts;
   try {
-    const raw = await generateJson({ ...postTask({ objective, platforms }), prompt });
+    const raw = await generateJson({ ...postTask({ objective, platforms }), prompt, log: aiLog(supabase) });
     posts = normalizePosts(raw, platforms);
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {

@@ -26,6 +26,8 @@ export async function GET() {
     supabase.from("ai_reports").select("area, reason, content, note, ref_id, created_at").order("created_at"),
     supabase.rpc("my_invites"),
   ]);
+  // À parte: se a tabela ainda não existir, a cópia sai sem este item em vez de falhar.
+  const aiCalls = await supabase.from("ai_calls").select("task, provider, model, attempts, ms, created_at").order("created_at");
 
   const failed = [profile, videos, ideas, blocks, shots, people, posts, consents, fortnight, acceptances, usage, memory, signals, saved, reports, invites].find((r) => r.error);
   if (failed?.error) return NextResponse.json({ error: "Não foi possível montar a cópia agora. Tente de novo." }, { status: 500 });
@@ -49,6 +51,7 @@ export async function GET() {
     ideias_guardadas: saved.data,
     convites_salvos: invites.data,
     denuncias_de_respostas_da_ia: reports.data,
+    chamadas_de_ia: aiCalls.data ?? [],
     aceites_legais: acceptances.data,
     uso_da_ia_por_dia: usage.data,
     memoria: { o_que_o_gravai_entendeu: memory.data, sinais_do_uso: signals.data },

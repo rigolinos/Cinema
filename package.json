@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "node scripts/test-db.mjs",
+    "provas": "vitest run --config vitest.provas.config.ts",
     "check": "npm run lint && npm run typecheck && npm test && npm run test:db && npm run build"
   },
   "dependencies": {

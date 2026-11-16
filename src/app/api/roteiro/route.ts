@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { aiLog } from "@/lib/ai-registro";
 import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
 import { assembleFromReading, faithful, normalizeReading, readingAsSegments, readingLines, readingSegments, type Reading } from "@/lib/leitura";
 import { memoryLines } from "@/lib/memoria";
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
   if (!allowed) return fail("Você usou todas as chamadas da IA de hoje. Amanhã tem mais.", 429);
 
   const objective = (v.objective ?? "crescer") as Objective;
+  const log = aiLog(supabase);
   const memoryText = memoryLines(memory?.items);
   const humor = usesHumor({ objective, texts: [profile?.niche, v.brief, ask, ...memoryText] });
   const cast = castTag(profile?.display_name, people ?? []);
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
     let story;
     let title = "";
     try {
-      const raw = await generateJson(storyRequest({ ...idea, ask, titled }));
+      const raw = await generateJson({ ...storyRequest({ ...idea, ask, titled }), log });
       story = normalizeStory(raw);
       const named = (raw as { title?: unknown })?.title;
       if (titled && typeof named === "string") title = named.trim().slice(0, 140);
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
     const call = draftRequest(idea);
     let blocks: ScriptBlock[];
     try {
-      blocks = normalizeDraft(await generateJson(call)).map((b) => polishBlock(b, polish));
+      blocks = normalizeDraft(await generateJson({ ...call, log })).map((b) => polishBlock(b, polish));
     } catch (err) {
       return aiFailure(err);
     }
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
   if (mode === "sugestoes") {
     const prompt = context([tag("roteiro", scriptForPrompt(blocks)), tag("briefing", v.brief), ...shared]);
     try {
-      const result = normalizeSuggestions(await generateJson({ ...suggestionsTask({ objective, humor }), prompt }), blocks);
+      const result = normalizeSuggestions(await generateJson({ ...suggestionsTask({ objective, humor }), prompt, log }), blocks);
       return NextResponse.json({
         note: result.note,
         suggestions: result.suggestions.map((s) => ({ ...polishBlock(s, polish), blockId: blocks[s.block - 1].id })),
@@ -158,7 +160,7 @@ export async function POST(request: NextRequest) {
   const prompt = context([tag("pedido_agora", ask), tag("roteiro", scriptForPrompt(blocks, index)), ...shared]);
   let rewrite;
   try {
-    rewrite = normalizeRewrite(await generateJson({ ...rewriteTask({ objective, humor }), prompt }));
+    rewrite = normalizeRewrite(await generateJson({ ...rewriteTask({ objective, humor }), prompt, log }));
   } catch (err) {
     return aiFailure(err);
   }
@@ -187,15 +189,15 @@ async function organize(supabase: Awaited<ReturnType<typeof createClient>>, v: V
     const { data: allowed } = await supabase.rpc("consume_ai_call");
     if (allowed) {
       try {
-        const read = normalizeReading(await generateJson({ ...readingTask(), prompt: tag("roteiro_colado", pasted) }));
+        const read = normalizeReading(await generateJson({ ...readingTask(), prompt: tag("roteiro_colado", pasted), log: aiLog(supabase) }));
         reading = read && faithful(read, pasted) ? read : null;
       } catch {
         reading = null;
       }
       try {
         const raw = reading
-          ? await generateJson({ ...assembleTask(), prompt: context([tag("itens", readingSegments(reading)), tag("leitura", readingLines(reading))]) })
-          : await generateJson({ ...organizerTask(), prompt: tag("trechos", segmentsText(segments)) });
+          ? await generateJson({ ...assembleTask(), prompt: context([tag("itens", readingSegments(reading)), tag("leitura", readingLines(reading))]), log: aiLog(supabase) })
+          : await generateJson({ ...organizerTask(), prompt: tag("trechos", segmentsText(segments)), log: aiLog(supabase) });
         blocks = reading ? assembleFromReading(reading, raw) : assembleBlocks(segments, raw);
         const t = (raw as { title?: unknown })?.title;
         title = typeof t === "string" ? t.trim().slice(0, 140) : "";

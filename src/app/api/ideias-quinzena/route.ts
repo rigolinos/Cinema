@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { aiLog } from "@/lib/ai-registro";
 import { normalizeIdeas, platformsLabel, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { memoryLines } from "@/lib/memoria";
 import { context, line, tag, usesHumor } from "@/lib/prompts/base";
@@ -61,7 +62,7 @@ export async function POST() {
 
   let ideas;
   try {
-    ideas = normalizeIdeas(await generateJson({ ...task, prompt }), IDEAS_PER_PERIOD);
+    ideas = normalizeIdeas(await generateJson({ ...task, prompt, log: aiLog(supabase) }), IDEAS_PER_PERIOD);
   } catch (err) {
     if (err instanceof AiError && err.kind === "limit") {
       return fail("A IA está no limite de uso agora. Tente de novo em alguns minutos.", 503);

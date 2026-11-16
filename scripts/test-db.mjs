@@ -697,6 +697,18 @@ ok(r.err || r.rows.length === 0, 'denúncia enviada não muda');
 r = await as('anon', null, `INSERT INTO public.ai_reports (area, reason) VALUES ('ideia', 'ofensivo')`);
 ok(r.err, 'visitante não denuncia');
 
+console.log('Registro de chamadas da IA:');
+r = await as('authenticated', A, `INSERT INTO public.ai_calls (task, provider, model, attempts, ms) VALUES ('historia', 'groq', 'openai/gpt-oss-120b', 2, 4200) RETURNING user_id`);
+ok(r.rows?.[0]?.user_id === A, 'a chamada fica registrada em nome de quem pediu' + (r.err ? ': ' + r.err : ''));
+r = await as('authenticated', A, `INSERT INTO public.ai_calls (user_id, task, provider, model, attempts, ms) VALUES ($1, 'historia', 'groq', 'm', 1, 1)`, [B]);
+ok(r.err, 'ninguém registra chamada em nome de outra pessoa');
+r = await as('authenticated', A, `INSERT INTO public.ai_calls (task, provider, model, attempts, ms) VALUES ('historia', 'outra', 'm', 1, 1)`);
+ok(r.err, 'só os fornecedores conhecidos');
+r = await as('authenticated', B, 'SELECT id FROM public.ai_calls');
+ok(!r.err && r.rows.length === 0, 'ninguém vê as chamadas de outra pessoa');
+r = await as('anon', null, `INSERT INTO public.ai_calls (task, provider, model, attempts, ms) VALUES ('historia', 'groq', 'm', 1, 1)`);
+ok(r.err, 'visitante não registra chamada');
+
 console.log('Cota da IA:');
 let liberadas = 0;
 for (let i = 0; i < 42; i++) {
