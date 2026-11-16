@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { useSavedIdeas } from "@/components/gravai/guardar";
 import { MemoryNote } from "@/components/gravai/memoria";
 import { RadarCard, useRadar } from "@/components/gravai/radar";
 import { InviteCard, VideoCard, type VideoRow } from "@/components/gravai/video-card";
 import { createClient } from "@/lib/supabase/client";
 import { withInvites, type InviteRow } from "@/lib/convites";
 import { FORMATS } from "@/lib/formats";
-import { daysUntilNext, periodLabel, periodStart } from "@/lib/quinzena";
 
 // O formato muda todo dia, à meia-noite de Brasília (dias contados desde 01/01/2026). Hora fixa, para servidor e celular
 // escolherem o mesmo.
@@ -23,6 +23,7 @@ const SHOW = 5;
 
 export default function InicioPage() {
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
+  const saved = useSavedIdeas();
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -71,16 +72,16 @@ export default function InicioPage() {
         <ArrowRight className="size-6" strokeWidth={1.75} aria-hidden="true" />
       </Link>
 
-      <Link href="/ideias" className="flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-foreground px-5 py-4">
-        <span className="flex flex-col gap-1">
-          <span className="font-bold">Ideias da quinzena para você</span>
-          {/* A data só aparece depois de carregar no aparelho: a página é montada no build. */}
-          <span className="min-h-5 font-mono text-sm text-muted-foreground">
-            {videos !== null && `${periodLabel(periodStart())} · ${daysUntilNext() === 1 ? "novas amanhã" : `novas em ${daysUntilNext()} dias`}`}
+      {/* As ideias guardadas a um toque. A quinzena saiu daqui: repetia o "Do zero" com ideias soltas. */}
+      {saved && saved.length > 0 && (
+        <Link href="/ideias/guardadas" className="flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-foreground px-5 py-4">
+          <span className="flex flex-col gap-1">
+            <span className="font-bold">Ideias guardadas</span>
+            <span className="text-sm text-muted-foreground">{saved.length === 1 ? "1 ideia para gravar depois" : `${saved.length} ideias para gravar depois`}</span>
           </span>
-        </span>
-        <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-      </Link>
+          <ArrowRight className="size-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+        </Link>
+      )}
 
       <section className="flex flex-col gap-2.5" aria-labelledby="andamento">
         <div className="flex items-center justify-between">

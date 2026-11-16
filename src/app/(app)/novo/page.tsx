@@ -114,7 +114,6 @@ function Doors() {
         </h2>
         <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
           {[
-            { href: "/ideias", title: "Ideias da quinzena", text: "Feitas para o seu perfil" },
             ...(saved && saved.length > 0 ? [{ href: "/ideias/guardadas", title: `Ideias guardadas (${saved.length})`, text: "As que você marcou para depois" }] : []),
             { href: "/ideias/formatos", title: "Biblioteca de formatos", text: `${FORMATS.length} estruturas que já funcionam` },
           ].map((row) => (
