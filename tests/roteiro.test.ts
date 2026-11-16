@@ -41,6 +41,9 @@ describe("tempo", () => {
   it("estima 2,6 palavras por segundo, com mínimo para bloco sem fala", () => {
     expect(blockSeconds(b("conteudo", words(26)))).toBe(10);
     expect(blockSeconds(b("conteudo", ""))).toBe(1.5);
+    // Só ação, sem fala: a cena dura o tempo da ação.
+    expect(blockSeconds({ speech: "", action: words(24) })).toBe(8);
+    expect(blockSeconds({ speech: words(26), action: words(6) })).toBe(10);
   });
 
   it("monta a linha do tempo de cada bloco", () => {

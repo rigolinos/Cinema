@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ReportAi } from "@/components/gravai/denunciar";
-import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Plus, Sparkles, Trash2, Type } from "lucide-react";
+import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Type } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { useLeave } from "@/components/gravai/voltar";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
@@ -80,7 +80,7 @@ function StoryAsk({ busy, onAsk }: { busy: boolean; onAsk: (request: string) => 
   const [ask, setAsk] = useState("");
   return (
     <form
-      className="flex items-end gap-2"
+      className="flex flex-col gap-1"
       onSubmit={async (e) => {
         e.preventDefault();
         if (!ask.trim()) return;
@@ -94,11 +94,13 @@ function StoryAsk({ busy, onAsk }: { busy: boolean; onAsk: (request: string) => 
         value={ask}
         maxLength={1500}
         onChange={(e) => setAsk(e.target.value)}
-        placeholder="Pedir mudança, ex.: troca o final"
+        placeholder="O que mudar? Ex.: troca o final"
         className="border-input pb-2 focus:border-foreground"
       />
-      <button type="submit" aria-label="Pedir mudança na história" disabled={!ask.trim() || busy} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
-        <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden="true" />
+      {/* Com nome, para não confundir com "Escrever o roteiro": é aqui que a história muda. */}
+      <button type="submit" disabled={!ask.trim() || busy} className="flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold disabled:opacity-40">
+        <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        Mudar a história
       </button>
     </form>
   );
@@ -273,6 +275,7 @@ function BlockCard({
   const [hint, setHint] = useState(false);
   const [screenOpen, setScreenOpen] = useState(false);
   const screenBox = useRef<HTMLTextAreaElement | null>(null);
+  const actionBox = useRef<HTMLTextAreaElement | null>(null);
 
   // Quando a IA reescreve a cena, o texto novo aparece.
   if (synced !== block) {
@@ -307,19 +310,6 @@ function BlockCard({
             <>
               <button type="button" aria-label="Fechar o menu" tabIndex={-1} onClick={() => setMenu(false)} className="fixed inset-0 z-30 cursor-default" />
               <div role="menu" className="absolute right-0 top-11 z-40 flex w-60 flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={busy}
-                  onClick={() => {
-                    setMenu(false);
-                    setAsking(true);
-                  }}
-                  className={menuItem}
-                >
-                  <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
-                  Pedir ajuste
-                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -370,6 +360,9 @@ function BlockCard({
 
       <GrowingText
         bare
+        inputRef={(el) => {
+          actionBox.current = el;
+        }}
         aria-label={`O que acontece na cena ${scene}`}
         value={action}
         maxLength={500}
@@ -402,6 +395,29 @@ function BlockCard({
           />
         </div>
       )}
+
+      {/* À vista, para ninguém precisar adivinhar que o texto se edita ou que dá para pedir ajuda. */}
+      <div className="-mb-2 flex gap-5">
+        <button
+          type="button"
+          onClick={() => {
+            const el = actionBox.current;
+            if (!el) return;
+            el.focus();
+            el.setSelectionRange(el.value.length, el.value.length);
+          }}
+          className="flex min-h-11 items-center gap-1.5 text-sm font-semibold"
+        >
+          <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />
+          Escrever
+        </button>
+        {!asking && (
+          <button type="button" disabled={busy} onClick={() => setAsking(true)} className="flex min-h-11 items-center gap-1.5 text-sm font-semibold disabled:opacity-40">
+            <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            Pedir ajuste
+          </button>
+        )}
+      </div>
 
       {suggestion && (
         <div className="flex flex-col gap-2.5 rounded-xl border-[1.5px] border-foreground p-3.5">
@@ -490,6 +506,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [storyDraft, setStoryDraft] = useState(""); // a história como a pessoa lê e escreve: um texto só
   const [storyOpen, setStoryOpen] = useState(false);
   const [written, setWritten] = useState(""); // o texto de quem trouxe a própria ideia
+  const [showWritten, setShowWritten] = useState(false);
   const developing = useRef(false);
 
   useEffect(() => {
@@ -603,7 +620,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
   // Refaz a história com a IA. Com pedido, muda só o que foi pedido; sem pedido, conta de novo a partir da ideia.
   async function developStory(request?: string, fromWritten = false) {
-    if (!request && !fromWritten && !(await confirm({ title: "Contar a história de novo?", text: "A história nova substitui esta, inclusive o que você mudou.", action: "Contar de novo" }))) return;
+    if (!request && !fromWritten && !(await confirm({ title: "Contar outra versão?", text: "A versão nova substitui esta, inclusive o que você mudou.", action: "Contar outra versão" }))) return;
     if (fromWritten) {
       const { error } = await createClient().from("videos").update({ brief: written.trim().slice(0, 4000) }).eq("id", id);
       if (error) {
@@ -754,7 +771,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   return (
     <div className="flex min-h-dvh flex-col">
       {sheet}
-      <StepHeader step="roteiro" backHref={`/video/${id}/ideia`} videoId={id} />
+      <StepHeader step={video?.hook && blocks.length === 0 ? "ideia" : "roteiro"} backHref={`/video/${id}/ideia`} videoId={id} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pb-40 pt-5">
         {video === undefined && <p className="label-set text-muted-foreground">Carregando…</p>}
@@ -786,17 +803,22 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                   <Thinking label="Contando a história" steps={STEPS.historia} />
                 ) : (
                   <>
-                    {video.start_door === "ideia" && (
-                      <div className="flex flex-col gap-2 rounded-xl bg-muted p-3.5">
-                        <label className="flex flex-col gap-1.5">
-                          <span className="text-sm font-semibold">O que você escreveu</span>
-                          <GrowingText value={written} maxLength={1500} onChange={(e) => setWritten(e.target.value)} />
-                        </label>
-                        <button type="button" onClick={() => developStory(undefined, true)} disabled={busy !== null || written.trim().length < 8} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">
-                          Contar de novo com isso
+                    {video.start_door === "ideia" &&
+                      (showWritten ? (
+                        <div className="flex flex-col gap-2 rounded-xl bg-muted p-3.5">
+                          <label className="flex flex-col gap-1.5">
+                            <span className="text-sm font-semibold">O que você escreveu</span>
+                            <GrowingText value={written} maxLength={1500} onChange={(e) => setWritten(e.target.value)} />
+                          </label>
+                          <button type="button" onClick={() => developStory(undefined, true)} disabled={busy !== null || written.trim().length < 8} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">
+                            Refazer a história com o meu texto
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setShowWritten(true)} className="flex min-h-11 items-center self-start text-sm text-muted-foreground underline">
+                          Ver o que eu escrevi
                         </button>
-                      </div>
-                    )}
+                      ))}
                     <StoryEditor text={storyDraft} onChange={setStoryDraft} onBlur={saveStory} />
                     <StoryAsk busy={busy !== null} onAsk={developStory} />
                     <button
@@ -809,7 +831,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                     </button>
                     <div className="flex justify-center gap-6 text-sm font-semibold">
                       <button type="button" onClick={() => developStory()} disabled={busy !== null} className="min-h-11 underline disabled:opacity-40">
-                        Contar de novo
+                        Outra versão
                       </button>
                       <Link href={`/video/${id}/ideia`} className="flex min-h-11 items-center underline">
                         Trocar de ideia
