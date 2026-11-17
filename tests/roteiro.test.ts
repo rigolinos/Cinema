@@ -15,6 +15,8 @@ import {
   normalizeDraft,
   normalizeRewrite,
   scriptAsText,
+  hasCut,
+  splitCuts,
   timeline,
   totalSeconds,
   wordCount,
@@ -58,14 +60,14 @@ describe("tempo", () => {
 });
 
 describe("checkScript", () => {
-  it("passa um roteiro no tempo, com gancho curto e chamada final", () => {
-    const checks = checkScript([b("gancho", words(8)), b("conteudo", words(40)), b("chamada", words(8))], 30);
-    expect(checks).toEqual([{ level: "ok", text: expect.stringContaining("dentro do tempo") }]);
+  it("roteiro com gancho curto e chamada final não tem aviso, curto ou no tempo", () => {
+    expect(checkScript([b("gancho", words(8)), b("conteudo", words(40)), b("chamada", words(8))], 30)).toEqual([]);
+    expect(checkScript([b("gancho", words(5)), b("chamada", words(3))], 60)).toEqual([]);
   });
 
   it("avisa tempo estourado, gancho longo e falta de chamada", () => {
     const checks = checkScript([b("gancho", words(15)), b("conteudo", words(120))], 30);
-    expect(checks.map((c) => c.text).join(" ")).toMatch(/Passou do tempo/);
+    expect(checks.map((c) => c.text).join(" ")).toMatch(/Passou bastante do tempo/);
     expect(checks.map((c) => c.text).join(" ")).toMatch(/Gancho longo \(15 palavras\)/);
     expect(checks.map((c) => c.text).join(" ")).toMatch(/Sem chamada final/);
   });
@@ -267,5 +269,21 @@ describe("uma cena por bloco", () => {
   it("não passa de 16 cenas", () => {
     const muitas = Array.from({ length: 12 }, () => ({ kind: "conteudo", speech: "", on_screen: "", action: "A. CORTE. B." }));
     expect(draft(muitas)).toHaveLength(12);
+  });
+});
+
+describe("CORTE dentro de uma cena", () => {
+  const acao = "Natasha sai do carro e trava ele. CORTE. Natasha está na esquina e aperta o controle de novo.";
+  it("acha a cena com duas cenas dentro, mas não o corte de cabelo", () => {
+    expect(hasCut(acao)).toBe(true);
+    expect(hasCut("Ela mostra o corte de cabelo novo.")).toBe(false);
+    expect(hasCut("Corta para a cozinha.")).toBe(false);
+  });
+  it("separa em cenas, com a fala na primeira", () => {
+    const partes = splitCuts([b("gancho", "Oi", { action: acao, on_screen: "POV" })]);
+    expect(partes.map((p) => [p.kind, p.action, p.speech, p.on_screen])).toEqual([
+      ["gancho", "Natasha sai do carro e trava ele.", "Oi", "POV"],
+      ["conteudo", "Natasha está na esquina e aperta o controle de novo.", "", ""],
+    ]);
   });
 });

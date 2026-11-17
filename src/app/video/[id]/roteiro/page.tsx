@@ -16,7 +16,7 @@ import { castOf, isSolo, shootingOrder, withOtherPeople, type Shot } from "@/lib
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, sceneHeading, scriptAsText, speakerOf, storyFromText, storyText, totalSeconds, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
+import { BLOCK_KINDS, checkScript, hasCut, sceneHeading, scriptAsText, speakerOf, storyFromText, storyText, splitCuts, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -590,6 +590,35 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     setFresh((data as Block).id);
   }
 
+  // Roteiro antigo com "CORTE" dentro de uma cena: com um toque, cada parte vira uma cena, na mesma ordem.
+  // A fala e o texto na tela ficam com a primeira parte, como na regra da IA.
+  async function splitScenes() {
+    setBusy("separar");
+    setError(null);
+    const db = createClient();
+    const next: (Block | (ScriptBlock & { position: number }))[] = [];
+    const updates: { id: string; action: string }[] = [];
+    for (const b of blocks) {
+      const parts = splitCuts([b]);
+      if (parts.length > 1) updates.push({ id: b.id, action: parts[0].action });
+      next.push({ ...b, action: parts[0].action }, ...parts.slice(1).map((x) => ({ kind: x.kind, label: x.label, speech: x.speech, on_screen: x.on_screen, action: x.action, position: 0 })));
+    }
+    const placed = next.map((b, i) => ({ ...b, position: i }));
+    const results = await Promise.all([
+      ...updates.map((u) => db.from("script_blocks").update({ action: u.action }).eq("id", u.id)),
+      ...placed.filter((b): b is Block => "id" in b && blocks.find((o) => o.id === b.id)?.position !== b.position).map((b) => db.from("script_blocks").update({ position: b.position }).eq("id", b.id)),
+    ]);
+    const fresh = placed.filter((b) => !("id" in b)).map((b) => ({ video_id: id, position: b.position, kind: b.kind, label: b.label, speech: b.speech, on_screen: b.on_screen, action: b.action }));
+    const inserted = fresh.length ? await db.from("script_blocks").insert(fresh).select() : { data: [], error: null };
+    setBusy(null);
+    if (results.some((r) => r.error) || inserted.error) {
+      setError("Não deu para separar as cenas. Tente de novo.");
+      return;
+    }
+    const { data } = await db.from("script_blocks").select("*").eq("video_id", id).order("position");
+    if (data) setBlocks((data as Block[]).sort((a, b) => a.position - b.position));
+  }
+
   // Só guarda o que tem começo: sem ele, o roteiro não tem de onde partir. O texto volta a ser começo, meio e fim pelos parágrafos.
   async function saveStory(): Promise<boolean> {
     const clean = storyFromText(storyDraft);
@@ -789,10 +818,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
           <>
             <div className="flex flex-col gap-1.5">
               <h2 className="font-display text-[26px]">{video.title}</h2>
-              <p className="font-mono text-sm text-muted-foreground">
-                {blocks.length > 0 ? `${durationLabel(totalSeconds(blocks))} de ` : ""}
-                {video.duration_s ? durationLabel(video.duration_s) : ""}
-              </p>
+              {/* Só o tempo escolhido: a conta de segundos pela fala não diz quanto o vídeo vai durar de verdade. */}
+              {video.duration_s ? <p className="font-mono text-sm text-muted-foreground">Vídeo de {durationLabel(video.duration_s)}</p> : null}
             </div>
 
             {blocks.length === 0 && (
@@ -839,6 +866,20 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                   </>
                 )}
               </section>
+            )}
+
+            {blocks.some((b) => hasCut(b.action)) && (
+              <div className="flex flex-col gap-2 rounded-2xl border border-border p-4">
+                <p className="text-sm leading-relaxed">
+                  {(() => {
+                    const n = blocks.flatMap((b, i) => (hasCut(b.action) ? [i + 1] : []));
+                    return n.length === 1 ? `A cena ${n[0]} tem um CORTE: são duas cenas numa só.` : `As cenas ${n.slice(0, -1).join(", ")} e ${n.at(-1)} têm um CORTE: cada uma junta duas cenas.`;
+                  })()}
+                </p>
+                <button type="button" onClick={splitScenes} disabled={busy !== null} className="flex min-h-11 items-center self-start text-sm font-semibold underline disabled:opacity-40">
+                  {busy === "separar" ? "Separando…" : "Separar as cenas"}
+                </button>
+              </div>
             )}
 
             {/* Só o que precisa de atenção: o que está certo não ocupa a tela. */}
@@ -908,7 +949,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
               </div>
             )}
 
-            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && busy !== "adicionar" && busy !== "historia" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo a parte" /></p>}
+            {busy && busy !== "rascunho" && busy !== "seguir" && busy !== "revisar" && busy !== "adicionar" && busy !== "historia" && busy !== "separar" && <p className="label-set text-muted-foreground"><Thinking label="Reescrevendo a parte" /></p>}
             {error && (
               <p role="alert" className="rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive">
                 {error}
