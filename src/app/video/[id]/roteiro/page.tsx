@@ -300,7 +300,7 @@ function BlockCard({
     <article className="flex flex-col gap-3" aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
       {/* Cabeçalho da cena, como num roteiro: o número e o lugar. Ajustar fica à vista; o resto, no menu. */}
       <div className="-mb-1 flex items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate font-mono text-sm font-semibold uppercase tracking-wide">{sceneHeading(scene, place)}</h2>
+        <h2 className="min-w-0 truncate font-mono text-sm font-semibold uppercase tracking-wide">{sceneHeading(scene, block.heading || place)}</h2>
         <div className="relative -mr-2.5 flex shrink-0 items-center">
           {!asking && (
             <button type="button" disabled={busy} onClick={() => setAsking(true)} aria-label={`Pedir ajuste na cena ${scene}`} className="flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground disabled:opacity-40">
@@ -706,7 +706,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     if (!video) return;
     const solo = isSolo(video.resources ?? []);
     const text = scriptAsText(video.title ?? "Roteiro", blocks, {
-      places: blocks.map((b) => places[b.id] ?? null),
+      places: blocks.map((b) => b.heading || places[b.id] || null),
       speakers: blocks.map((b) => speakerOf(b, people, solo, creator)),
       cast: castNames,
     });

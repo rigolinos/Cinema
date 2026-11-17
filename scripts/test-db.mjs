@@ -181,13 +181,17 @@ ok(!r.err && chosen.length === 1 && chosen[0] === idea2, 'trocar de ideia deixa 
 
 console.log('Roteiro:');
 const blocos = JSON.stringify([
-  { kind: 'gancho', speech: 'Você erra isso.', on_screen: '3 ERROS' },
+  { kind: 'gancho', speech: 'Você erra isso.', on_screen: '3 ERROS', heading: 'INT. ACADEMIA – DIA' },
   { kind: 'conteudo', label: 'Erro 1', speech: 'Primeiro erro.', action: 'Mostra o agachamento' },
   { kind: 'chamada', speech: 'Segue para mais.' },
 ]);
 r = await as('authenticated', A, 'SELECT id, position, kind, label FROM public.replace_script($1, $2::jsonb) ORDER BY position', [vidA, blocos]);
 ok(!r.err && r.rows.length === 3 && r.rows.map((x) => x.kind).join() === 'gancho,conteudo,chamada', 'dono grava o roteiro em blocos, na ordem' + (r.err ? ': ' + r.err : ''));
 ok(r.rows?.[1]?.label === 'Erro 1' && r.rows?.[0]?.label === null, 'rótulo opcional por bloco');
+{
+  const cab = (await q('SELECT heading FROM public.script_blocks WHERE video_id = $1 ORDER BY position', [vidA])).rows.map((x) => x.heading);
+  ok(cab[0] === 'INT. ACADEMIA – DIA' && cab[1] === null, 'o rascunho guarda o cabeçalho de cada cena, e cena sem cabeçalho fica vazia');
+}
 const bloco1 = r.rows?.[0]?.id;
 r = await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo' }])]);
 const total = (await one('SELECT count(*)::int AS n FROM public.script_blocks WHERE video_id = $1', [vidA])).n;

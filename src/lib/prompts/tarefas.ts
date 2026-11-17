@@ -219,7 +219,7 @@ const DRAFT_TEXT = `TAREFA: escreva o roteiro completo desta ideia, pronto para 
 - Quando a situação e o desfecho contam o vídeo cena a cena, siga essa ordem e use essas piadas e viradas. Não invente outro desenrolar.
 - Limite rígido: no máximo o número de palavras de fala do bloco <limite>, no roteiro todo. Conte antes de responder.
 - Divida em blocos do tipo gancho, contexto, conteudo, virada e chamada. Use só os que o vídeo precisa.
-- Cada bloco é uma cena: um lugar só e um momento contínuo. Mudou de lugar, pulou no tempo ou tem corte, começa outro bloco (pode repetir o tipo conteudo). Nunca escreva "CORTE" ou "corta para" dentro de um bloco.
+- Cada bloco é uma cena, como num roteiro de filme, e começa pelo cabeçalho (heading): INT. ou EXT., o lugar e DIA ou NOITE. Exemplos: "INT. COZINHA – DIA", "EXT. RUA – NOITE", "INT. CARRO – DIA". Uma cena é um lugar só e um momento contínuo: mudou de lugar ou pulou no tempo, começa outro bloco com outro cabeçalho (pode repetir o tipo conteudo). Nunca escreva "CORTE" ou "corta para" dentro de um bloco.
 - A chamada final segue o objetivo: obrigatória em Vender, Ensinar e Crescer, pedindo uma coisa só; opcional em Divertir.
 - Em cada bloco: speech, on_screen e action (o que acontece em cena, em uma frase).
 - speech é só o que sai da boca de alguém, palavra por palavra. Nada de descrição, de aspas nem de explicação dentro da fala: "Lia segura a lâmpada: 'modo festa'" está errado; a fala é "Modo festa" e o gesto vai em action. Cena sem fala fica com speech vazio. Se a história não tem nenhuma fala, o roteiro inteiro fica sem fala: não invente uma frase para cada cena.
@@ -230,13 +230,14 @@ const DRAFT_TEXT = `TAREFA: escreva o roteiro completo desta ideia, pronto para 
 - A virada, o resultado ou a oferta aparecem escritos de verdade, nunca "aqui entra o final".
 - Use o que já sabemos sobre o jeito de falar da pessoa.`;
 
-const BLOCK_FIELDS = { kind: oneOf(KIND_VALUES), label: STR, speech: STR, on_screen: STR, action: STR };
+// O cabeçalho vem antes do resto: a IA decide onde e quando é a cena antes de escrever o que acontece nela.
+const BLOCK_FIELDS = { kind: oneOf(KIND_VALUES), heading: STR, label: STR, speech: STR, on_screen: STR, action: STR };
 
 export function draftTask(o: { objective: Objective; humor: boolean; cards?: string }): Task {
   return {
     system: buildSystem({ objective: o.objective, humor: o.humor, cards: o.cards, task: DRAFT_TEXT }),
     schema: obj({ blocks: list(obj(BLOCK_FIELDS)) }),
-    example: `{"blocks":[{"kind":"gancho","label":"","speech":"","on_screen":"","action":""}]}`,
+    example: `{"blocks":[{"kind":"gancho","heading":"INT. COZINHA – DIA","label":"","speech":"","on_screen":"","action":""}]}`,
     thinking: "medio",
     temperature: 0.6,
     tier: "criar",

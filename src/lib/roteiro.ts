@@ -19,6 +19,7 @@ export interface ScriptBlock {
   speech: string; // o que a pessoa fala
   on_screen: string; // texto que aparece na tela
   action: string; // o que acontece em cena
+  heading?: string | null; // cabeçalho da cena, como num roteiro de filme: "INT. COZINHA – DIA"
 }
 
 // Fala em português, num vídeo curto: por volta de 2,6 palavras por segundo.
@@ -97,7 +98,8 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
 }
 
 // Roteiro em texto, para copiar e mandar para alguém.
-// Cabeçalho da cena no formato de roteiro: o número e o lugar, quando os planos já dizem onde é.
+// Cabeçalho da cena no formato de roteiro: o número e o cabeçalho que a IA escreveu ou, nas cenas antigas,
+// o lugar que os planos dizem.
 export function sceneHeading(n: number, place?: string | null): string {
   const where = place?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
   return where ? `${n}. ${where}` : `CENA ${n}`;
@@ -141,8 +143,20 @@ export function splitCuts<B extends Pick<ScriptBlock, "kind" | "label" | "speech
     const parts = b.action.split(CUT).map((p) => p.trim()).filter(Boolean);
     if (parts.length < 2) return [b];
     const upper = (s: string) => s.charAt(0).toLocaleUpperCase("pt-BR") + s.slice(1);
-    return parts.map((action, i) => (i === 0 ? { ...b, action } : { ...b, kind: "conteudo" as BlockKind, label: null, speech: "", on_screen: "", action: upper(action) }));
+    // A parte depois do corte é outro lugar ou outro momento: fica sem cabeçalho até alguém dizer qual é.
+    return parts.map((action, i) => (i === 0 ? { ...b, action } : { ...b, kind: "conteudo" as BlockKind, label: null, speech: "", on_screen: "", action: upper(action), ...("heading" in b ? { heading: null } : {}) }));
   });
+}
+
+// "int cozinha - dia" vira "INT. COZINHA – DIA": maiúsculas, ponto depois de INT/EXT e travessão antes do momento.
+export function normalizeHeading(value: unknown): string | null {
+  const t = clip(value, 80)
+    .toLocaleUpperCase("pt-BR")
+    .replace(/^(INT\.?\/EXT|INT|EXT)(?![\p{L}])\.?\s*/u, (_, p: string) => `${p.replace(/\.?\/EXT/, "./EXT")}. `)
+    .replace(/\s*[-–—]+\s*/g, " – ")
+    .replace(/[.\s]+$/, "")
+    .trim();
+  return t || null;
 }
 
 // Confere o rascunho da IA: tipos válidos, gancho primeiro, chamada no fim, no máximo 12 blocos.
@@ -159,6 +173,7 @@ export function normalizeDraft(raw: unknown): ScriptBlock[] {
         speech: clip(i.speech, 1500),
         on_screen: clip(i.on_screen, 300),
         action: clip(i.action, 500),
+        heading: normalizeHeading(i.heading),
       };
     })
     .filter((b) => b.speech || b.on_screen || b.action)
@@ -368,8 +383,9 @@ export function withSpeakers<B extends { speech: string; person_id?: string | nu
 }
 
 // O roteiro como vai no contexto: blocos numerados a partir de 1; o marcado com >>> é o que muda.
-export function scriptForPrompt(blocks: Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action">[], marked?: number): string {
+// Com o cabeçalho, a IA dos planos sabe onde é cada cena e põe o lugar certo em cada plano.
+export function scriptForPrompt(blocks: (Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action"> & { heading?: string | null })[], marked?: number): string {
   return blocks
-    .map((b, i) => `${i === marked ? ">>> " : ""}${i + 1}. [${b.kind}${b.label ? ` · ${b.label}` : ""}] FALA: ${b.speech} | TELA: ${b.on_screen} | CENA: ${b.action}`)
+    .map((b, i) => `${i === marked ? ">>> " : ""}${i + 1}. [${b.kind}${b.label ? ` · ${b.label}` : ""}]${b.heading ? ` ${b.heading}` : ""} FALA: ${b.speech} | TELA: ${b.on_screen} | CENA: ${b.action}`)
     .join("\n");
 }

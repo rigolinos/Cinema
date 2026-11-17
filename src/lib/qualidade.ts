@@ -92,7 +92,7 @@ export function storyProblems(story: StoryParts, o: { humor?: boolean; points?: 
   return out;
 }
 
-export function draftProblems(blocks: Pick<ScriptBlock, "speech" | "on_screen" | "action">[], o: { maxWords: number; cast?: string[]; story?: string }): Problem[] {
+export function draftProblems(blocks: (Pick<ScriptBlock, "speech" | "on_screen" | "action"> & { heading?: string | null })[], o: { maxWords: number; cast?: string[]; story?: string }): Problem[] {
   const out: Problem[] = [];
   const lines = blocks.flatMap((b) => speechLines(b.speech));
   // A história aprovada não tem nenhuma fala: o roteiro não pode inventar uma em cada cena.
@@ -117,6 +117,8 @@ export function draftProblems(blocks: Pick<ScriptBlock, "speech" | "on_screen" |
   if (code) out.push({ code: "codigo_de_pessoa", fix: `"${code}" não é nome. Use os nomes de <pessoas> ou um papel fácil de entender.` });
   const call = hits(GENERIC_CALL, speech);
   if (call.length) out.push({ code: "chamada_generica", fix: `A chamada ${quote(call)} serve para qualquer vídeo. Peça uma coisa só, ligada a este vídeo.` });
+  const noHeading = blocks.findIndex((b) => "heading" in b && !b.heading);
+  if (noHeading >= 0) out.push({ code: "sem_cabecalho", fix: `A cena ${noHeading + 1} está sem cabeçalho. Toda cena começa com heading: INT. ou EXT., o lugar e DIA ou NOITE ("INT. COZINHA – DIA").` });
   if (blocks.length && !blocks.some((b) => b.action.trim())) out.push({ code: "sem_acao", fix: "Nenhuma cena diz o que acontece. Preencha action em cada cena com o que se vê." });
   return out;
 }
