@@ -161,6 +161,8 @@ it("banco de provas", { timeout: 3_600_000 }, async () => {
         meta,
         numbers: {
           cenas: blocks.length,
+          cenas_com_cabecalho: `${blocks.filter((b) => b.heading).length}/${blocks.length}`,
+          lugares: new Set(blocks.map((b) => (b.heading ?? "").replace(/\s*–.*$/, "")).filter(Boolean)).size,
           pediu_correcao: checked.retried ? "sim" : "não",
           palavras_de_fala: `${words}/${limit}`,
           cenas_com_corte_no_meio: raw.filter((b) => /\bCORTE\b|corta para/i.test(b.action ?? "")).length,
@@ -170,7 +172,7 @@ it("banco de provas", { timeout: 3_600_000 }, async () => {
           ...(c.mustKeep ? { pontos_da_pessoa: `${found.length}/${c.mustKeep.length}` } : {}),
         },
         problems: [...checked.problems.map((p) => p.code), ...(c.mustKeep ?? []).filter((p) => !found.includes(p)).map((p) => `faltou: ${p}`)],
-        text: blocks.map((b, n) => `**Cena ${n + 1}** _${b.action}_\n${b.speech}${b.on_screen ? `\n[na tela] ${b.on_screen}` : ""}`).join("\n\n"),
+        text: blocks.map((b, n) => `**${n + 1}. ${b.heading ?? "sem cabeçalho"}** _${b.action}_\n${b.speech}${b.on_screen ? `\n[na tela] ${b.on_screen}` : ""}`).join("\n\n"),
       });
     } catch (err) {
       fail("roteiro", err);

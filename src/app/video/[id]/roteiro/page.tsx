@@ -16,7 +16,7 @@ import { castOf, isSolo, shootingOrder, withOtherPeople, type Shot } from "@/lib
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, hasCut, sceneHeading, scriptAsText, speakerOf, storyFromText, storyText, splitCuts, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
+import { BLOCK_KINDS, checkScript, hasCut, sceneGroups, sceneHeading, scriptAsText, speakerOf, storyFromText, storyText, splitCuts, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -252,9 +252,11 @@ function BlockCard({
   onRemove,
   autoFocus,
   place,
+  scene: sceneOf,
 }: {
   block: Block;
   place: string | null; // onde a cena acontece, pelos planos dela
+  scene: { show: boolean; number: number }; // a parte abre uma cena nova ou continua a anterior (mesmo cabeçalho)
   onRemove?: () => void; // ausente quando é a única cena: o roteiro não fica vazio
   autoFocus: boolean; // cena recém-adicionada: o cursor já vai para a fala
   quick: string[]; // pedidos rápidos do objetivo do vídeo
@@ -297,10 +299,10 @@ function BlockCard({
   };
 
   return (
-    <article className="flex flex-col gap-3" aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
-      {/* Cabeçalho da cena, como num roteiro: o número e o lugar. Ajustar fica à vista; o resto, no menu. */}
-      <div className="-mb-1 flex items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate font-mono text-sm font-semibold uppercase tracking-wide">{sceneHeading(scene, place)}</h2>
+    <article className={cn("flex flex-col gap-3", !sceneOf.show && "-mt-5")} aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
+      {/* Cabeçalho da cena, como num roteiro: o número e o lugar, só quando a cena muda. Ajustar fica à vista; o resto, no menu. */}
+      <div className={cn("flex items-center gap-2", sceneOf.show ? "-mb-1 justify-between" : "-mb-3 justify-end")}>
+        {sceneOf.show && <h2 className="min-w-0 truncate font-mono text-sm font-semibold uppercase tracking-wide">{sceneHeading(sceneOf.number, block.heading || place)}</h2>}
         <div className="relative -mr-2.5 flex shrink-0 items-center">
           {!asking && (
             <button type="button" disabled={busy} onClick={() => setAsking(true)} aria-label={`Pedir ajuste na cena ${scene}`} className="flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground disabled:opacity-40">
@@ -735,7 +737,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     if (!video) return;
     const solo = isSolo(video.resources ?? []);
     const text = scriptAsText(video.title ?? "Roteiro", blocks, {
-      places: blocks.map((b) => places[b.id] ?? null),
+      places: blocks.map((b) => b.heading || places[b.id] || null),
       speakers: blocks.map((b) => speakerOf(b, people, solo, creator)),
       cast: castNames,
     });
@@ -924,8 +926,9 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             {blocks.length > 0 && (
               // Uma folha só, como um roteiro: as cenas se separam pelo cabeçalho, sem caixas nem linhas.
               <div className="flex flex-col gap-8 rounded-2xl bg-card px-4 pb-3 pt-5">
-            {blocks.map((b, i) => (
+            {sceneGroups(blocks.map((b) => b.heading || places[b.id] || null)).map((g, i) => ({ g, b: blocks[i], i })).map(({ g, b, i }) => (
               <BlockCard
+                scene={g}
                 key={b.id}
                 block={b}
                 index={i}

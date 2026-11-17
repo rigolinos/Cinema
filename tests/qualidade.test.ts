@@ -44,6 +44,11 @@ describe("conferência da história", () => {
 describe("conferência do roteiro", () => {
   const block = (speech: string, action = "Ela olha.") => ({ speech, on_screen: "", action });
 
+  it("cena sem cabeçalho é problema; roteiro antigo, sem o campo, não", () => {
+    expect(codes(draftProblems([{ ...block("Oi"), heading: "INT. SALA – DIA" }, { ...block("Tchau"), heading: null }], { maxWords: 70 }))).toEqual(["sem_cabecalho"]);
+    expect(draftProblems([block("Oi")], { maxWords: 70 })).toEqual([]);
+  });
+
   it("com duas pessoas, fala sem nome é problema", () => {
     expect(codes(draftProblems([block("Nossa, que focada!")], { maxWords: 70, cast: ["Lia", "Duda"] }))).toEqual(["fala_sem_nome"]);
     expect(draftProblems([block("Duda: Nossa, que focada!\nLia: Obrigada.")], { maxWords: 70, cast: ["Lia", "Duda"] })).toEqual([]);

@@ -15,6 +15,9 @@ import {
   normalizeDraft,
   normalizeRewrite,
   scriptAsText,
+  normalizeHeading,
+  sceneHeading,
+  sceneGroups,
   hasCut,
   splitCuts,
   timeline,
@@ -90,7 +93,7 @@ describe("normalizeDraft", () => {
       ],
     });
     expect(blocks.map((x) => x.kind)).toEqual(["gancho", "contexto", "conteudo", "chamada"]);
-    expect(blocks[0]).toEqual({ kind: "gancho", label: null, speech: "Gancho", on_screen: "3 ERROS", action: "" });
+    expect(blocks[0]).toEqual({ kind: "gancho", label: null, speech: "Gancho", on_screen: "3 ERROS", action: "", heading: null });
     expect(normalizeDraft({ blocks: "não" })).toEqual([]);
     expect(normalizeDraft({ blocks: Array.from({ length: 20 }, () => ({ kind: "conteudo", speech: "x" })) })).toHaveLength(12);
   });
@@ -269,6 +272,39 @@ describe("uma cena por bloco", () => {
   it("não passa de 16 cenas", () => {
     const muitas = Array.from({ length: 12 }, () => ({ kind: "conteudo", speech: "", on_screen: "", action: "A. CORTE. B." }));
     expect(draft(muitas)).toHaveLength(12);
+  });
+});
+
+describe("cabeçalho da cena", () => {
+  it("padroniza como num roteiro de filme", () => {
+    expect(normalizeHeading("int cozinha - dia")).toBe("INT. COZINHA – DIA");
+    expect(normalizeHeading("EXT. RUA—NOITE.")).toBe("EXT. RUA – NOITE");
+    expect(normalizeHeading("int/ext carro - dia")).toBe("INT./EXT. CARRO – DIA");
+    expect(normalizeHeading("Interior do carro")).toBe("INTERIOR DO CARRO");
+    expect(normalizeHeading("  ")).toBeNull();
+  });
+  it("o rascunho guarda o cabeçalho; a parte depois de um CORTE fica sem", () => {
+    const blocks = normalizeDraft({ blocks: [{ kind: "gancho", heading: "ext estacionamento - dia", action: "Ela trava o carro. CORTE. Ela está na esquina." }] });
+    expect(blocks.map((b) => b.heading)).toEqual(["EXT. ESTACIONAMENTO – DIA", null]);
+  });
+  it("partes seguidas no mesmo lugar são uma cena só: o cabeçalho aparece uma vez", () => {
+    expect(sceneGroups(["INT. COZINHA – DIA", "int. cozinha – dia", "EXT. RUA – DIA", null, null, "EXT. RUA – DIA"])).toEqual([
+      { show: true, number: 1 },
+      { show: false, number: 1 },
+      { show: true, number: 2 },
+      { show: true, number: 3 },
+      { show: true, number: 4 },
+      { show: true, number: 5 },
+    ]);
+    const text = scriptAsText("x", [b("gancho", "", { action: "Abre a geladeira." }), b("conteudo", "", { action: "Pega a pizza." }), b("chamada", "", { action: "Sai." })], {
+      places: ["INT. COZINHA – NOITE", "INT. COZINHA – NOITE", "INT. SALA – NOITE"],
+    });
+    expect(text).toBe("X\n\n\n1. INT. COZINHA – NOITE\n\nAbre a geladeira.\n\nPega a pizza.\n\n\n2. INT. SALA – NOITE\n\nSai.");
+  });
+
+  it("o cabeçalho aparece no lugar do número e vai para a IA dos planos", () => {
+    expect(sceneHeading(2, "INT. COZINHA – DIA")).toBe("2. INT. COZINHA – DIA");
+    expect(scriptForPrompt([b("gancho", "Oi", { heading: "INT. SALA – DIA" })])).toContain("[gancho] INT. SALA – DIA FALA: Oi");
   });
 });
 
