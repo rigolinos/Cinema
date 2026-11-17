@@ -21,6 +21,8 @@ type SetShot = Shot & { id: string; shoot_order: number | null; recorded: boolea
 type Phase = "abertura" | "set" | "fim";
 
 const TEXT_SIZES = ["text-xl", "text-2xl", "text-[28px]", "text-[34px]"];
+// O texto na tela cresce junto, um passo abaixo da fala: numa cena sem fala, ele é o que a pessoa lê.
+const ON_SCREEN_SIZES = ["text-base", "text-lg", "text-xl", "text-2xl"];
 
 // Mantém a tela acesa enquanto grava (onde o navegador permite).
 function useWakeLock(active: boolean) {
@@ -293,7 +295,7 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                 <section aria-label="Teleprompter" className="flex flex-col gap-3 rounded-2xl bg-card p-5">
                   <div className="flex items-center justify-between">
                     <span className="label-set text-muted-foreground">
-                      {["Fala", speakerOf(block, people, isSolo(video.resources ?? []), creator)].filter(Boolean).join(" · ")}
+                      {block.speech ? ["Fala", speakerOf(block, people, isSolo(video.resources ?? []), creator)].filter(Boolean).join(" · ") : "Texto na tela"}
                     </span>
                     <span className="flex gap-1">
                       <button type="button" aria-label="Diminuir o texto" disabled={size === 0} onClick={() => setSize((s) => s - 1)} className="flex size-11 items-center justify-center rounded-full disabled:opacity-30">
@@ -305,7 +307,13 @@ export default function GravarPage({ params }: { params: Promise<{ id: string }>
                     </span>
                   </div>
                   {block.speech && <p className={cn("font-semibold leading-snug", TEXT_SIZES[size])}>{block.speech}</p>}
-                  {block.on_screen && <p className="text-sm text-muted-foreground">Escrito na tela (entra na edição): {block.on_screen}</p>}
+                  {block.on_screen && (
+                    <p className={cn("leading-snug", block.speech ? "text-muted-foreground" : "font-semibold", ON_SCREEN_SIZES[size])}>
+                      {block.speech && <span className="mb-1 block text-sm">Escrito na tela (entra na edição):</span>}
+                      {block.on_screen}
+                    </p>
+                  )}
+                  {!block.speech && <p className="text-sm text-muted-foreground">Entra na edição, não precisa falar.</p>}
                 </section>
               )}
 
