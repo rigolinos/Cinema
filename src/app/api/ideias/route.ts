@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJsonStream, hasAiProvider } from "@/lib/ai";
+import { aiLog } from "@/lib/ai-registro";
 import { radarSince } from "@/lib/radar";
 import { normalizeIdeas, videoPlatforms, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { memoryLines } from "@/lib/memoria";
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
       const send = (event: object) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       let shown = 0;
       try {
-        const raw = await generateJsonStream(call, (sofar) => {
+        const raw = await generateJsonStream({ ...call, log: aiLog(supabase) }, (sofar) => {
           const ready = normalizeIdeas({ ideas: completeItems(sofar, "ideas") });
           for (const idea of ready.slice(shown)) send({ type: "idea", idea });
           shown = Math.max(shown, ready.length);

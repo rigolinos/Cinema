@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateJson, hasAiProvider } from "@/lib/ai";
+import { aiLog } from "@/lib/ai-registro";
 import { MEMORY_EXAMPLE, MEMORY_SYSTEM, memoryPrompt, normalizeMemory, readItems, shouldSummarize, type Signal } from "@/lib/memoria";
 
 // Atualiza "o que o Gravaí entendeu sobre você" a partir dos sinais novos.
@@ -39,6 +40,9 @@ export async function POST() {
   try {
     next = normalizeMemory(
       await generateJson({
+        tier: "rotina",
+        task: "memoria",
+        log: aiLog(supabase),
         system: MEMORY_SYSTEM,
         prompt: memoryPrompt({ niche: profile?.niche ?? null, current, signals }),
         schema: { type: "OBJECT", properties: { items: { type: "ARRAY", items: { type: "STRING" } }, insight: { type: "STRING" } }, required: ["items", "insight"] },

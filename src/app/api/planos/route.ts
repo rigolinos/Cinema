@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
+import { aiLog } from "@/lib/ai-registro";
 import { readingLines } from "@/lib/leitura";
 import { defaultOrientation, isSolo, maxShots, normalizeShots } from "@/lib/planos";
 import { context, line, tag } from "@/lib/prompts/base";
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     shots = normalizeShots(
       await generateJson({
         ...shotsTask({ objective: v.objective }),
+        log: aiLog(supabase),
         prompt: context([
           tag("roteiro", scriptForPrompt(withSpeakers(script, people ?? [], isSolo(v.resources ?? []), profile?.display_name))),
           tag("limite", `No máximo ${maxShots(v.duration_s)} planos no total.`),

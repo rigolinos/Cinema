@@ -1,7 +1,7 @@
 // Prompts v3: as tarefas. Cada uma diz o que entregar; o system junta mestre, submestre e humor (base.ts).
 // Valores fechados (tipos de bloco, formatos, objetivos, enquadramentos) vêm das mesmas listas
 // que a normalização aceita, para schema e normalização nunca discordarem.
-import type { Thinking } from "../ai";
+import type { Thinking, Tier } from "../ai";
 import { FORMATS } from "../formats";
 import { OBJECTIVES, PLATFORMS, RESOURCES, durationLabel, platformsLabel, type Objective, type Platform, type Resource } from "../ideas";
 import { ANGLES, FRAMINGS, MOVEMENTS, type Term } from "../planos";
@@ -15,6 +15,8 @@ export interface Task {
   example: string; // o mesmo formato como JSON de exemplo, para o Groq
   thinking: Thinking;
   temperature: number;
+  tier: Tier; // "criar" usa o melhor modelo; "rotina", o de cota maior
+  task: string; // nome no registro de chamadas
 }
 
 // ── Listas fechadas ──────────────────────────────────────────────────────
@@ -67,6 +69,8 @@ export function ideasTask(o: { objective: Objective; humor: boolean }): Task {
     example: `{"ideas":[{"title":"","situation":"","hook":"","payoff":"","why":"","format_slug":""}]}`,
     thinking: "medio",
     temperature: 0.9,
+    tier: "criar",
+    task: "ideias",
   };
 }
 
@@ -90,6 +94,8 @@ export function fortnightTask(o: { humor: boolean }): Task {
     example: `{"ideas":[{"objective":"","title":"","situation":"","hook":"","payoff":"","why":"","format_slug":""}]}`,
     thinking: "medio",
     temperature: 0.9,
+    tier: "criar",
+    task: "quinzena",
   };
 }
 
@@ -117,6 +123,8 @@ export function organizerTask(): Task {
     example: `{"title":"","segments":[{"n":1,"block":1,"kind":"gancho","field":"speech"}]}`,
     thinking: "zero",
     temperature: 0.2,
+    tier: "rotina",
+    task: "organizar",
   };
 }
 
@@ -149,6 +157,8 @@ export function readingTask(): Task {
     example: `{"summary":"","tone":"","people":[],"items":[{"kind":"fala","speaker":"","text":""}]}`,
     thinking: "baixo",
     temperature: 0.2,
+    tier: "criar",
+    task: "leitura",
   };
 }
 
@@ -174,6 +184,8 @@ export function assembleTask(): Task {
     example: `{"title":"","labels":[""],"items":[{"n":1,"block":1,"kind":"gancho"}]}`,
     thinking: "zero",
     temperature: 0.2,
+    tier: "rotina",
+    task: "montagem",
   };
 }
 
@@ -194,6 +206,8 @@ export function suggestionsTask(o: { objective: Objective; humor: boolean }): Ta
     example: `{"note":"","suggestions":[{"block":1,"speech":"","on_screen":"","action":"","reason":""}]}`,
     thinking: "medio",
     temperature: 0.7,
+    tier: "criar",
+    task: "sugestoes",
   };
 }
 
@@ -221,6 +235,8 @@ export function draftTask(o: { objective: Objective; humor: boolean }): Task {
     example: `{"blocks":[{"kind":"gancho","label":"","speech":"","on_screen":"","action":""}]}`,
     thinking: "medio",
     temperature: 0.8,
+    tier: "criar",
+    task: "roteiro",
   };
 }
 
@@ -245,6 +261,8 @@ export function storyTask(o: { objective: Objective; humor: boolean; titled?: bo
     example: o.titled ? `{"title":"","hook":"","situation":"","payoff":""}` : `{"hook":"","situation":"","payoff":""}`,
     thinking: "medio",
     temperature: 0.8,
+    tier: "criar",
+    task: "historia",
   };
 }
 
@@ -264,6 +282,8 @@ export function rewriteTask(o: { objective: Objective; humor: boolean }): Task {
     example: `{"speech":"","on_screen":"","action":""}`,
     thinking: "baixo",
     temperature: 0.8,
+    tier: "criar",
+    task: "ajuste",
   };
 }
 
@@ -312,6 +332,8 @@ export function shotsTask(o: { objective: Objective | null }): Task {
     example: `{"shots":[{"block":1,"framing":"","angle":"","movement":"","orientation":"vertical","description":"","location":"","wardrobe":"","why":"","people":[]}]}`,
     thinking: "baixo",
     temperature: 0.6,
+    tier: "rotina",
+    task: "planos",
   };
 }
 
@@ -351,6 +373,8 @@ export function postTask(o: { objective: Objective | null; platforms: Platform[]
     example: `{"cover_text":"","cover_idea":"","posts":{${platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",")}}}`,
     thinking: "baixo",
     temperature: 0.8,
+    tier: "rotina",
+    task: "publicacao",
   };
 }
 
