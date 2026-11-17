@@ -1,3 +1,4 @@
+import { isMe, speechLines } from "./convidado";
 import { firstNameOf } from "./pessoas";
 import { durationLabel } from "./ideas";
 
@@ -96,16 +97,32 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
 }
 
 // Roteiro em texto, para copiar e mandar para alguém.
-export function scriptAsText(title: string, blocks: ScriptBlock[]): string {
-  const times = timeline(blocks);
-  const parts = blocks.map((b, i) => {
-    const lines = [`[${times[i].start}–${times[i].end} s] ${b.label || BLOCK_KINDS[b.kind].label}`];
-    if (b.speech.trim()) lines.push(`FALA: ${b.speech.trim()}`);
-    if (b.on_screen.trim()) lines.push(`NA TELA: ${b.on_screen.trim()}`);
-    if (b.action.trim()) lines.push(`O QUE ACONTECE: ${b.action.trim()}`);
-    return lines.join("\n");
+// Cabeçalho da cena no formato de roteiro: o número e o lugar, quando os planos já dizem onde é.
+export function sceneHeading(n: number, place?: string | null): string {
+  const where = place?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+  return where ? `${n}. ${where}` : `CENA ${n}`;
+}
+
+// A fala no formato de roteiro: quem fala em maiúsculas, a fala embaixo. "Nome: fala" separa; sem nome,
+// vale quem fala na cena (fallback); sem ninguém, é narração. Só é nome quem está no vídeo (cast):
+// "Primeiro erro: pouca água" continua sendo uma fala inteira.
+export function dialogueOf(speech: string, fallback: string | null, cast: string[] = []): { who: string | null; text: string }[] {
+  return speechLines(speech).map((l) => {
+    const who = l.speaker ? cast.find((c) => isMe(l.speaker as string, c)) : undefined;
+    return who ? { who, text: l.text } : { who: fallback, text: l.raw };
   });
-  return [title.toUpperCase(), ...parts].join("\n\n");
+}
+
+// O roteiro para copiar, no formato universal de roteiro: cabeçalho da cena, ação, NOME e fala, texto na tela.
+export function scriptAsText(title: string, blocks: ScriptBlock[], opts: { places?: (string | null)[]; speakers?: (string | null)[]; cast?: string[] } = {}): string {
+  const parts = blocks.map((b, i) => {
+    const out = [sceneHeading(i + 1, opts.places?.[i])];
+    if (b.action.trim()) out.push(b.action.trim());
+    for (const l of dialogueOf(b.speech, opts.speakers?.[i] ?? null, opts.cast)) out.push(l.who ? `${l.who.toLocaleUpperCase("pt-BR")}\n${l.text}` : l.text);
+    if (b.on_screen.trim()) out.push(`NA TELA: ${b.on_screen.trim()}`);
+    return out.join("\n\n");
+  });
+  return [title.toUpperCase(), ...parts].join("\n\n\n");
 }
 
 // ── IA ──────────────────────────────────────────────────────────────────

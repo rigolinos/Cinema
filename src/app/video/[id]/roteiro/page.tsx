@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ReportAi } from "@/components/gravai/denunciar";
-import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Type } from "lucide-react";
+import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Plus, Sparkles, Trash2, Type } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { useLeave } from "@/components/gravai/voltar";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
@@ -16,7 +16,7 @@ import { castOf, isSolo, shootingOrder, withOtherPeople, type Shot } from "@/lib
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
-import { BLOCK_KINDS, checkScript, scriptAsText, speakerOf, storyFromText, storyText, totalSeconds, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
+import { BLOCK_KINDS, checkScript, sceneHeading, scriptAsText, speakerOf, storyFromText, storyText, totalSeconds, type ScriptBlock, type StoryParts, type Suggestion } from "@/lib/roteiro";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types/database";
 
@@ -187,19 +187,20 @@ function Dialogue({
     focusNext.current = true;
   }
 
+  // Formato de roteiro: o NOME centralizado em maiúsculas e a fala logo embaixo, numa coluna mais estreita.
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {lines.map((l, i) => {
         const name = l.who ?? fallback;
         return (
-          <div key={i} className="flex flex-col">
+          <div key={i} className="flex flex-col items-center">
             {cast.length > 1 ? (
-              <label className="relative self-start">
+              <label className="relative">
                 <span className="sr-only">Quem fala</span>
                 <select
                   value={name ?? ""}
                   onChange={(e) => commit(lines.map((x, k) => (k === i ? { ...x, who: e.target.value, named: true } : x)))}
-                  className="label-set -ml-1 min-h-8 cursor-pointer appearance-none bg-transparent py-1 pl-1 pr-5 text-foreground outline-none"
+                  className="min-h-8 cursor-pointer appearance-none bg-transparent py-1 pl-1 pr-5 text-center font-mono text-sm font-semibold uppercase tracking-wide text-foreground outline-none"
                 >
                   {!name && <option value="">Quem fala?</option>}
                   {cast.map((c) => (
@@ -211,7 +212,7 @@ function Dialogue({
                 <ChevronDown className="pointer-events-none absolute right-0 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" strokeWidth={2} aria-hidden="true" />
               </label>
             ) : (
-              name && <p className="label-set py-1 text-foreground">{name}</p>
+              name && <p className="py-1 font-mono text-sm font-semibold uppercase tracking-wide">{name}</p>
             )}
             <GrowingText
               bare
@@ -224,12 +225,12 @@ function Dialogue({
               placeholder="Escreva a fala"
               onChange={(e) => setLines(lines.map((x, k) => (k === i ? { ...x, text: e.target.value } : x)))}
               onBlur={() => commit(lines)}
-              className="text-[17px] font-semibold leading-snug"
+              className="w-[82%] text-[17px] leading-snug"
             />
           </div>
         );
       })}
-      <button type="button" onClick={addLine} aria-label={`Adicionar fala na cena ${scene}`} className="flex min-h-11 items-center gap-1.5 self-start text-sm text-muted-foreground">
+      <button type="button" onClick={addLine} aria-label={`Adicionar fala na cena ${scene}`} className="flex min-h-11 items-center gap-1.5 self-center text-sm text-muted-foreground">
         <Plus className="size-4" strokeWidth={1.75} aria-hidden="true" />
         Fala
       </button>
@@ -250,8 +251,10 @@ function BlockCard({
   onRewrite,
   onRemove,
   autoFocus,
+  place,
 }: {
   block: Block;
+  place: string | null; // onde a cena acontece, pelos planos dela
   onRemove?: () => void; // ausente quando é a única cena: o roteiro não fica vazio
   autoFocus: boolean; // cena recém-adicionada: o cursor já vai para a fala
   quick: string[]; // pedidos rápidos do objetivo do vídeo
@@ -273,7 +276,6 @@ function BlockCard({
   const [hint, setHint] = useState(false);
   const [screenOpen, setScreenOpen] = useState(false);
   const screenBox = useRef<HTMLTextAreaElement | null>(null);
-  const actionBox = useRef<HTMLTextAreaElement | null>(null);
 
   // Quando a IA reescreve a cena, o texto novo aparece.
   if (synced !== block) {
@@ -295,10 +297,17 @@ function BlockCard({
   };
 
   return (
-    <article className="flex flex-col gap-2 py-4" aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
-      <div className="-my-2 flex items-center justify-between gap-3">
-        <h2 className="label-set text-muted-foreground">Cena {scene}</h2>
-        <div className="relative -mr-2.5">
+    <article className="flex flex-col gap-3" aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
+      {/* Cabeçalho da cena, como num roteiro: o número e o lugar. Ajustar fica à vista; o resto, no menu. */}
+      <div className="-mb-1 flex items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate font-mono text-sm font-semibold uppercase tracking-wide">{sceneHeading(scene, place)}</h2>
+        <div className="relative -mr-2.5 flex shrink-0 items-center">
+          {!asking && (
+            <button type="button" disabled={busy} onClick={() => setAsking(true)} aria-label={`Pedir ajuste na cena ${scene}`} className="flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground disabled:opacity-40">
+              <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
+              Ajustar
+            </button>
+          )}
           <button type="button" aria-label={`Opções da cena ${scene}`} aria-expanded={menu} onClick={() => setMenu((m) => !m)} className="flex size-11 items-center justify-center text-muted-foreground">
             <MoreHorizontal className="size-5" strokeWidth={1.75} aria-hidden="true" />
           </button>
@@ -356,23 +365,20 @@ function BlockCard({
 
       <GrowingText
         bare
-        inputRef={(el) => {
-          actionBox.current = el;
-        }}
         aria-label={`O que acontece na cena ${scene}`}
         value={action}
         maxLength={500}
-        placeholder="O que acontece (opcional)"
+        placeholder="O que acontece na cena (opcional)"
         onChange={(e) => setAction(e.target.value)}
         onBlur={() => action !== block.action && onSave("action", action)}
-        className="text-[15px] italic text-muted-foreground"
+        className="text-[16px]"
       />
 
       <Dialogue speech={block.speech} fallback={speaker} cast={cast} scene={scene} autoFocus={autoFocus} onSave={(value) => onSave("speech", value)} />
 
       {(screen || screenOpen) && (
         <div className="flex items-baseline gap-2">
-          <span className="label-set shrink-0 text-muted-foreground">Na tela</span>
+          <span className="shrink-0 font-mono text-xs font-semibold uppercase tracking-wide text-muted-foreground">Na tela:</span>
           <GrowingText
             bare
             inputRef={(el) => {
@@ -391,29 +397,6 @@ function BlockCard({
           />
         </div>
       )}
-
-      {/* À vista, para ninguém precisar adivinhar que o texto se edita ou que dá para pedir ajuda. */}
-      <div className="-mb-2 flex gap-5">
-        <button
-          type="button"
-          onClick={() => {
-            const el = actionBox.current;
-            if (!el) return;
-            el.focus();
-            el.setSelectionRange(el.value.length, el.value.length);
-          }}
-          className="flex min-h-11 items-center gap-1.5 text-sm font-semibold"
-        >
-          <Pencil className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          Escrever
-        </button>
-        {!asking && (
-          <button type="button" disabled={busy} onClick={() => setAsking(true)} className="flex min-h-11 items-center gap-1.5 text-sm font-semibold disabled:opacity-40">
-            <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
-            Pedir ajuste
-          </button>
-        )}
-      </div>
 
       {suggestion && (
         <div className="flex flex-col gap-2.5 rounded-xl border-[1.5px] border-foreground p-3.5">
@@ -495,6 +478,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const { confirm, sheet } = useConfirm();
   const [copied, setCopied] = useState(false);
   const [shotCount, setShotCount] = useState<Record<string, number>>({}); // planos de cada parte: saem junto se ela for excluída
+  const [places, setPlaces] = useState<Record<string, string>>({}); // lugar de cada cena, pelo primeiro plano dela
   // Parte excluída fica alguns segundos só escondida, para dar tempo de desfazer; depois sai do banco.
   const [removed, setRemoved] = useState<{ block: Block; index: number } | null>(null);
   const pending = useRef<{ block: Block; index: number; timer: ReturnType<typeof setTimeout> } | null>(null);
@@ -511,7 +495,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       db.from("videos").select("*").eq("id", id).maybeSingle(),
       db.from("script_blocks").select("*").eq("video_id", id).order("position"),
       db.from("video_people").select("id, name, role, roles").eq("video_id", id),
-      db.from("shots").select("block_id").eq("video_id", id),
+      db.from("shots").select("block_id, location, position").eq("video_id", id).order("position"),
       db.from("creator_profiles").select("display_name").maybeSingle(),
     ]).then(([v, b, p, s, perfil]) => {
       setCreator((perfil.data as { display_name: string | null } | null)?.display_name ?? null);
@@ -522,8 +506,13 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       setBlocks((b.data ?? []) as Block[]);
       setPeople((p.data ?? []) as Person[]);
       const counts: Record<string, number> = {};
-      for (const row of (s.data ?? []) as { block_id: string }[]) counts[row.block_id] = (counts[row.block_id] ?? 0) + 1;
+      const where: Record<string, string> = {};
+      for (const row of (s.data ?? []) as { block_id: string; location: string | null }[]) {
+        counts[row.block_id] = (counts[row.block_id] ?? 0) + 1;
+        if (!where[row.block_id] && row.location?.trim()) where[row.block_id] = row.location.trim();
+      }
       setShotCount(counts);
+      setPlaces(where);
       // Quem acabou de escolher a ideia chega com a história sendo contada. A marca sai da URL: recarregar não gasta outra chamada.
       if (!new URLSearchParams(window.location.search).has("historia") || developing.current) return;
       developing.current = true;
@@ -715,7 +704,13 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
   async function copy() {
     if (!video) return;
-    await navigator.clipboard.writeText(scriptAsText(video.title ?? "Roteiro", blocks)).catch(() => null);
+    const solo = isSolo(video.resources ?? []);
+    const text = scriptAsText(video.title ?? "Roteiro", blocks, {
+      places: blocks.map((b) => places[b.id] ?? null),
+      speakers: blocks.map((b) => speakerOf(b, people, solo, creator)),
+      cast: castNames,
+    });
+    await navigator.clipboard.writeText(text).catch(() => null);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -886,7 +881,8 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             )}
 
             {blocks.length > 0 && (
-              <div className="flex flex-col divide-y divide-border rounded-2xl bg-card px-4">
+              // Uma folha só, como um roteiro: as cenas se separam pelo cabeçalho, sem caixas nem linhas.
+              <div className="flex flex-col gap-8 rounded-2xl bg-card px-4 pb-3 pt-5">
             {blocks.map((b, i) => (
               <BlockCard
                 key={b.id}
@@ -902,6 +898,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 onRewrite={(request) => rewrite(b, request)}
                 onRemove={blocks.length > 1 ? () => removeBlock(b) : undefined}
                 autoFocus={b.id === fresh}
+                place={places[b.id] ?? null}
               />
             ))}
                 <button type="button" onClick={addBlock} disabled={busy !== null} aria-label="Adicionar cena" className="flex min-h-12 items-center gap-1.5 self-start text-sm font-semibold disabled:opacity-40">
