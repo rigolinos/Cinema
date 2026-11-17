@@ -6,6 +6,7 @@ import {
   castOf,
   defaultOrientation,
   isSolo,
+  withOtherPeople,
   newestChange,
   plansOutdated,
   maxShots,
@@ -133,6 +134,13 @@ describe("quantos planos", () => {
     expect(isSolo(["sozinho", "em_casa"])).toBe(true);
     expect(isSolo(["sozinho", "com_alguem"])).toBe(false);
     expect(isSolo(["em_casa"])).toBe(false);
+  });
+
+  it("passa por Pessoas quem disse que grava junto ou já tem alguém no vídeo", () => {
+    expect(withOtherPeople(["com_alguem"], [])).toBe(true);
+    expect(withOtherPeople(["sozinho"], [{ role: "eu" }, { role: "ator" }])).toBe(true);
+    expect(withOtherPeople(["sozinho"], [{ role: "eu" }])).toBe(false);
+    expect(withOtherPeople([], [])).toBe(false);
   });
 });
 

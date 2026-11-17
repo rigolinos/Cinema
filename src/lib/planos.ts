@@ -207,6 +207,12 @@ export function isSolo(resources: Resource[]): boolean {
   return resources.includes("sozinho") && !resources.includes("com_alguem");
 }
 
+// Grava com outras pessoas: disse no passo Ideia ou já tem alguém no vídeo além de quem criou.
+// Aí o passo Pessoas entra no caminho, para chamar cada uma pelo link.
+export function withOtherPeople(resources: Resource[], people: { role: string }[]): boolean {
+  return resources.includes("com_alguem") || people.some((p) => p.role !== "eu");
+}
+
 export function shotsPrompt(
   blocks: (Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action"> & { id: string })[],
   ctx: { title: string; platform: Platform | null; resources: Resource[]; durationS: number | null },

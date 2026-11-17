@@ -48,6 +48,7 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   // Nome completo do criador: vai no termo de imagem. Sem ele, os links não saem.
   const [myName, setMyName] = useState("");
   const [nameSaved, setNameSaved] = useState(true);
+  const [shotCount, setShotCount] = useState(0); // planos já montados ao aprovar o roteiro
 
   useEffect(() => {
     const db = createClient();
@@ -58,8 +59,10 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
       db.from("image_consents").select("person_id").eq("video_id", id),
       db.from("creator_profiles").select("display_name").maybeSingle(),
       db.rpc("invite_claims", { p_video: id }),
-    ]).then(async ([v, p, b, c, profile, claimed]) => {
+      db.from("shots").select("id", { count: "exact", head: true }).eq("video_id", id),
+    ]).then(async ([v, p, b, c, profile, claimed, s]) => {
       const vid = (v.data as (Video & { shoot_date: string | null; shoot_place: string | null }) | null) ?? null;
+      setShotCount(s.count ?? 0);
       setVideo(vid);
       setBlocks((b.data ?? []) as Block[]);
       setConsents(((c.data ?? []) as { person_id: string | null }[]).map((x) => x.person_id ?? ""));
@@ -165,12 +168,14 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
   }
 
   async function finish() {
-    if (video?.stage === "pessoas") {
-      await createClient().from("videos").update({ stage: nextReadyStage("pessoas") }).eq("id", id);
+    // Os planos já saíram ao aprovar o roteiro: o vídeo fica pronto para gravar e a pessoa vai para a folha.
+    // Sem planos (a IA falhou), segue para a tela deles.
+    const next = shotCount ? "gravar" : nextReadyStage("pessoas");
+    if (video?.stage === "pessoas" || (next === "gravar" && video?.stage === "planos")) {
+      await createClient().from("videos").update({ stage: next }).eq("id", id);
     }
-    // O vídeo já está pronto: a pessoa veio da folha só para mudar quem aparece.
-    if (video?.stage === "gravar" || video?.stage === "pronto") leave(`/video/${id}`);
-    else router.push(`/video/${id}/${nextReadyStage("pessoas")}`);
+    if (next === "gravar" || video?.stage === "gravar" || video?.stage === "pronto") leave(`/video/${id}`);
+    else router.push(`/video/${id}/${next}`);
   }
 
   const appearing = people.filter(onCamera);
@@ -189,6 +194,13 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
 
         {video && (
           <>
+            {shotCount > 0 && video.stage === "pessoas" && (
+              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                <Check className="size-4" strokeWidth={2} aria-hidden="true" />
+                {shotCount === 1 ? "1 plano pronto" : `${shotCount} planos prontos`}
+              </p>
+            )}
+
             {!nameSaved && (
               <form onSubmit={saveMyName} className="flex flex-col gap-3 rounded-2xl border-[1.5px] border-foreground p-4">
                 <label htmlFor="meu-nome" className="font-bold">

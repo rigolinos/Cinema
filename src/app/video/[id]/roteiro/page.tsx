@@ -12,7 +12,7 @@ import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { Folha } from "@/components/gravai/folha";
 import { isMe, speechLines } from "@/lib/convidado";
 import { firstNameOf } from "@/lib/pessoas";
-import { castOf, isSolo, shootingOrder, type Shot } from "@/lib/planos";
+import { castOf, isSolo, shootingOrder, withOtherPeople, type Shot } from "@/lib/planos";
 import { logSignal } from "@/lib/sinais";
 import { createClient } from "@/lib/supabase/client";
 import { QUICK_BLOCK, durationLabel, type Objective } from "@/lib/ideas";
@@ -726,7 +726,14 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     setError(null);
     await commitRemoval();
     const db = createClient();
-    // Roteiro aprovado: os planos saem junto, e a pessoa cai na folha do vídeo com tudo pronto.
+    // Roteiro aprovado: os planos saem junto. Quem grava com outras pessoas passa por Pessoas para chamar
+    // cada uma; quem grava sozinho cai direto na folha do vídeo com tudo pronto.
+    // Só na primeira vez: quem volta da folha para mexer no roteiro retorna à folha.
+    const withOthers = ["ideia", "roteiro", "pessoas"].includes(video.stage) && withOtherPeople(video.resources ?? [], people);
+    const toPeople = async () => {
+      if (["ideia", "roteiro"].includes(video.stage)) await db.from("videos").update({ stage: "pessoas" }).eq("id", id);
+      router.push(`/video/${id}/pessoas`);
+    };
     const { count } = await db.from("shots").select("id", { count: "exact", head: true }).eq("video_id", id);
     if (!count) {
       const res = await fetch("/api/planos", {
@@ -736,13 +743,15 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
       }).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (!res?.ok) {
-        // Sem planos desta vez: segue para a tela deles, onde dá para tentar de novo.
+        // Sem planos desta vez: segue para a tela deles, onde dá para tentar de novo (passando antes por Pessoas).
+        if (withOthers) return toPeople();
         if (video.stage === "roteiro") await db.from("videos").update({ stage: "planos" }).eq("id", id);
         router.push(`/video/${id}/planos`);
         return;
       }
       await db.rpc("set_shoot_order", { p_video_id: id, p_shot_ids: shootingOrder(data.shots as (Shot & { id: string })[]).map((s) => s.id) });
     }
+    if (withOthers) return toPeople();
     if (["ideia", "roteiro", "pessoas", "planos"].includes(video.stage)) {
       const { error } = await db.from("videos").update({ stage: "gravar" }).eq("id", id);
       if (error) {
