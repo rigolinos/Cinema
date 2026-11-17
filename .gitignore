@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/teste-tela/node_modules
+/teste-tela/prints
 /.pnp
 .pnp.*
 .yarn/*
