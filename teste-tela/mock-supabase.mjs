@@ -143,10 +143,11 @@ http
         return send(200, []);
       }
       if (req.method === "POST") {
-        const row = { ...baseVideo, id: `novo${state.writes.length}`, stage: "ideia", title: null, objective: null, platform: null, platforms: [], duration_s: null, resources: [], updated_at: "2026-11-03T13:00:00Z", created_at: "2026-11-03T13:00:00Z", ...body };
+        // Um registro ou vários de uma vez (insert com lista).
+        const rows = (Array.isArray(body) ? body : [body]).map((item, k) => ({ ...baseVideo, id: `novo${state.writes.length}_${k}`, stage: "ideia", title: null, objective: null, platform: null, platforms: [], duration_s: null, resources: [], updated_at: "2026-11-03T13:00:00Z", created_at: "2026-11-03T13:00:00Z", ...item }));
         state.writes.push({ table, method: "POST", body });
-        state[table].push(row);
-        return send(201, String(req.headers.accept).includes("vnd.pgrst.object") ? row : [row]);
+        state[table].push(...rows);
+        return send(201, String(req.headers.accept).includes("vnd.pgrst.object") ? rows[0] : rows);
       }
       let rows = state[table].filter(match);
       const stage = url.searchParams.get("stage");

@@ -70,14 +70,9 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
   const checks: ScriptCheck[] = [];
   const total = totalSeconds(blocks);
 
-  if (targetSeconds) {
-    if (total > targetSeconds * 1.2) {
-      checks.push({ level: "alerta", text: `Passou do tempo: cerca de ${durationLabel(total)} para ${durationLabel(targetSeconds)}. Corte frases ou peça uma parte mais curta.` });
-    } else if (total < targetSeconds * 0.5) {
-      checks.push({ level: "alerta", text: `Está curto: cerca de ${durationLabel(total)} para ${durationLabel(targetSeconds)}. Dá para desenvolver mais o conteúdo.` });
-    } else {
-      checks.push({ level: "ok", text: `Cerca de ${durationLabel(total)}, dentro do tempo.` });
-    }
+  // O tempo de verdade depende de como a pessoa grava: só avisa quando a fala passa muito do tempo escolhido.
+  if (targetSeconds && total > targetSeconds * 1.5) {
+    checks.push({ level: "alerta", text: `Passou bastante do tempo: só a fala dá cerca de ${durationLabel(total)}, e o vídeo é de ${durationLabel(targetSeconds)}. Corte frases ou peça uma cena mais curta.` });
   }
 
   const hook = blocks.find((b) => b.kind === "gancho");
@@ -97,7 +92,6 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
   return checks;
 }
 
-// Roteiro em texto, para copiar e mandar para alguém.
 // Cabeçalho da cena no formato de roteiro: o número e o cabeçalho que a IA escreveu ou, nas cenas antigas,
 // o lugar que os planos dizem.
 export function sceneHeading(n: number, place?: string | null): string {
@@ -153,6 +147,11 @@ const KINDS = Object.keys(BLOCK_KINDS) as BlockKind[];
 // "CORTE" ou "corta para" no meio da ação quer dizer que ali começa outra cena. A fala e o texto da tela
 // ficam com a primeira parte; as outras viram cenas novas só de ação. "corte de cabelo" não conta.
 const CUT = /\s*(?:\bCORTE\b|\b[Cc]orta para\b)[\s.:!—–-]*/u;
+// A cena tem um "CORTE" no meio da ação: são duas cenas numa só (roteiros de antes da regra de 16/11).
+export function hasCut(action: string): boolean {
+  return action.split(CUT).map((p) => p.trim()).filter(Boolean).length > 1;
+}
+
 export function splitCuts<B extends Pick<ScriptBlock, "kind" | "label" | "speech" | "on_screen" | "action">>(blocks: B[]): B[] {
   return blocks.flatMap((b) => {
     const parts = b.action.split(CUT).map((p) => p.trim()).filter(Boolean);
