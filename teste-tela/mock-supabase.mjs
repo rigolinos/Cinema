@@ -174,6 +174,12 @@ http
         { id: "p1", name: "Bia Costa", role: "ator", roles: ["ator"], share_token: TOKEN, share_enabled: true, confirmed_at: null },
       ]);
     }
+    if (url.pathname === "/rest/v1/image_consents") {
+      const pessoa = url.searchParams.get("person_id");
+      const rows = (state.consents ?? []).filter((c) => !pessoa || `eq.${c.person_id}` === pessoa);
+      if (String(req.headers.accept).includes("vnd.pgrst.object")) return rows.length ? send(200, rows[0]) : send(406, { code: "PGRST116", message: "0 rows" });
+      return send(200, rows);
+    }
     if (url.pathname === "/rest/v1/creator_profiles") return send(200, [state.profile ?? { display_name: "Rafa Lima", niche: "x", platforms: [] }]);
     if (url.pathname === "/rest/v1/legal_acceptances") return send(200, [{ document: "termos", version: "v1" }, { document: "privacidade", version: "v2" }]);
     return send(200, []);
