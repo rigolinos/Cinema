@@ -50,7 +50,7 @@ describe("pacote do vídeo", () => {
       posts: [{ title: "", caption: "Legenda boa.", hashtags: ["#treino"], cover_text: "3 erros", cover_idea: "Plano 1" }],
     });
     expect(text.startsWith("GRAVAÍ · 3 ERROS\n\n3 erros que… · Reels · 30 s\n\nGANCHO: “Você erra isso.”")).toBe(true);
-    expect(text).toContain("━━ ROTEIRO ━━\n\n[0–2 s] Gancho\nFALA: Você erra isso.\nNA TELA: 3 ERROS");
+    expect(text).toContain("━━ ROTEIRO ━━\n\n1. SALA\n\nVocê erra isso.\n\nNA TELA: 3 ERROS");
     expect(text.indexOf("▸ QUINTAL")).toBeLessThan(text.indexOf("▸ SALA"));
     expect(text).toContain("PLANO 02 · Close · Altura dos olhos · Parado · Vertical\n  Corpo inteiro");
     expect(text).toContain("LEGENDA:\nLegenda boa.\n#treino\n\nCAPA: “3 erros” (Plano 1)");

@@ -72,17 +72,17 @@ check("Ver o que eu escrevi mostra o texto e o refazer", (await p.getByRole("but
 check("Contar de novo virou Outra versão", (await p.getByRole("button", { name: "Outra versão" }).count()) === 1 && (await p.getByRole("button", { name: "Contar de novo" }).count()) === 0);
 await p.screenshot({ path: path.join(out, "r8-4-historia.png"), fullPage: true });
 
-// ── 4. Roteiro: Escrever e Pedir ajuste à vista
+// ── 4. Roteiro: o texto se edita tocando nele e Ajustar fica à vista no cabeçalho
 await reset();
 await p.goto(`${APP}/video/v1/roteiro`, { waitUntil: "networkidle" });
 await p.getByLabel("O que acontece na cena 1").waitFor();
 const topoRot = await p.locator("header").first().innerText();
 check("com roteiro, o passo é Roteiro", /Roteiro/.test(topoRot) && /PASSO 2 DE 5/i.test(topoRot));
 const cena1 = p.getByRole("article").first();
-await cena1.getByRole("button", { name: "Escrever" }).click();
-check("Escrever põe o cursor no texto da cena", await p.getByLabel("O que acontece na cena 1").evaluate((el) => el === document.activeElement && el.selectionStart === el.value.length));
+await p.getByLabel("O que acontece na cena 1").click();
+check("tocar no texto da cena edita ali mesmo", await p.getByLabel("O que acontece na cena 1").evaluate((el) => el === document.activeElement));
 await cena1.getByRole("button", { name: "Pedir ajuste" }).click();
-check("Pedir ajuste à vista abre o ajuste", (await p.getByLabel("O que mudar na cena 1").count()) === 1);
+check("Ajustar à vista abre o ajuste", (await p.getByLabel("O que mudar na cena 1").count()) === 1);
 await p.getByRole("button", { name: "Opções da cena 1" }).click();
 const itens = (await p.getByRole("menuitem").allInnerTexts()).map((x) => x.trim());
 check("o menu não repete o Pedir ajuste", !itens.includes("Pedir ajuste") && itens.includes("Apagar cena"), itens.join(" | "));

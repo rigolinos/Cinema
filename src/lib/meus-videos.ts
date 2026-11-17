@@ -35,7 +35,12 @@ export function exportPackage(input: {
   if (info) parts.push(info);
   if (video.hook) parts.push(`GANCHO: “${video.hook}”`);
 
-  if (blocks.length) parts.push("━━ ROTEIRO ━━", scriptAsText(title, blocks).split("\n\n").slice(1).join("\n\n"));
+  if (blocks.length) {
+    // O lugar de cada cena vem dos planos dela; quem fala, das pessoas do vídeo.
+    const places = blockIds.map((bid) => [...shots].filter((s) => s.block_id === bid).sort((a, b) => a.position - b.position)[0]?.location ?? null);
+    const cast = people.map((p) => p.name.trim().split(/\s+/)[0]).filter(Boolean);
+    parts.push("━━ ROTEIRO ━━", scriptAsText(title, blocks, { places, cast }).split("\n\n\n").slice(1).join("\n\n\n"));
+  }
 
   if (shots.length) {
     // Número do plano = ordem do roteiro (é a ordem da edição); a lista segue a ordem de gravação.

@@ -139,11 +139,19 @@ describe("sugestões e contexto", () => {
 });
 
 describe("scriptAsText", () => {
-  it("gera texto para copiar com tempo, fala, tela e cena", () => {
-    const text = scriptAsText("3 erros", [b("gancho", words(8), { on_screen: "3 ERROS" }), b("chamada", "Segue", { label: "Final", action: "Aponta" })]);
-    expect(text).toContain("3 ERROS\n\n[0–3 s] Gancho");
-    expect(text).toContain("NA TELA: 3 ERROS");
-    expect(text).toContain("[3–5 s] Final\nFALA: Segue\nO QUE ACONTECE: Aponta");
+  it("copia no formato de roteiro: cabeçalho, ação, NOME e fala, texto na tela", () => {
+    const text = scriptAsText(
+      "3 erros",
+      [b("gancho", "Rafa: Amor, olha isso.\nNatasha: De novo?", { action: "Ele mostra o celular.", on_screen: "5 APPS DEPOIS" }), b("chamada", "Segue", { action: "Aponta" })],
+      { places: ["Sala", null], speakers: [null, "Rafa"], cast: ["Rafa", "Natasha"] },
+    );
+    expect(text).toContain("3 ERROS\n\n\n1. SALA\n\nEle mostra o celular.\n\nRAFA\nAmor, olha isso.\n\nNATASHA\nDe novo?\n\nNA TELA: 5 APPS DEPOIS");
+    expect(text).toContain("CENA 2\n\nAponta\n\nRAFA\nSegue");
+    expect(text).not.toMatch(/FALA:|O QUE ACONTECE:|\[\d/);
+  });
+
+  it("só é nome quem está no vídeo; sem ninguém na cena, a fala fica inteira", () => {
+    expect(scriptAsText("x", [b("gancho", "Primeiro erro: pouca água")], { cast: ["Rafa"] })).toContain("CENA 1\n\nPrimeiro erro: pouca água");
   });
 });
 
