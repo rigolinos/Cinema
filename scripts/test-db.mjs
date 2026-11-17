@@ -274,13 +274,13 @@ ok(r.err, 'bloco não pode apontar para pessoa de outro vídeo');
 
 r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [ator.share_token]);
 const parteAtor = r.rows?.[0]?.p;
-ok(parteAtor?.person?.name === 'Bruno' && parteAtor.blocks.length === 1 && parteAtor.blocks[0].mine, 'o ator vê só o bloco dele' + (r.err ? ': ' + r.err : ''));
-ok(parteAtor?.blocks?.[0]?.cue === 'Você erra isso.', 'com a última fala da parte anterior, como deixa');
+ok(parteAtor?.person?.name === 'Bruno' && parteAtor.blocks.length === 3 && parteAtor.blocks.filter((b) => b.mine).length === 1, 'o ator vê o roteiro inteiro, com a parte dele marcada' + (r.err ? ': ' + r.err : ''));
+ok(parteAtor?.blocks?.find((b) => b.mine)?.cue === 'Você erra isso.', 'com a última fala da parte anterior, como deixa');
 ok(parteAtor?.shots?.length === 3 && parteAtor.shots.filter((s) => s.mine).length === 1 && parteAtor.shots.every((s) => typeof s.recorded === 'boolean' && typeof s.number === 'number'), 'e a lista de planos com o estado, marcando os dele');
 ok((await one('SELECT roles FROM public.video_people WHERE id = $1', [ator.id]))?.roles?.join() === 'ator', 'quem chega só com o papel principal ganha a lista de papéis');
 await as('authenticated', A, `UPDATE public.script_blocks SET speech = 'Bruno: segue aí que tem mais' WHERE id = $1`, [blocosA[2]]);
 r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [ator.share_token]);
-ok(r.rows?.[0]?.p?.blocks?.length === 2, 'o ator também vê a parte em que tem fala com o nome dele');
+ok(r.rows?.[0]?.p?.blocks?.filter((b) => b.mine).length === 2, 'a parte em que tem fala com o nome dele também é dele');
 r = await as('authenticated', A, `INSERT INTO public.video_people (video_id, name, role, roles) VALUES ($1, 'Duda', 'ator', '{ator,filma}') RETURNING share_token`, [vidA]);
 r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [r.rows?.[0]?.share_token]);
 ok(r.rows?.[0]?.p?.person?.roles?.join() === 'ator,filma' && r.rows[0].p.blocks.length === 3, 'quem atua e filma vê o roteiro inteiro e os dois papéis');
@@ -304,7 +304,8 @@ r = await as('authenticated', B, 'UPDATE public.shots SET person_ids = $1 WHERE 
 ok(!r.err && r.rows.length === 0, 'ninguém marca gente no plano de outra pessoa');
 r = await as('anon', null, 'SELECT public.shared_part($1) AS p', [gil.share_token]);
 const parteGil = r.rows?.[0]?.p;
-ok(parteGil?.shots?.filter((s) => s.mine).length === 1 && parteGil.blocks.length === 0, 'o plano marcado diz que a pessoa aparece, mesmo sem fala' + (r.err ? ': ' + r.err : ''));
+ok(parteGil?.shots?.filter((s) => s.mine).length === 1 && parteGil.blocks.every((b) => !b.mine), 'o plano marcado diz que a pessoa aparece, mesmo sem fala' + (r.err ? ': ' + r.err : ''));
+ok(parteGil?.blocks?.filter((b) => b.in_scene).length === 1, 'e o roteiro marca a cena desse plano como dela');
 ok(parteGil?.shots?.find((s) => s.mine)?.people?.join() === 'Ana,Gil', 'o link mostra só o primeiro nome de quem está no plano');
 ok(!JSON.stringify(parteGil).includes(gil.id) && !JSON.stringify(parteGil).includes(eu.id), 'o link não expõe ids das pessoas');
 const falaAntes = (await one('SELECT speech FROM public.script_blocks WHERE id = $1', [blocosA[0]])).speech;

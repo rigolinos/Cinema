@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Check } from "lucide-react";
 import { Folha } from "@/components/gravai/folha";
 import { createClient } from "@/lib/supabase/client";
@@ -18,7 +17,6 @@ export function PartActions({
   consented: initiallyConsented,
   needsConsent,
   when,
-  signup,
 }: {
   token: string;
   creator: string | null;
@@ -27,7 +25,6 @@ export function PartActions({
   consented: boolean;
   needsConsent: boolean;
   when: string | null; // dia e lugar da gravação, numa linha
-  signup: string; // cadastro já com o nome da pessoa
 }) {
   const [confirmed, setConfirmed] = useState(initiallyConfirmed);
   const [consented, setConsented] = useState(initiallyConsented);
@@ -96,16 +93,6 @@ export function PartActions({
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
-      )}
-
-      {/* Depois do sim, e só então: quem também cria vídeos pode fazer o seu do mesmo jeito. */}
-      {confirmed && (
-        <div className="mt-1 flex items-center gap-3 border-t border-border pt-2">
-          <span className="flex-1 text-sm leading-snug text-muted-foreground">Também cria vídeos? Monte o seu do mesmo jeito.</span>
-          <Link href={signup} className="flex min-h-11 shrink-0 items-center text-sm font-bold">
-            Fazer o meu →
-          </Link>
-        </div>
       )}
 
       {/* O termo inteiro continua sendo lido antes de autorizar: só sai do meio da página. */}
