@@ -13,7 +13,7 @@ export interface Part {
   creator: string | null; // nome completo de quem convidou; sem ele, o termo de imagem não pode ser aceito
   consented: boolean;
   // Quem só atua recebe só as partes em que aparece, com a deixa (última fala da parte anterior).
-  blocks: { number: number; kind: BlockKind; label: string | null; speech: string; on_screen: string; action: string; mine: boolean; cue?: string | null }[];
+  blocks: { number: number; kind: BlockKind; label: string | null; speech: string; on_screen: string; action: string; mine: boolean; in_scene?: boolean; cue?: string | null }[]; // in_scene: a pessoa aparece na cena, com ou sem fala
   shots: GuestShot[]; // todos os planos, na ordem de gravação, com o que já foi gravado
 }
 

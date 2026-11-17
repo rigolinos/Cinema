@@ -73,10 +73,12 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
     <div className="flex flex-col gap-3">
       {part.blocks.map((b) => {
         const action = splitAction(b.action);
+        const here = appears && (b.in_scene ?? b.mine);
         return (
-          <article key={b.number} className="flex flex-col gap-2 rounded-2xl bg-card p-4">
+          <article key={b.number} className={cn("flex flex-col gap-2 rounded-2xl bg-card p-4", here && "ring-[1.5px] ring-foreground")}>
             <h3 className="label-set text-muted-foreground">
               Cena {b.number}
+              {here && <span className="text-foreground"> · Você aparece</span>}
             </h3>
             {b.on_screen && (
               <p className="text-sm">
@@ -111,13 +113,14 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
 
   const gravacao = <Acompanhar shots={part.shots} lines={lines} scenes={isCrew ? scenes : {}} appears={appears} films={films} loadedAt={new Date().toISOString()} signup={signup} />;
 
-  // No dia, com algo já gravado, o link abre na Gravação; antes, nas falas (ou no roteiro, para quem não atua).
+  // Todo o time vê o roteiro. Falas só aparece para quem tem fala. No dia, com algo já gravado, o link
+  // abre nos Planos; antes, nas falas da pessoa, ou no roteiro para quem não fala.
   const tabs = [
-    appears && { id: "falas", label: `Falas · ${lines.length}`, content: falas },
-    isCrew && { id: "roteiro", label: "Roteiro", content: roteiro },
-    { id: "gravacao", label: "Gravação", content: gravacao },
+    lines.length > 0 && { id: "falas", label: `Falas · ${lines.length}`, content: falas },
+    { id: "roteiro", label: "Roteiro", content: roteiro },
+    { id: "gravacao", label: part.shots.length ? `Planos · ${part.shots.length}` : "Planos", content: gravacao },
   ].filter((t): t is { id: string; label: string; content: React.ReactElement } => Boolean(t));
-  const initial = part.shots.some((s) => s.recorded) ? "gravacao" : appears ? "falas" : "roteiro";
+  const initial = part.shots.some((s) => s.recorded) ? "gravacao" : lines.length > 0 ? "falas" : "roteiro";
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-5 pb-12 pt-6">
@@ -139,11 +142,19 @@ export default async function SharedPartPage({ params }: { params: Promise<{ tok
         </p>
       </header>
 
-      <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={appears} when={when} signup={signup} />
+      <PartActions token={token} creator={part.creator} title={part.video.title} confirmed={part.person.confirmed} consented={part.consented} needsConsent={appears} when={when} />
+
+      {/* O que a pessoa veio ver fica logo depois do sim; guardar o convite e fazer o próprio vídeo vêm depois. */}
+      <Abas tabs={tabs} initial={initial} />
 
       <SaveInvite token={token} state={saved} signup={signupUrl(firstName, `/p/${token}`)} />
 
-      <Abas tabs={tabs} initial={initial} />
+      <div className="flex items-center gap-3 px-1">
+        <span className="flex-1 text-sm leading-snug text-muted-foreground">Também cria vídeos? Monte o seu do mesmo jeito.</span>
+        <Link href={signup} className="flex min-h-11 shrink-0 items-center text-sm font-bold">
+          Fazer o meu →
+        </Link>
+      </div>
 
       <footer className="pt-4 text-center text-xs leading-relaxed text-muted-foreground">
         Este link é só seu. Seu nome, a confirmação e a autorização servem só para organizar a gravação.{" "}
