@@ -117,14 +117,29 @@ export function dialogueOf(speech: string, fallback: string | null, cast: string
 
 // O roteiro para copiar, no formato universal de roteiro: cabeçalho da cena, ação, NOME e fala, texto na tela.
 export function scriptAsText(title: string, blocks: ScriptBlock[], opts: { places?: (string | null)[]; speakers?: (string | null)[]; cast?: string[] } = {}): string {
-  const parts = blocks.map((b, i) => {
-    const out = [sceneHeading(i + 1, opts.places?.[i])];
+  const groups = sceneGroups(blocks.map((_, i) => opts.places?.[i] ?? null));
+  let text = title.toUpperCase();
+  blocks.forEach((b, i) => {
+    const out = groups[i].show ? [sceneHeading(groups[i].number, opts.places?.[i])] : [];
     if (b.action.trim()) out.push(b.action.trim());
     for (const l of dialogueOf(b.speech, opts.speakers?.[i] ?? null, opts.cast)) out.push(l.who ? `${l.who.toLocaleUpperCase("pt-BR")}\n${l.text}` : l.text);
     if (b.on_screen.trim()) out.push(`NA TELA: ${b.on_screen.trim()}`);
-    return out.join("\n\n");
+    if (out.length) text += (groups[i].show ? "\n\n\n" : "\n\n") + out.join("\n\n");
   });
-  return [title.toUpperCase(), ...parts].join("\n\n\n");
+  return text;
+}
+
+// Partes seguidas com o mesmo cabeçalho (mesmo lugar, mesmo momento) são uma cena só, como num roteiro de
+// filme: o cabeçalho aparece uma vez e o número conta só as cenas. Por dentro, cada parte continua separada
+// (planos, teleprompter e ajuste usam as partes). Parte sem cabeçalho nem lugar conta como cena própria.
+export function sceneGroups(headings: (string | null | undefined)[]): { show: boolean; number: number }[] {
+  const key = (h: string | null | undefined) => h?.trim().toLocaleUpperCase("pt-BR") || null;
+  let n = 0;
+  return headings.map((h, i) => {
+    const show = i === 0 || !key(h) || key(h) !== key(headings[i - 1]);
+    if (show) n++;
+    return { show, number: n };
+  });
 }
 
 // ── IA ──────────────────────────────────────────────────────────────────

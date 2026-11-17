@@ -17,6 +17,7 @@ import {
   scriptAsText,
   normalizeHeading,
   sceneHeading,
+  sceneGroups,
   timeline,
   totalSeconds,
   wordCount,
@@ -284,6 +285,21 @@ describe("cabeçalho da cena", () => {
     const blocks = normalizeDraft({ blocks: [{ kind: "gancho", heading: "ext estacionamento - dia", action: "Ela trava o carro. CORTE. Ela está na esquina." }] });
     expect(blocks.map((b) => b.heading)).toEqual(["EXT. ESTACIONAMENTO – DIA", null]);
   });
+  it("partes seguidas no mesmo lugar são uma cena só: o cabeçalho aparece uma vez", () => {
+    expect(sceneGroups(["INT. COZINHA – DIA", "int. cozinha – dia", "EXT. RUA – DIA", null, null, "EXT. RUA – DIA"])).toEqual([
+      { show: true, number: 1 },
+      { show: false, number: 1 },
+      { show: true, number: 2 },
+      { show: true, number: 3 },
+      { show: true, number: 4 },
+      { show: true, number: 5 },
+    ]);
+    const text = scriptAsText("x", [b("gancho", "", { action: "Abre a geladeira." }), b("conteudo", "", { action: "Pega a pizza." }), b("chamada", "", { action: "Sai." })], {
+      places: ["INT. COZINHA – NOITE", "INT. COZINHA – NOITE", "INT. SALA – NOITE"],
+    });
+    expect(text).toBe("X\n\n\n1. INT. COZINHA – NOITE\n\nAbre a geladeira.\n\nPega a pizza.\n\n\n2. INT. SALA – NOITE\n\nSai.");
+  });
+
   it("o cabeçalho aparece no lugar do número e vai para a IA dos planos", () => {
     expect(sceneHeading(2, "INT. COZINHA – DIA")).toBe("2. INT. COZINHA – DIA");
     expect(scriptForPrompt([b("gancho", "Oi", { heading: "INT. SALA – DIA" })])).toContain("[gancho] INT. SALA – DIA FALA: Oi");
