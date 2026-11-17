@@ -22,6 +22,33 @@ export function consentText(creator: string, title: string): string[] {
   ];
 }
 
+// O registro de uma autorização, como o dono do vídeo lê do banco.
+export interface ConsentRecord {
+  id: string;
+  accepted_name: string;
+  accepted_at: string;
+  video_title: string;
+  creator_name: string | null;
+  text_version: string;
+  accepted_text: string | null; // guardado desde 2026-11-17; antes, remontado pela versão
+}
+
+// O texto que a pessoa aceitou. Aceites antigos não guardavam o texto: a versão imagem-v1 nunca mudou,
+// então ele é remontado com o mesmo nome e título do registro.
+export function consentRecordText(c: ConsentRecord): string | null {
+  if (c.accepted_text) return c.accepted_text;
+  if (c.text_version === CONSENT_VERSION && c.creator_name) return consentText(c.creator_name, c.video_title).join("\n");
+  return null;
+}
+
+// Código de verificação do comprovante: um resumo (SHA-256) do registro. O mesmo registro dá sempre o
+// mesmo código; qualquer mudança no nome, na data, no vídeo ou no texto dá outro.
+export async function consentCode(c: ConsentRecord): Promise<string> {
+  const data = new TextEncoder().encode([c.id, c.accepted_name, c.accepted_at, c.video_title, c.creator_name ?? "", c.text_version, consentRecordText(c) ?? ""].join("|"));
+  const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `GRV-${hex.slice(0, 4)}-${hex.slice(4, 8)}`.toUpperCase();
+}
+
 export function shareUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, "")}/p/${token}`;
 }
