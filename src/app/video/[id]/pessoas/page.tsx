@@ -3,7 +3,8 @@
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
-import { Check, Copy, Link2Off, MessageCircle, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Check, Copy, FileCheck, Link2Off, MessageCircle, Trash2 } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { nextReadyStage } from "@/components/gravai/trail";
 import { useLeave } from "@/components/gravai/voltar";
@@ -277,6 +278,12 @@ export default function PessoasPage({ params }: { params: Promise<{ id: string }
                         {claims[p.id] && <span className="rounded-md bg-muted px-2 py-1 font-mono text-xs uppercase">Salvo na conta de {claims[p.id]}</span>}
                         {!p.share_enabled && <span className="rounded-md bg-muted px-2 py-1 font-mono text-xs uppercase text-destructive">Link desligado</span>}
                       </div>
+                      {consents.includes(p.id) && (
+                        <Link href={`/video/${id}/pessoas/comprovante/${p.id}`} className="flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-foreground font-semibold">
+                          <FileCheck className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                          Ver comprovante
+                        </Link>
+                      )}
                       {p.share_enabled && !nameSaved && <p className="text-sm text-muted-foreground">Salve seu nome completo lá em cima para liberar o link.</p>}
                       {p.share_enabled && nameSaved && (
                         <div className="flex gap-2">

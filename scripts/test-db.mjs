@@ -356,6 +356,19 @@ await as('authenticated', A, `UPDATE public.creator_profiles SET display_name = 
 r = await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno Souza', 'imagem-v1') AS ok`, [ator.share_token]);
 ok(r.rows?.[0]?.ok === true, 'a pessoa aceita o uso de imagem pelo link');
 ok((await one('SELECT creator_name FROM public.image_consents WHERE person_id = $1', [ator.id]))?.creator_name === 'Ana Lima', 'o aceite guarda o nome de quem recebeu a autorização');
+{
+  // O mesmo texto de consentText (src/lib/pessoas.ts, testado em tests/pessoas.test.ts).
+  const aceite = await one('SELECT accepted_text, video_title FROM public.image_consents WHERE person_id = $1', [ator.id]);
+  const esperado = [
+    `Autorizo Ana Lima a usar, sem cobrar nada, a minha imagem e a minha voz gravadas para o vídeo “${aceite?.video_title}”.`,
+    'O vídeo pode ser publicado em redes sociais e plataformas de vídeo, inteiro ou em trechos, inclusive em divulgação do próprio vídeo.',
+    'Posso pedir a qualquer momento para não aparecer em publicações novas. O que já foi publicado antes do pedido pode continuar no ar.',
+    'Declaro que tenho 18 anos ou mais.',
+  ].join('\n');
+  ok(aceite?.accepted_text === esperado, 'o aceite guarda o texto exato que a pessoa autorizou');
+  r = await as('authenticated', A, `UPDATE public.image_consents SET accepted_text = 'outro' WHERE person_id = $1 RETURNING id`, [ator.id]);
+  ok(r.err || r.rows.length === 0, 'ninguém troca o texto aceito');
+}
 await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno Souza', 'imagem-v1')`, [ator.share_token]);
 ok((await one('SELECT count(*)::int AS n FROM public.image_consents WHERE person_id = $1', [ator.id])).n === 1, 'aceitar de novo não duplica');
 r = await as('anon', null, `SELECT public.accept_image_use($1, 'Bruno', 'qualquer')`, [ator.share_token]);

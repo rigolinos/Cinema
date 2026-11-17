@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONSENT_VERSION, consentText, firstNameOf, formatShootDate, inviteMessage, parseNames, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
+import { CONSENT_VERSION, consentCode, consentRecordText, consentText, firstNameOf, formatShootDate, inviteMessage, parseNames, rolesAs, rolesYou, shareUrl, sortRoles, validConsentName, whatsappLink } from "@/lib/pessoas";
 
 describe("termo de uso de imagem", () => {
   it("nomeia quem pediu e o vídeo, e a versão bate com o que o banco aceita", () => {
@@ -66,5 +66,33 @@ describe("convite", () => {
     expect(formatShootDate("2026-10-24")).toMatch(/24 de outubro/);
     expect(formatShootDate(null)).toBeNull();
     expect(formatShootDate("amanhã")).toBeNull();
+  });
+});
+
+describe("comprovante de uso de imagem", () => {
+  const registro = { id: "c1", accepted_name: "Bia Costa", accepted_at: "2026-11-17T19:46:00Z", video_title: "Casal fala", creator_name: "Ana Lima", text_version: CONSENT_VERSION, accepted_text: null };
+
+  it("o texto é o mesmo que o banco guarda (consent_text_v1)", () => {
+    expect(consentText("Ana Lima", "Casal fala").join("\n")).toBe(
+      [
+        "Autorizo Ana Lima a usar, sem cobrar nada, a minha imagem e a minha voz gravadas para o vídeo “Casal fala”.",
+        "O vídeo pode ser publicado em redes sociais e plataformas de vídeo, inteiro ou em trechos, inclusive em divulgação do próprio vídeo.",
+        "Posso pedir a qualquer momento para não aparecer em publicações novas. O que já foi publicado antes do pedido pode continuar no ar.",
+        "Declaro que tenho 18 anos ou mais.",
+      ].join("\n"),
+    );
+  });
+
+  it("aceite antigo remonta o texto pela versão; o guardado vale quando existe", () => {
+    expect(consentRecordText(registro)?.startsWith("Autorizo Ana Lima")).toBe(true);
+    expect(consentRecordText({ ...registro, accepted_text: "Texto guardado" })).toBe("Texto guardado");
+    expect(consentRecordText({ ...registro, text_version: "imagem-v9" })).toBeNull();
+  });
+
+  it("o código é sempre o mesmo para o mesmo registro e muda com qualquer detalhe", async () => {
+    const a = await consentCode(registro);
+    expect(a).toMatch(/^GRV-[0-9A-F]{4}-[0-9A-F]{4}$/);
+    expect(await consentCode(registro)).toBe(a);
+    expect(await consentCode({ ...registro, accepted_name: "Bia Costas" })).not.toBe(a);
   });
 });
