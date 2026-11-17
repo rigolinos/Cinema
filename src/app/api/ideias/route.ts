@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJsonStream, hasAiProvider } from "@/lib/ai";
 import { aiLog } from "@/lib/ai-registro";
+import { tidyIdeas } from "@/lib/qualidade";
 import { radarSince } from "@/lib/radar";
 import { normalizeIdeas, videoPlatforms, type Objective, type Platform, type Resource } from "@/lib/ideas";
 import { memoryLines } from "@/lib/memoria";
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
           for (const idea of ready.slice(shown)) send({ type: "idea", idea });
           shown = Math.max(shown, ready.length);
         });
-        const ideas = normalizeIdeas(raw);
+        const ideas = tidyIdeas(normalizeIdeas(raw));
         if (ideas.length === 0) throw new AiError("A IA não trouxe ideias desta vez. Tente de novo.", "format");
         const { data: saved, error } = await supabase
           .from("video_ideas")

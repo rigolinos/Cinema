@@ -1,0 +1,145 @@
+{
+  "rotulo": "base-leve",
+  "data": "2026-11-16T21:12:13.055Z",
+  "minutos": 2,
+  "resumo": {
+    "chamadas": 8,
+    "falhas": 5,
+    "problemas": 5,
+    "por_problema": {
+      "falhou": 5
+    },
+    "quem_respondeu": {
+      "gemini-3.5-flash-lite": 3
+    },
+    "pedidos_feitos": 8,
+    "segundos_por_chamada": 9.8
+  },
+  "casos": [
+    {
+      "id": "alarme-do-carro",
+      "steps": [
+        {
+          "step": "historia",
+          "meta": null,
+          "error": "gemini indisponível",
+          "numbers": {},
+          "problems": [
+            "falhou"
+          ],
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "humor-do-zero",
+      "steps": [
+        {
+          "step": "ideias",
+          "meta": null,
+          "error": "gemini indisponível",
+          "numbers": {},
+          "problems": [
+            "falhou"
+          ],
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "dupla-na-corrida",
+      "steps": [
+        {
+          "step": "historia",
+          "meta": null,
+          "error": "gemini demorou demais",
+          "numbers": {},
+          "problems": [
+            "falhou"
+          ],
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "bolo-de-pote",
+      "steps": [
+        {
+          "step": "ideias",
+          "meta": {
+            "task": "ideias",
+            "provider": "gemini",
+            "model": "gemini-3.5-flash-lite",
+            "attempts": 1,
+            "ms": 11591
+          },
+          "numbers": {
+            "ideias": 5,
+            "sem_final": 0,
+            "com_pov": 0
+          },
+          "problems": [],
+          "text": "1. **O bolo que fiz hoje cedo**\n   Lia monta um bolo de pote fresquinho na sua cozinha às sete da manhã, destacando a produção caseira.\n   Termina: Quer receber o seu fresquinho hoje? Me chama no direct.\n2. **Por que esse bolo derrete**\n   Lia mostra a textura ultra cremosa de um bolo de pote recém-preparado na bancada de casa.\n   Termina: Feito no dia da entrega e sem conservante. Encomende o seu no link da bio.\n3. **Bolo de pote estraga rápido?**\n   Lia responde a dúvida sobre validade enquanto fecha os potes na cozinha de casa.\n   Termina: Eu faço todos os dias na quantidade certa. Pede o cardápio no direct.\n4. **Montando um bolo de pote**\n   Lia adiciona as camadas generosas de recheio em um pote transparente na sua própria cozinha.\n   Termina: Esse sai hoje da minha cozinha para você. Link na bio.\n5. **Salvando um pedido de última hora**\n   Lia conta como preparou um bolo de pote correndo para uma cliente porque produz tudo fresco diariamente.\n   Termina: Deu tempo porque eu faço no dia. Garanta o seu pelo direct."
+        },
+        {
+          "step": "historia",
+          "meta": {
+            "task": "historia",
+            "provider": "gemini",
+            "model": "gemini-3.5-flash-lite",
+            "attempts": 1,
+            "ms": 8523
+          },
+          "numbers": {
+            "caracteres": 524,
+            "falas_entre_aspas": 0
+          },
+          "problems": [],
+          "text": "São sete da manhã e Lia já está montando o primeiro bolo de pote do dia na própria cozinha.\n\nLia despeja a massa fofinha direto na travessa e corta os discos de bolo com a boca do pote. Ela espalha o recheio cremoso sem economia e sela cada potinho com cuidado artesanal. Em seguida, mostra a etiqueta com a data de validade de hoje, provando que não há nenhum conservante.\n\nQuem quiser garantir o seu bolo feito hoje mesmo é só mandar uma mensagem no direct. O vídeo fecha com Lia organizando os potes prontos na geladeira."
+        },
+        {
+          "step": "roteiro",
+          "meta": null,
+          "error": "gemini indisponível",
+          "numbers": {},
+          "problems": [
+            "falhou"
+          ],
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "pao-sem-maquina",
+      "steps": [
+        {
+          "step": "ideias",
+          "meta": {
+            "task": "ideias",
+            "provider": "gemini",
+            "model": "gemini-3.5-flash-lite",
+            "attempts": 1,
+            "ms": 9177
+          },
+          "numbers": {
+            "ideias": 5,
+            "sem_final": 0,
+            "com_pov": 0
+          },
+          "problems": [],
+          "text": "1. **O teste da massa sem sova**\n   Lia mostra o teste visual exato para saber se a massa está pronta para fermentar.\n   Termina: Esticar um pedaço fino formando a membrana sem rasgar.\n2. **Três erros no pão solado**\n   Lia aponta três erros na fermentação que deixam o pão caseiro pesado.\n   Termina: Corrigir a temperatura, a cobertura e o tempo de descanso.\n3. **Pode cortar o pão quente?**\n   Lia desmente o hábito de fatiar o pão assim que ele sai do forno.\n   Termina: Esperar trinta minutos na grade para o miolo firmar.\n4. **Casca crocante no forno comum**\n   Lia mostra a diferença entre um pão mole e um pão com casca estalando.\n   Termina: Assar tampado na panela de ferro nos primeiros vinte minutos.\n5. **Fazer pão sem sujar a bancada**\n   Lia faz todo o processo de desenvolvimento da massa direto dentro da tigela.\n   Termina: Usar a técnica de dobras na tigela em vez de sovar na mesa."
+        },
+        {
+          "step": "historia",
+          "meta": null,
+          "error": "gemini indisponível",
+          "numbers": {},
+          "problems": [
+            "falhou"
+          ],
+          "text": ""
+        }
+      ]
+    }
+  ]
+}

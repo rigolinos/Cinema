@@ -34,7 +34,8 @@ const STR = { type: "STRING" };
 const INT = { type: "INTEGER" };
 const strs = { type: "ARRAY", items: STR };
 const oneOf = (values: string[]) => ({ type: "STRING", enum: values });
-const obj = (properties: Record<string, object>, required = Object.keys(properties)) => ({ type: "OBJECT", properties, required });
+// propertyOrdering: a resposta segue a ordem em que os campos foram escritos (primeiro o rascunho, depois o texto final).
+const obj = (properties: Record<string, object>, required = Object.keys(properties)) => ({ type: "OBJECT", properties, required, propertyOrdering: Object.keys(properties) });
 const list = (item: object) => ({ type: "ARRAY", items: item });
 const formatSlug = { type: "STRING", enum: FORMAT_VALUES, nullable: true };
 
@@ -50,6 +51,7 @@ const IDEAS_TEXT = `TAREFA: sugerir 5 ideias de vídeo para esta pessoa, prontas
 - No objetivo Vender, toda ideia usa o produto e o diferencial que a pessoa contou.
 - Formatos e tendências são sugestão. Uma ótima ideia fora de formato vale mais que uma fraca dentro de um.
 ${POV_RULE}
+- Por dentro, antes de responder: pense em pelo menos 10 caminhos bem diferentes e descarte os genéricos. Se trocar o nicho e a ideia continuar igual, ela é fraca. Em humor, lista de dicas ou de erros ("3 erros de…") não é ideia de humor.
 - Entregue da mais forte para a menos forte: a primeira é a sua melhor aposta para esta pessoa.
 
 Cada ideia traz:
@@ -62,9 +64,9 @@ Cada ideia traz:
 
 const IDEA_FIELDS = { title: STR, situation: STR, hook: STR, payoff: STR, why: STR, format_slug: formatSlug };
 
-export function ideasTask(o: { objective: Objective; humor: boolean }): Task {
+export function ideasTask(o: { objective: Objective; humor: boolean; cards?: string }): Task {
   return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: IDEAS_TEXT }),
+    system: buildSystem({ objective: o.objective, humor: o.humor, cards: o.cards, task: IDEAS_TEXT }),
     schema: obj({ ideas: list(obj(IDEA_FIELDS, ["title", "situation", "hook", "payoff", "why"])) }),
     example: `{"ideas":[{"title":"","situation":"","hook":"","payoff":"","why":"","format_slug":""}]}`,
     thinking: "medio",
@@ -87,9 +89,9 @@ ${POV_RULE}
 Cada ideia traz os mesmos campos das ideias do zero, mais objective (divertir, vender, ensinar ou crescer):
 - title: curto (até 8 palavras); situation: a cena em 1 ou 2 frases concretas; hook: os primeiros 3 segundos (até 12 palavras); payoff: o desfecho exato, vazio só se não houver; why: por que funciona, em uma frase; format_slug: um formato da lista, se servir; senão, vazio.`;
 
-export function fortnightTask(o: { humor: boolean }): Task {
+export function fortnightTask(o: { humor: boolean; cards?: string }): Task {
   return {
-    system: buildSystem({ criteria: true, humor: o.humor, task: FORTNIGHT_TEXT }),
+    system: buildSystem({ criteria: true, humor: o.humor, cards: o.cards, task: FORTNIGHT_TEXT }),
     schema: obj({ ideas: list(obj({ objective: oneOf(OBJECTIVE_VALUES), ...IDEA_FIELDS }, ["objective", "title", "situation", "hook", "payoff", "why"])) }),
     example: `{"ideas":[{"objective":"","title":"","situation":"","hook":"","payoff":"","why":"","format_slug":""}]}`,
     thinking: "medio",
@@ -199,9 +201,9 @@ const SUGGESTIONS_TEXT = `TAREFA: revise o roteiro desta pessoa como um roteiris
 - note: um comentário geral, em uma ou duas frases e no tom de parceiro: o que funciona e, se houver, a principal melhoria.
 - block: o número do bloco como aparece no pedido (o primeiro é 1).`;
 
-export function suggestionsTask(o: { objective: Objective; humor: boolean }): Task {
+export function suggestionsTask(o: { objective: Objective; humor: boolean; cards?: string }): Task {
   return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: SUGGESTIONS_TEXT }),
+    system: buildSystem({ objective: o.objective, humor: o.humor, cards: o.cards, task: SUGGESTIONS_TEXT }),
     schema: obj({ note: STR, suggestions: list(obj({ block: INT, speech: STR, on_screen: STR, action: STR, reason: STR })) }),
     example: `{"note":"","suggestions":[{"block":1,"speech":"","on_screen":"","action":"","reason":""}]}`,
     thinking: "medio",
@@ -219,22 +221,24 @@ const DRAFT_TEXT = `TAREFA: escreva o roteiro completo desta ideia, pronto para 
 - Divida em blocos do tipo gancho, contexto, conteudo, virada e chamada. Use só os que o vídeo precisa.
 - Cada bloco é uma cena: um lugar só e um momento contínuo. Mudou de lugar, pulou no tempo ou tem corte, começa outro bloco (pode repetir o tipo conteudo). Nunca escreva "CORTE" ou "corta para" dentro de um bloco.
 - A chamada final segue o objetivo: obrigatória em Vender, Ensinar e Crescer, pedindo uma coisa só; opcional em Divertir.
-- Em cada bloco: speech (exatamente o que se fala, como a pessoa falaria), on_screen e action (o que acontece em cena, em uma frase).
-- on_screen é só o texto escrito que aparece sobre o vídeo, palavra por palavra: título ou legenda. Deixe vazio se não houver. "Natasha correndo" ou "hambúrguer na mão" descrevem a cena e vão em action.
+- Em cada bloco: speech, on_screen e action (o que acontece em cena, em uma frase).
+- speech é só o que sai da boca de alguém, palavra por palavra. Nada de descrição, de aspas nem de explicação dentro da fala: "Lia segura a lâmpada: 'modo festa'" está errado; a fala é "Modo festa" e o gesto vai em action. Cena sem fala fica com speech vazio. Se a história não tem nenhuma fala, o roteiro inteiro fica sem fala: não invente uma frase para cada cena.
+- As falas e os gestos que já estão na história entram no roteiro com as mesmas palavras. Não acrescente piada, personagem nem acontecimento que a história não tem.
+- on_screen é só o texto escrito que aparece sobre o vídeo, palavra por palavra: título ou legenda. Deixe vazio se não houver; nunca repita ali a fala. "Natasha correndo" ou "hambúrguer na mão" descrevem a cena e vão em action.
 - label: o nome curto do bloco, até 3 palavras ("Erro 1"), usado no título do bloco, nos Planos e no teleprompter. Opcional no gancho e na chamada.
-- Se mais de uma pessoa fala no bloco, comece cada fala com o nome de quem fala ("Bia: …", "Manu: …").
+- Se o vídeo tem mais de uma pessoa em <pessoas>, toda fala começa com o nome de quem fala, uma fala por linha ("Bia: …", "Manu: …"), mesmo quando só uma fala no bloco.
 - A virada, o resultado ou a oferta aparecem escritos de verdade, nunca "aqui entra o final".
 - Use o que já sabemos sobre o jeito de falar da pessoa.`;
 
 const BLOCK_FIELDS = { kind: oneOf(KIND_VALUES), label: STR, speech: STR, on_screen: STR, action: STR };
 
-export function draftTask(o: { objective: Objective; humor: boolean }): Task {
+export function draftTask(o: { objective: Objective; humor: boolean; cards?: string }): Task {
   return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: DRAFT_TEXT }),
+    system: buildSystem({ objective: o.objective, humor: o.humor, cards: o.cards, task: DRAFT_TEXT }),
     schema: obj({ blocks: list(obj(BLOCK_FIELDS)) }),
     example: `{"blocks":[{"kind":"gancho","label":"","speech":"","on_screen":"","action":""}]}`,
     thinking: "medio",
-    temperature: 0.8,
+    temperature: 0.6,
     tier: "criar",
     task: "roteiro",
   };
@@ -242,25 +246,39 @@ export function draftTask(o: { objective: Objective; humor: boolean }): Task {
 
 // ── A história, antes do roteiro ────────────────────────────────────────
 const STORY_TEXT = `TAREFA: conte o vídeo inteiro, do começo ao fim, para a pessoa decidir se gosta dele antes de existir um roteiro. Escreva como quem conta o vídeo para um amigo: no presente, em texto corrido e concreto.
-- hook: como começa, os primeiros segundos, em uma frase. Mantenha o gancho escolhido, salvo se o pedido mudar isso.
+- hook: como começa, os primeiros segundos, em uma frase: a primeira coisa que se vê ou se ouve.
 - situation: o que acontece, em ordem, em até 5 frases curtas e até 500 caracteres. Cada frase é um acontecimento que dá para ver ou ouvir.
 - payoff: como termina, em 1 ou 2 frases: a virada, o resultado, a dica ou a oferta, e o último momento do vídeo.
 - Entregue o conteúdo de verdade, nunca a descrição dele. Se ensina, diga o que é ensinado. Se vende, mostre como o produto entra e qual é a oferta.
-- Se tem humor, é aqui que a pessoa decide se ri. Traga pelo menos duas piadas prontas, cada uma com a fala entre aspas ou o gesto exato, e escale: a segunda é mais absurda que a primeira. "Ela entra em pânico" não é piada; "ela revista o próprio sapato e pergunta para o vizinho se ele viu a chave passar" é. Sentimento sem ação não conta.
+- Sentimento sem ação não conta: "ela entra em pânico" não dá para filmar; "ela revista o próprio sapato" dá.
 - Sem palavras técnicas: nada de plano, corte, take, gancho ou bloco. Sem tempos e sem marcação de quem fala.
 - Tem que caber na duração e ser possível com o que a pessoa tem em <video>.
-- Se houver <briefing>, é a ideia que a pessoa contou, e a história é a dela: não troque a ideia nem o que ela escreveu. Complete só o que faltar, inclusive o final, se ela não disse qual é.
 - Se houver <historia_atual> e <pedido_agora>, mude só o que foi pedido e mantenha o resto igual, palavra por palavra.
 - Se o pedido escrito pela pessoa pedir algo que as regras de segurança proíbem, atenda o resto e deixe essa parte de fora.`;
 
-export function storyTask(o: { objective: Objective; humor: boolean; titled?: boolean }): Task {
+// Quando a ideia nasceu da IA: a história desenvolve a ideia e, se há humor, é aqui que a pessoa decide se ri.
+const STORY_FROM_IDEA = `
+- Mantenha o começo escolhido em <ideia>, salvo se o pedido mudar isso. Se houver <briefing>, a história segue o que a pessoa contou ali: não troque a ideia nem o que ela escreveu.
+- piadas (só se o vídeo tem humor; senão, lista vazia): antes de escrever, liste de 3 a 5 momentos engraçados possíveis para esta história, um por item, cada um com o gesto exato ou a fala exata. Depois use os melhores na história, do menor para o mais absurdo.`;
+
+// Quando a pessoa escreveu a ideia: a história é a dela, organizada. O maior erro aqui é "melhorar" inventando.
+const STORY_FROM_PERSON = `
+- <ideia_da_pessoa> é o que a pessoa escreveu, do jeito dela. Muitas vezes ela explica a ideia em vez de contar o vídeo ("é brincar com…"). Transforme em cenas, sem mudar a ideia: não troque a ideia nem o que ela escreveu.
+- pontos: antes de escrever, liste os acontecimentos que ela escreveu, um por item, na ordem dela e com as palavras dela (até 12 palavras cada). Não acrescente nenhum que ela não escreveu.
+- A história traz todos os pontos, nessa ordem, e mais nada: não acrescente personagem, animal, objeto, fala, piada nem lugar que ela não citou. Se ela não escreveu falas, o vídeo não tem falas.
+- O começo do vídeo é o primeiro acontecimento, não a primeira frase dela. O final é o último ponto dela; só invente um final se ela não escreveu nenhum, e nesse caso o mais simples.
+- A graça já está na ideia dela. Seu trabalho é deixar cada momento claro e fácil de filmar, não deixar mais engraçado.`;
+
+export function storyTask(o: { objective: Objective; humor: boolean; titled?: boolean; own?: boolean; cards?: string }): Task {
   const title = "\n- title: um nome curto para este vídeo, até 8 palavras, concreto e sem a palavra POV.";
+  const draft: Record<string, object> = o.own ? { pontos: strs } : { piadas: strs };
   return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: o.titled ? STORY_TEXT + title : STORY_TEXT }),
-    schema: obj({ ...(o.titled ? { title: STR } : {}), hook: STR, situation: STR, payoff: STR }),
-    example: o.titled ? `{"title":"","hook":"","situation":"","payoff":""}` : `{"hook":"","situation":"","payoff":""}`,
+    // Na ideia da própria pessoa, o módulo de humor fica de fora: ele puxa a IA a inventar piada em cima do que ela escreveu.
+    system: buildSystem({ objective: o.objective, humor: o.humor && !o.own, cards: o.cards, task: STORY_TEXT + (o.own ? STORY_FROM_PERSON : STORY_FROM_IDEA) + (o.titled ? title : "") }),
+    schema: obj({ ...draft, ...(o.titled ? { title: STR } : {}), hook: STR, situation: STR, payoff: STR }),
+    example: `{${o.own ? '"pontos":[""]' : '"piadas":[""]'},${o.titled ? '"title":"",' : ""}"hook":"","situation":"","payoff":""}`,
     thinking: "medio",
-    temperature: 0.8,
+    temperature: o.own ? 0.4 : 0.8,
     tier: "criar",
     task: "historia",
   };
@@ -275,9 +293,9 @@ const REWRITE_TEXT = `TAREFA: o roteiro inteiro vem no pedido, e o bloco a mudar
 - Mantenha as palavras, as gírias e as marcações de quem fala sempre que possível.
 - Se o pedido escrito pela pessoa pedir algo que as regras de segurança proíbem, atenda o resto e deixe essa parte de fora.`;
 
-export function rewriteTask(o: { objective: Objective; humor: boolean }): Task {
+export function rewriteTask(o: { objective: Objective; humor: boolean; cards?: string }): Task {
   return {
-    system: buildSystem({ objective: o.objective, humor: o.humor, task: REWRITE_TEXT }),
+    system: buildSystem({ objective: o.objective, humor: o.humor, cards: o.cards, task: REWRITE_TEXT }),
     schema: obj({ speech: STR, on_screen: STR, action: STR }),
     example: `{"speech":"","on_screen":"","action":""}`,
     thinking: "baixo",
@@ -312,7 +330,7 @@ const SHOT_RULES: Record<Objective, string> = {
 
 export function shotsTask(o: { objective: Objective | null }): Task {
   return {
-    system: buildSystem({ task: o.objective ? `${SHOTS_TEXT}\n\n${SHOT_RULES[o.objective]}` : SHOTS_TEXT }),
+    system: buildSystem({ master: "curto", task: o.objective ? `${SHOTS_TEXT}\n\n${SHOT_RULES[o.objective]}` : SHOTS_TEXT }),
     schema: obj({
       shots: list(
         obj({
@@ -368,7 +386,7 @@ export function postTask(o: { objective: Objective | null; platforms: Platform[]
   const platforms: Platform[] = o.platforms.length ? o.platforms : ["reels"];
   const post = obj({ caption: STR, title: STR, hashtags: strs });
   return {
-    system: buildSystem({ objective: o.objective, task: POST_TEXT }),
+    system: buildSystem({ master: "curto", task: POST_TEXT }),
     schema: obj({ cover_text: STR, cover_idea: STR, posts: obj(Object.fromEntries(platforms.map((p) => [p, post]))) }),
     example: `{"cover_text":"","cover_idea":"","posts":{${platforms.map((p) => `"${p}":{"caption":"","title":"","hashtags":[]}`).join(",")}}}`,
     thinking: "baixo",
@@ -429,7 +447,7 @@ export function formatsTag(resources: Resource[]): string {
   const solo = resources.includes("sozinho") && !resources.includes("com_alguem");
   return tag(
     "formatos",
-    FORMATS.filter((f) => !(solo && f.needsSomeone)).map((f) => `${f.slug} ("${f.name}"): ${f.summary} Estrutura: ${f.structure.join(" → ")}.`),
+    FORMATS.filter((f) => !(solo && f.needsSomeone)).map((f) => `${f.slug} ("${f.name}"): ${f.summary}`),
   );
 }
 

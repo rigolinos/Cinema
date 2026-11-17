@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiError, generateJson, hasAiProvider } from "@/lib/ai";
 import { aiLog } from "@/lib/ai-registro";
+import { generateChecked } from "@/lib/ia-conferida";
+import { draftProblems, normalizePoints, storyProblems } from "@/lib/qualidade";
 import { videoPlatforms, type Objective, type Resource } from "@/lib/ideas";
 import { assembleFromReading, faithful, normalizeReading, readingAsSegments, readingLines, readingSegments, type Reading } from "@/lib/leitura";
 import { memoryLines } from "@/lib/memoria";
@@ -10,7 +12,7 @@ import { context, tag, usesHumor } from "@/lib/prompts/base";
 import { draftRequest, storyRequest } from "@/lib/prompts/montagem";
 import { assembleTask, castTag, organizerTask, personTag, readingTask, productTag, rewriteTask, suggestionsTask, videoTag } from "@/lib/prompts/tarefas";
 import { firstNameOf, onCamera } from "@/lib/pessoas";
-import { normalizeDraft, normalizeRewrite, normalizeStory, normalizeSuggestions, polishBlock, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
+import { keepUnchanged, maxWords, normalizeDraft, normalizeRewrite, normalizeStory, normalizeSuggestions, polishBlock, scriptForPrompt, type ScriptBlock } from "@/lib/roteiro";
 import type { Video } from "@/types/database";
 
 function fail(message: string, status: number) {
@@ -78,6 +80,8 @@ export async function POST(request: NextRequest) {
   const polish = {
     names: [...(people ?? []).filter((p) => p.role !== "eu").map((p) => p.name), myName].map((n) => firstNameOf(n ?? "")).filter(Boolean),
     me: myName.trim() && (!eu || onCamera(eu)) ? firstNameOf(myName) : null,
+    // Quem aparece e pode ter fala, pelo primeiro nome.
+    cast: [myName.trim() && (!eu || onCamera(eu)) ? firstNameOf(myName) : "", ...(people ?? []).filter((p) => p.role !== "eu" && onCamera(p)).map((p) => firstNameOf(p.name))].filter(Boolean),
   };
   const shared = [
     cast,
@@ -107,15 +111,29 @@ export async function POST(request: NextRequest) {
   if (mode === "historia") {
     let story;
     let title = "";
+    // A história parte do texto da própria pessoa quando ela trouxe a ideia e ainda não há pedido de mudança.
+    const own = Boolean(titled && v.brief?.trim() && !ask);
     try {
-      const raw = await generateJson({ ...storyRequest({ ...idea, ask, titled }), log });
-      story = normalizeStory(raw);
-      const named = (raw as { title?: unknown })?.title;
+      let raw: unknown = null;
+      const result = await generateChecked(
+        { ...storyRequest({ ...idea, ask, titled, own, seed: videoId }), log },
+        {
+          parse: (r) => {
+            raw = r;
+            return normalizeStory(r);
+          },
+          problems: (s) => storyProblems(s, { humor, ...(own ? { own: v.brief, points: normalizePoints((raw as { pontos?: unknown })?.pontos, v.brief) } : {}) }),
+        },
+      );
+      story = result.value;
+      const named = (raw as { title?: unknown } | null)?.title;
       if (titled && typeof named === "string") title = named.trim().slice(0, 140);
     } catch (err) {
       return aiFailure(err);
     }
     if (!story) return fail("A IA não trouxe a história desta vez. Tente de novo.", 502);
+    // Pedido de mudança: o que ela não pediu para mudar volta a ser como estava, palavra por palavra.
+    if (ask && v.hook) story = keepUnchanged({ hook: v.hook, situation: v.situation ?? "", payoff: v.payoff ?? "" }, story);
     const { error } = await supabase.from("videos").update(title ? { ...story, title } : story).eq("id", videoId);
     if (error) return fail("Não foi possível guardar a história.", 500);
     if (ask) await supabase.from("creator_signals").insert({ kind: "pedido_ideia", video_id: videoId, detail: { pedido: ask.slice(0, 160) } });
@@ -126,7 +144,17 @@ export async function POST(request: NextRequest) {
     const call = draftRequest(idea);
     let blocks: ScriptBlock[];
     try {
-      blocks = normalizeDraft(await generateJson({ ...call, log })).map((b) => polishBlock(b, polish));
+      const result = await generateChecked(
+        { ...call, log },
+        {
+          parse: (r) => {
+            const list = normalizeDraft(r).map((b) => polishBlock(b, polish));
+            return list.length ? list : null;
+          },
+          problems: (list) => draftProblems(list, { maxWords: maxWords(v.duration_s ?? 30), cast: polish.cast, story: [v.hook, v.situation, v.payoff].filter(Boolean).join(" ") }),
+        },
+      );
+      blocks = result.value ?? [];
     } catch (err) {
       return aiFailure(err);
     }

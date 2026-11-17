@@ -9,11 +9,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { it } from "vitest";
 import { generateJson, type AiMeta } from "../src/lib/ai";
+import { generateChecked } from "../src/lib/ia-conferida";
 import { normalizeIdeas } from "../src/lib/ideas";
 import { draftRequest, ideasRequest, storyRequest } from "../src/lib/prompts/montagem";
 import { castTag } from "../src/lib/prompts/tarefas";
-import { draftProblems, ideaProblems, quotedLines, storyProblems } from "../src/lib/qualidade";
-import { maxWords, normalizeDraft, normalizeStory, wordCount } from "../src/lib/roteiro";
+import { draftProblems, ideaProblems, inventedShare, normalizePoints, quotedLines, storyProblems, tidyIdeas } from "../src/lib/qualidade";
+import { maxWords, normalizeDraft, normalizeStory, polishBlock, wordCount } from "../src/lib/roteiro";
 import { fold } from "../src/lib/texto";
 import { CASES, type ProvaCase } from "./casos";
 
@@ -77,8 +78,8 @@ it("banco de provas", { timeout: 3_600_000 }, async () => {
       idea = { ...idea, title: c.ownIdea.split(/\s+/).slice(0, 6).join(" "), hook: c.ownIdea.slice(0, 120) };
     } else {
       try {
-        const { data, meta } = await ask(ideasRequest({ video: video(c), person: person(c), cast: cast(c), seen: [], trends: [] }));
-        const ideas = normalizeIdeas(data);
+        const { data, meta } = await ask(ideasRequest({ video: video(c), person: person(c), cast: cast(c), seen: [], trends: [], seed: c.id }));
+        const ideas = tidyIdeas(normalizeIdeas(data));
         if (ideas.length === 0) throw new Error("sem ideias");
         const problems = ideas.flatMap((i, n) => ideaProblems(i).map((p) => `ideia ${n + 1}: ${p.code}`));
         steps.push({
@@ -99,16 +100,31 @@ it("banco de provas", { timeout: 3_600_000 }, async () => {
 
     let story: { hook: string; situation: string; payoff: string } | null = null;
     try {
-      const { data, meta } = await ask(storyRequest({ video: { ...video(c), ...idea }, person: person(c), cast: cast(c), titled: Boolean(c.ownIdea) }));
-      story = normalizeStory(data);
+      const own = Boolean(c.ownIdea);
+      const humor = c.objective === "divertir";
+      let meta: AiMeta | null = null;
+      let rawStory: unknown = null;
+      await wait(pause);
+      const checked = await generateChecked(
+        { ...storyRequest({ video: { ...video(c), ...idea }, person: person(c), cast: cast(c), titled: own, own, seed: c.id }), log: (m) => void (meta = m) },
+        {
+          parse: (r) => {
+            rawStory = r;
+            return normalizeStory(r);
+          },
+          problems: (s) => storyProblems(s, { humor, ...(own ? { own: c.ownIdea, points: normalizePoints((rawStory as { pontos?: unknown })?.pontos, c.ownIdea ?? "") } : {}) }),
+        },
+      );
+      story = checked.value;
       if (!story) throw new Error("sem história");
+      const retriedStory = checked.retried;
       const text = [story.hook, story.situation, story.payoff].join("\n\n");
       const found = c.mustKeep ? kept(c.mustKeep, text) : [];
       steps.push({
         step: "historia",
         meta,
-        numbers: { caracteres: text.length, falas_entre_aspas: quotedLines(text), ...(c.mustKeep ? { pontos_da_pessoa: `${found.length}/${c.mustKeep.length}` } : {}) },
-        problems: [...storyProblems(story, { humor: c.objective === "divertir" }).map((p) => p.code), ...(c.mustKeep ?? []).filter((p) => !found.includes(p)).map((p) => `faltou: ${p}`)],
+        numbers: { caracteres: text.length, falas_entre_aspas: quotedLines(text), pediu_correcao: retriedStory ? "sim" : "não", ...(own ? { inventado: `${Math.round(inventedShare(story, c.ownIdea ?? "") * 100)}%` } : {}), ...(c.mustKeep ? { pontos_da_pessoa: `${found.length}/${c.mustKeep.length}` } : {}) },
+        problems: [...checked.problems.map((p) => p.code), ...(c.mustKeep ?? []).filter((p) => !found.includes(p)).map((p) => `faltou: ${p}`)],
         text,
       });
     } catch (err) {
@@ -118,13 +134,26 @@ it("banco de provas", { timeout: 3_600_000 }, async () => {
     }
 
     try {
-      const { data, meta } = await ask(draftRequest({ video: { ...video(c), ...idea, ...story }, person: person(c), cast: cast(c) }));
-      const raw = ((data as { blocks?: Raw[] })?.blocks ?? []) as Raw[];
-      const blocks = normalizeDraft(data);
-      if (blocks.length === 0) throw new Error("sem roteiro");
-      const all = raw.map((b) => [b.speech, b.on_screen, b.action].join("\n")).join("\n");
       const names = [c.cast?.me.split(" ")[0] ?? "", ...(c.cast?.guests ?? [])].filter(Boolean);
       const limit = maxWords(c.durationS);
+      let meta: AiMeta | null = null;
+      let data: unknown = null;
+      await wait(pause);
+      const checked = await generateChecked(
+        { ...draftRequest({ video: { ...video(c), ...idea, ...story }, person: person(c), cast: cast(c), seed: c.id }), log: (m) => void (meta = m) },
+        {
+          parse: (r) => {
+            data = r;
+            const list = normalizeDraft(r).map((b) => polishBlock(b, { names, me: names[0] ?? null }));
+            return list.length ? list : null;
+          },
+          problems: (list) => draftProblems(list, { maxWords: limit, cast: names, story: [story!.hook, story!.situation, story!.payoff].join(" ") }),
+        },
+      );
+      const raw = ((data as { blocks?: Raw[] } | null)?.blocks ?? []) as Raw[];
+      const blocks = checked.value ?? [];
+      if (blocks.length === 0) throw new Error("sem roteiro");
+      const all = blocks.map((b) => [b.speech, b.on_screen, b.action].join("\n")).join("\n");
       const words = wordCount(blocks.map((b) => b.speech).join(" "));
       const found = c.mustKeep ? kept(c.mustKeep, all) : [];
       steps.push({
@@ -132,14 +161,15 @@ it("banco de provas", { timeout: 3_600_000 }, async () => {
         meta,
         numbers: {
           cenas: blocks.length,
+          pediu_correcao: checked.retried ? "sim" : "não",
           palavras_de_fala: `${words}/${limit}`,
           cenas_com_corte_no_meio: raw.filter((b) => /\bCORTE\b|corta para/i.test(b.action ?? "")).length,
           voce_na_acao: raw.filter((b) => /\bvocê\b/i.test(b.action ?? "")).length,
           nome_em_minuscula: names.filter((n) => new RegExp(`(?<![\\p{L}])${n.toLowerCase()}(?![\\p{L}])`, "u").test(all)).length,
-          ...(names.length > 1 ? { pessoas_com_fala: names.filter((n) => new RegExp(`^\\s*${n}\\s*:`, "im").test(raw.map((b) => b.speech ?? "").join("\n"))).length + `/${names.length}` } : {}),
+          ...(names.length > 1 ? { pessoas_com_fala: names.filter((n) => new RegExp(`^\\s*${n}\\s*:`, "im").test(blocks.map((b) => b.speech).join("\n"))).length + `/${names.length}` } : {}),
           ...(c.mustKeep ? { pontos_da_pessoa: `${found.length}/${c.mustKeep.length}` } : {}),
         },
-        problems: [...draftProblems(blocks, { maxWords: limit }).map((p) => p.code), ...(c.mustKeep ?? []).filter((p) => !found.includes(p)).map((p) => `faltou: ${p}`)],
+        problems: [...checked.problems.map((p) => p.code), ...(c.mustKeep ?? []).filter((p) => !found.includes(p)).map((p) => `faltou: ${p}`)],
         text: blocks.map((b, n) => `**Cena ${n + 1}** _${b.action}_\n${b.speech}${b.on_screen ? `\n[na tela] ${b.on_screen}` : ""}`).join("\n\n"),
       });
     } catch (err) {

@@ -211,7 +211,8 @@ describe("a história antes do roteiro", () => {
     expect(r.prompt).toContain("<ideia>");
     expect(r.prompt).not.toContain("<pedido_agora>");
     expect(r.prompt).not.toMatch(/undefined|null|NaN|\[object|\n{3,}/);
-    expect(r.system).toContain("duas piadas prontas");
+    expect(r.system).toContain("piadas (só se o vídeo tem humor");
+    expect(JSON.stringify(r.schema)).toContain("piadas");
   });
 
   it("com pedido, muda só o que foi pedido na história atual", () => {

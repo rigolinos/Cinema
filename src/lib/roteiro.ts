@@ -191,7 +191,39 @@ export function polishBlock<B extends Pick<ScriptBlock, "speech" | "on_screen" |
     action = [action.trim().replace(/[.\s]+$/, ""), onScreen.trim()].filter(Boolean).join(". ");
     onScreen = "";
   }
-  return { ...block, speech: capitalizeNames(block.speech, cast.names), on_screen: onScreen, action };
+  const speech = capitalizeNames(block.speech, cast.names);
+  // Texto da tela igual à fala é repetição: fica só a fala.
+  const same = (a: string, b: string) => a.replace(/[^\p{L}\p{N}]+/gu, "").toLocaleLowerCase("pt-BR") === b.replace(/[^\p{L}\p{N}]+/gu, "").toLocaleLowerCase("pt-BR");
+  if (onScreen.trim() && same(onScreen, speech)) onScreen = "";
+  return { ...block, speech, on_screen: onScreen, action };
+}
+
+// Pedido de mudança na história: a frase que a IA só reescreveu com outras palavras volta a ser a original.
+// Assim, o que a pessoa não pediu para mudar fica igual, palavra por palavra.
+export function keepUnchanged(before: StoryParts, after: StoryParts): StoryParts {
+  const split = (t: string) => t.match(/[^.!?…]+[.!?…]+["”»)]?\s*|[^.!?…]+$/g)?.map((s) => s.trim()).filter(Boolean) ?? [];
+  const words = (s: string) => new Set(s.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/\p{M}/gu, "").split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2));
+  const old = [before.hook, before.situation, before.payoff].flatMap(split);
+  const restore = (text: string) =>
+    text
+      .split(/(\n\s*\n)/)
+      .map((chunk) =>
+        /^\n/.test(chunk)
+          ? chunk
+          : split(chunk)
+              .map((s) => {
+                const w = words(s);
+                const twin = old.find((o) => {
+                  const ow = words(o);
+                  const shared = [...w].filter((x) => ow.has(x)).length;
+                  return o !== s && w.size >= 3 && shared / new Set([...w, ...ow]).size >= 0.8;
+                });
+                return twin ?? s;
+              })
+              .join(" "),
+      )
+      .join("");
+  return { hook: restore(after.hook), situation: restore(after.situation), payoff: restore(after.payoff) };
 }
 
 // A história que a IA conta antes do roteiro. Os limites são os das colunas do vídeo.
