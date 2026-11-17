@@ -93,6 +93,8 @@ async function failFrom(res: Response, step: Step): Promise<never> {
   const body = await res.text().catch(() => "");
   console.error(`${step.provider} ${step.model} respondeu ${res.status}:`, body.slice(0, 500));
   if (res.status === 429) resting.set(step.model, Date.now() + REST_MS);
+  // Sobrecarga costuma passar logo: um minuto de fora já evita repetir a espera no pedido seguinte.
+  if (res.status === 503) resting.set(step.model, Date.now() + 60_000);
   throw new AiError(`${step.provider} indisponível`, res.status === 429 ? "limit" : "unavailable");
 }
 

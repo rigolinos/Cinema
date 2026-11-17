@@ -2,7 +2,8 @@
 // Cada problema traz a frase que volta para a IA quando o app pede uma correção.
 import type { ScriptBlock, StoryParts } from "./roteiro";
 import { wordCount } from "./roteiro";
-import { contentWords, fold } from "./texto";
+import { isMe, speechLines } from "./convidado";
+import { contentWords, fold, overlap } from "./texto";
 
 export interface Problem {
   code: string;
@@ -52,9 +53,31 @@ export function coveredPoints(points: string[], text: string): { covered: string
   return { covered, missing };
 }
 
-export function storyProblems(story: StoryParts, o: { humor?: boolean; points?: string[] } = {}): Problem[] {
+// Os pontos que a IA listou só valem se vierem mesmo do texto da pessoa.
+export function normalizePoints(raw: unknown, source: string): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((p): p is string => typeof p === "string")
+    .map((p) => p.trim().slice(0, 160))
+    .filter((p) => p && overlap(p, source) >= 0.6)
+    .slice(0, 12);
+}
+
+// Quanto da história não está no que a pessoa escreveu, de 0 a 1, pelas palavras que contam.
+export function inventedShare(story: StoryParts, source: string): number {
+  return 1 - overlap([story.hook, story.situation, story.payoff].join(" "), source);
+}
+
+export function storyProblems(story: StoryParts, o: { humor?: boolean; points?: string[]; own?: string } = {}): Problem[] {
   const text = [story.hook, story.situation, story.payoff].join("\n");
   const out: Problem[] = [];
+  // Ideia da própria pessoa: a história não pode trazer falas nem acontecimentos que ela não escreveu.
+  if (o.own?.trim()) {
+    // Fala entre aspas cujas palavras não estão no texto dela. "Elogia: nossa, que focada", sem aspas, conta como fala dela.
+    const made = (text.match(QUOTED) ?? []).find((q) => overlap(q, o.own as string) < 0.6);
+    if (made) out.push({ code: "fala_inventada", fix: `A fala ${made.trim()} não está no que a pessoa escreveu. Tire as falas que ela não escreveu; se ela não escreveu nenhuma, o vídeo é só de gestos e ações.` });
+    if (inventedShare(story, o.own) > 0.75) out.push({ code: "inventou", fix: "A história traz muita coisa que a pessoa não escreveu. Tire personagens, animais, objetos, piadas e finais que não estão em <ideia_da_pessoa> e fique só com os acontecimentos dela, na ordem dela." });
+  }
   const vague = hits(VAGUE, text);
   if (vague.length) out.push({ code: "vago", fix: `Você escreveu ${quote(vague)} no lugar do que acontece. Troque por o acontecimento exato: o que se vê ou o que se ouve.` });
   if (story.payoff.trim().length < 15) out.push({ code: "sem_final", fix: "Falta o final. Escreva em payoff o último momento do vídeo: a virada, o resultado, a dica ou a oferta, com as palavras exatas." });
@@ -69,8 +92,21 @@ export function storyProblems(story: StoryParts, o: { humor?: boolean; points?: 
   return out;
 }
 
-export function draftProblems(blocks: Pick<ScriptBlock, "speech" | "on_screen" | "action">[], o: { maxWords: number }): Problem[] {
+export function draftProblems(blocks: Pick<ScriptBlock, "speech" | "on_screen" | "action">[], o: { maxWords: number; cast?: string[]; story?: string }): Problem[] {
   const out: Problem[] = [];
+  const lines = blocks.flatMap((b) => speechLines(b.speech));
+  // A história aprovada não tem nenhuma fala: o roteiro não pode inventar uma em cada cena.
+  if (o.story?.trim() && quotedLines(o.story) === 0 && !/\b(diz|fala|responde|grita|pergunta|sussurra|narra)\w*/i.test(o.story) && lines.length > 0) {
+    out.push({ code: "fala_inventada", fix: "A história aprovada não tem nenhuma fala, e o roteiro tem. Deixe speech vazio em todas as cenas: o vídeo é só de gestos e ações." });
+  }
+  // Narração dentro da fala: "Lia segura a lâmpada: 'modo festa'".
+  const narrated = lines.find((l) => /["“”'‘’][^"“”'‘’]{3,}["“”'‘’]/.test(l.raw) && /\S+\s+\S+.*:\s*["“'‘]/.test(l.raw));
+  if (narrated) out.push({ code: "narracao_na_fala", fix: `A fala "${narrated.raw.slice(0, 80)}" mistura descrição com fala. Em speech fica só o que a pessoa diz; o gesto vai em action.` });
+  const cast = o.cast ?? [];
+  if (cast.length > 1) {
+    const unnamed = lines.find((l) => !l.speaker || !cast.some((c) => isMe(l.speaker as string, c)));
+    if (unnamed) out.push({ code: "fala_sem_nome", fix: `O vídeo tem mais de uma pessoa (${cast.join(", ")}), e a fala "${unnamed.raw.slice(0, 60)}" não diz de quem é. Comece cada fala com o nome de quem fala, uma fala por linha.` });
+  }
   const speech = blocks.map((b) => b.speech).join("\n");
   const all = blocks.map((b) => [b.speech, b.on_screen, b.action].join("\n")).join("\n");
   const words = wordCount(speech);
@@ -104,4 +140,11 @@ export function sameIdea(a: { title: string; situation?: string | null }, b: { t
   if (x.size < 3 || y.size < 3) return false;
   const shared = [...x].filter((w) => y.has(w)).length;
   return shared / new Set([...x, ...y]).size >= 0.6;
+}
+
+// Ideias da mesma leva: as repetidas saem (se ainda sobrarem pelo menos 3) e as que têm defeito vão para o fim.
+export function tidyIdeas<T extends { title: string; hook: string; situation?: string | null; payoff?: string | null }>(ideas: T[]): T[] {
+  const unique = ideas.filter((idea, i) => !ideas.slice(0, i).some((earlier) => sameIdea(earlier, idea)));
+  const list = unique.length >= 3 ? unique : ideas;
+  return list.map((idea, i) => ({ idea, i, bad: ideaProblems(idea).length })).sort((a, b) => a.bad - b.bad || a.i - b.i).map((x) => x.idea);
 }
