@@ -65,11 +65,13 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
   const summary = video && hasScript ? sheetSummary(video, people) : "";
 
   // Ninguém para chamar: segue direto para os planos (dá para voltar em Pessoas depois).
+  // Com os planos já prontos (saem ao aprovar o roteiro), pular deixa o vídeo pronto para gravar aqui mesmo.
   async function skipPeople() {
     if (!video) return;
-    const stage = nextReadyStage("pessoas");
+    const stage = shots.length > 0 ? "gravar" : nextReadyStage("pessoas");
     const { error } = await createClient().from("videos").update({ stage }).eq("id", id);
     if (error) setDeleteError("Não deu para pular. Tente de novo.");
+    else if (stage === "gravar") setVideo({ ...video, stage });
     else router.push(`/video/${id}/${stage}`);
   }
 
@@ -343,7 +345,7 @@ export default function VideoPage({ params }: { params: Promise<{ id: string }> 
 
           {hasScript && video.stage === "pessoas" && (
             <button type="button" onClick={skipPeople} className="flex min-h-12 items-center justify-center rounded-full border-[1.5px] border-foreground font-semibold">
-              Vou gravar sozinho, pular para os planos
+              {shots.length > 0 ? "Vou gravar sozinho, sem chamar ninguém" : "Vou gravar sozinho, pular para os planos"}
             </button>
           )}
 
