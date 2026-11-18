@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSavedIdeas } from "@/components/gravai/guardar";
+import { WelcomeInstall } from "@/components/gravai/instalar";
 import { MemoryNote } from "@/components/gravai/memoria";
 import { RadarCard, useRadar } from "@/components/gravai/radar";
 import { InviteCard, VideoCard, type VideoRow } from "@/components/gravai/video-card";
@@ -51,6 +52,8 @@ export default function InicioPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Enquanto o app não está nas lojas: uma vez, no celular, o convite para pôr o Gravaí na tela de início. */}
+      <WelcomeInstall />
       <header className="flex items-center justify-between">
         <Logo className="text-[26px]" />
       </header>

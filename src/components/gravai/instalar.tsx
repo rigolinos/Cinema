@@ -81,7 +81,19 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
 
 const icon = "inline size-4 align-[-2px]";
 
-function Sheet({ mode, onClose }: { mode: Exclude<InstallMode, "instalado" | "direto">; onClose: () => void }) {
+// Abre a janela de instalação do Chrome. Ela só pode ser usada uma vez.
+async function promptInstall() {
+  if (!deferred) return;
+  const event = deferred;
+  deferred = null;
+  await event.prompt();
+  const { outcome } = await event.userChoice;
+  if (outcome === "accepted") installed = true;
+  notify();
+}
+
+// welcome: a versão de boas-vindas, que aparece uma vez depois do cadastro; "direto" instala com um toque.
+function Sheet({ mode, onClose, welcome = false }: { mode: Exclude<InstallMode, "instalado">; onClose: () => void; welcome?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -104,10 +116,16 @@ function Sheet({ mode, onClose }: { mode: Exclude<InstallMode, "instalado" | "di
           <div className="flex flex-col gap-1.5">
             <span className="label-set flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
-              Gravaí
+              {welcome ? "Boas-vindas ao Gravaí" : "Gravaí"}
             </span>
             <h2 id="instalar-titulo" className="text-lg font-bold leading-snug">
-              {mode === "iphone" ? "No iPhone são 2 toques" : mode === "outro-app" ? "Abra no seu navegador" : "Pelo menu do navegador"}
+              {welcome
+                ? "Coloque o Gravaí na tela do seu celular"
+                : mode === "iphone"
+                  ? "No iPhone são 2 toques"
+                  : mode === "outro-app"
+                    ? "Abra no seu navegador"
+                    : "Pelo menu do navegador"}
             </h2>
           </div>
           <button type="button" aria-label="Fechar" onClick={onClose} className="-mr-2 flex size-11 shrink-0 items-center justify-center">
@@ -154,10 +172,30 @@ function Sheet({ mode, onClose }: { mode: Exclude<InstallMode, "instalado" | "di
           </>
         )}
 
-        <p className="text-sm leading-relaxed text-muted-foreground">Depois o Gravaí abre com um toque, em tela cheia, como um app.</p>
-        <button type="button" onClick={onClose} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
-          Entendi
-        </button>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Depois o Gravaí abre com um toque, em tela cheia, como um app.{welcome ? " Enquanto não estamos nas lojas, é por aqui." : ""}
+        </p>
+        {!welcome ? (
+          <button type="button" onClick={onClose} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
+            Entendi
+          </button>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {mode === "direto" && (
+              <button type="button" onClick={() => promptInstall().finally(onClose)} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
+                Instalar o app
+              </button>
+            )}
+            {(mode === "iphone" || mode === "menu") && (
+              <button type="button" onClick={onClose} className="min-h-12 rounded-full bg-primary font-bold text-primary-foreground">
+                Pronto, adicionei
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="min-h-12 text-sm font-semibold text-muted-foreground">
+              Agora não
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -171,15 +209,7 @@ export function InstallItem() {
   if (mode === null) return null;
 
   async function open() {
-    if (mode === "direto" && deferred) {
-      const event = deferred;
-      deferred = null; // o Chrome só deixa usar uma vez
-      await event.prompt();
-      const { outcome } = await event.userChoice;
-      if (outcome === "accepted") installed = true;
-      notify();
-      return;
-    }
+    if (mode === "direto" && deferred) return promptInstall();
     setSheet(true);
   }
 
@@ -208,4 +238,33 @@ export function InstallItem() {
       {sheet && mode !== "direto" && <Sheet mode={mode} onClose={() => setSheet(false)} />}
     </>
   );
+}
+
+// Boas-vindas: depois do cadastro, a folha de instalar aparece uma vez no Início, só no celular e só se o
+// Gravaí ainda não está aberto como app. Lembra no próprio aparelho que já apareceu: nada vai para a conta.
+const SEEN = "gravai-boas-vindas-instalar";
+
+function alreadySeen(): boolean {
+  try {
+    return localStorage.getItem(SEEN) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function WelcomeInstall() {
+  const mode = useInstallMode();
+  const [closed, setClosed] = useState(false);
+  if (mode === null || mode === "instalado" || closed || alreadySeen()) return null;
+  // No computador não há tela de início para pôr o app.
+  if (!window.matchMedia("(pointer: coarse)").matches) return null;
+
+  function close() {
+    try {
+      localStorage.setItem(SEEN, "1");
+    } catch {}
+    setClosed(true);
+  }
+
+  return <Sheet mode={mode} onClose={close} welcome />;
 }
