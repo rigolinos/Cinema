@@ -11,9 +11,13 @@ const usuario = { id: "00000000-0000-4000-8000-000000000001", aud: "authenticate
 const cookie = { name: "sb-localhost-auth-token", value: encodeURIComponent(JSON.stringify({ access_token: jwt, token_type: "bearer", expires_in: 3600, expires_at: 9999999999, refresh_token: "r", user: usuario })), domain: "localhost", path: "/" };
 export const check = (nome, ok, extra = "") => console.log(ok ? "ok    " : "FALHOU", nome, extra);
 
-export async function abrir(viewport = { width: 375, height: 812 }) {
+// opções: boasVindas mostra a folha de instalar do primeiro acesso (nos outros testes ela já foi vista);
+// ua troca o aparelho; mesa abre como computador, sem toque.
+export async function abrir(viewport = { width: 375, height: 812 }, opcoes = {}) {
   const b = await chromium.launch({ channel: "chrome", headless: true });
-  const c = await b.newContext({ viewport, deviceScaleFactor: Number(process.env.ESCALA ?? 2), hasTouch: true, isMobile: true });
+  const mesa = opcoes.mesa === true;
+  const c = await b.newContext({ viewport, deviceScaleFactor: Number(process.env.ESCALA ?? 2), hasTouch: !mesa, isMobile: !mesa, ...(opcoes.ua ? { userAgent: opcoes.ua } : {}) });
+  if (!opcoes.boasVindas) await c.addInitScript(() => localStorage.setItem("gravai-boas-vindas-instalar", "1"));
   await c.addCookies([cookie]);
   const p = await c.newPage();
   const erros = [];
