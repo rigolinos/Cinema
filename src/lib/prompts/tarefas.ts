@@ -150,13 +150,16 @@ No text de cada item:
 - Mantenha o jeito dela: gírias, palavrões, expressões, palavras em inglês (estas entre aspas: "relatable") e a ordem das palavras. Não troque palavra por sinônimo, não resuma, não acrescente frase. Emoji vira a palavra do que ele mostra só em ação ("cara de 😱" → "cara de susto").
 - Nada fica de fora: todo o texto colado aparece em algum item.
 
+Cenas marcadas: se a pessoa dividiu o texto em cenas (CENA 1, Cena 2, CENA3, CENA 4 …), cada item diz em scene o número da cena em que está. A marca "CENA 1" não vira item. Sem marcas no texto, scene é 0 em todos.
+headings: para cada cena marcada, o número dela (scene) e o cabeçalho (heading), como em roteiro de filme: INT. ou EXT., o lugar e DIA ou NOITE ("INT. BANHEIRO – DIA"). Use só o lugar que o texto diz ou deixa claro (privada → BANHEIRO, carro → CARRO, cama → QUARTO); sem lugar claro, heading "". Uma entrada para cada cena marcada, sem pular nenhuma. Sem cenas marcadas, lista vazia.
+
 summary: do que o vídeo trata, em 1 ou 2 frases. tone: o tom em poucas palavras ("humor, fofoca de escola"). people: os nomes de quem aparece ou fala, como estão no roteiro.`;
 
 export function readingTask(): Task {
   return {
     system: READING_SYSTEM,
-    schema: obj({ summary: STR, tone: STR, people: strs, items: list(obj({ kind: oneOf(["fala", "tela", "acao", "camera"]), speaker: STR, text: STR })) }),
-    example: `{"summary":"","tone":"","people":[],"items":[{"kind":"fala","speaker":"","text":""}]}`,
+    schema: obj({ summary: STR, tone: STR, people: strs, headings: list(obj({ scene: INT, heading: STR })), items: list(obj({ scene: INT, kind: oneOf(["fala", "tela", "acao", "camera"]), speaker: STR, text: STR })) }),
+    example: `{"summary":"","tone":"","people":[],"headings":[{"scene":1,"heading":""}],"items":[{"scene":0,"kind":"fala","speaker":"","text":""}]}`,
     thinking: "baixo",
     temperature: 0.2,
     tier: "criar",
@@ -169,6 +172,7 @@ const ASSEMBLE_SYSTEM = `Você organiza roteiros de vídeo curto em partes. O ro
 
 Para cada item:
 - block: em qual parte ele fica. Partes são numeradas a partir de 1, na ordem do roteiro. Itens seguidos que fazem a mesma coisa na história ficam na mesma parte; uma conversa curta fica inteira numa parte.
+- Se os itens dizem a cena que a pessoa marcou ("cena N"), itens de cenas diferentes nunca ficam na mesma parte, mesmo que falem do mesmo assunto.
 - kind: o papel da parte: gancho (o começo que prende), contexto (situa quem assiste), conteudo (o miolo), virada (a surpresa, o resultado ou a revelação) ou chamada (o pedido final).
 
 Regras:
@@ -177,13 +181,14 @@ Regras:
 - Todo item aparece uma vez, na ordem.
 
 labels: um nome curto (até 3 palavras) para cada parte, na ordem, tirado do que acontece nela ("A fofoca", "Flagra na quadra").
+headings: um cabeçalho para cada parte, na ordem, como em roteiro de filme: INT. ou EXT., o lugar e DIA ou NOITE ("EXT. QUADRA – DIA"), só com o lugar que o roteiro deixa claro; sem lugar claro, "". Partes seguidas no mesmo lugar e momento repetem o mesmo cabeçalho.
 title: um título curto (até 6 palavras) que resuma o vídeo, para a lista de vídeos.`;
 
 export function assembleTask(): Task {
   return {
     system: ASSEMBLE_SYSTEM,
-    schema: obj({ title: STR, labels: strs, items: list(obj({ n: INT, block: INT, kind: oneOf(KIND_VALUES) })) }),
-    example: `{"title":"","labels":[""],"items":[{"n":1,"block":1,"kind":"gancho"}]}`,
+    schema: obj({ title: STR, labels: strs, headings: strs, items: list(obj({ n: INT, block: INT, kind: oneOf(KIND_VALUES) })) }),
+    example: `{"title":"","labels":[""],"headings":[""],"items":[{"n":1,"block":1,"kind":"gancho"}]}`,
     thinking: "zero",
     temperature: 0.2,
     tier: "rotina",

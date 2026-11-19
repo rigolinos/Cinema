@@ -182,7 +182,7 @@ ok(!r.err && chosen.length === 1 && chosen[0] === idea2, 'trocar de ideia deixa 
 console.log('Roteiro:');
 const blocos = JSON.stringify([
   { kind: 'gancho', speech: 'Você erra isso.', on_screen: '3 ERROS', heading: 'INT. ACADEMIA – DIA' },
-  { kind: 'conteudo', label: 'Erro 1', speech: 'Primeiro erro.', action: 'Mostra o agachamento' },
+  { kind: 'conteudo', label: 'Erro 1', speech: 'Primeiro erro.', action: 'Mostra o agachamento', same_scene: true },
   { kind: 'chamada', speech: 'Segue para mais.' },
 ]);
 r = await as('authenticated', A, 'SELECT id, position, kind, label FROM public.replace_script($1, $2::jsonb) ORDER BY position', [vidA, blocos]);
@@ -191,6 +191,8 @@ ok(r.rows?.[1]?.label === 'Erro 1' && r.rows?.[0]?.label === null, 'rótulo opci
 {
   const cab = (await q('SELECT heading FROM public.script_blocks WHERE video_id = $1 ORDER BY position', [vidA])).rows.map((x) => x.heading);
   ok(cab[0] === 'INT. ACADEMIA – DIA' && cab[1] === null, 'o rascunho guarda o cabeçalho de cada cena, e cena sem cabeçalho fica vazia');
+  const cont = (await q('SELECT same_scene FROM public.script_blocks WHERE video_id = $1 ORDER BY position', [vidA])).rows.map((x) => x.same_scene);
+  ok(cont.join() === 'false,true,false', 'o rascunho guarda se a parte continua a cena anterior');
 }
 const bloco1 = r.rows?.[0]?.id;
 r = await as('authenticated', A, 'SELECT id FROM public.replace_script($1, $2::jsonb)', [vidA, JSON.stringify([{ kind: 'gancho', speech: 'Novo' }])]);

@@ -20,6 +20,7 @@ export interface ScriptBlock {
   on_screen: string; // texto que aparece na tela
   action: string; // o que acontece em cena
   heading?: string | null; // cabeçalho da cena, como num roteiro de filme: "INT. COZINHA – DIA"
+  same_scene?: boolean; // esta parte continua a cena anterior (aparece sem cabeçalho próprio)
 }
 
 // Fala em português, num vídeo curto: por volta de 2,6 palavras por segundo.
@@ -96,7 +97,8 @@ export function checkScript(blocks: ScriptBlock[], targetSeconds: number | null,
 // o lugar que os planos dizem.
 export function sceneHeading(n: number, place?: string | null): string {
   const where = place?.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
-  return where ? `${n}. ${where}` : `CENA ${n}`;
+  // "CENA 3" sem lugar é só a marca que agrupa as partes de uma cena: na tela vira o número dela.
+  return where && !/^CENA\s*\d+$/.test(where) ? `${n}. ${where}` : `CENA ${n}`;
 }
 
 // A fala no formato de roteiro: quem fala em maiúsculas, a fala embaixo. "Nome: fala" separa; sem nome,
@@ -111,7 +113,7 @@ export function dialogueOf(speech: string, fallback: string | null, cast: string
 
 // O roteiro para copiar, no formato universal de roteiro: cabeçalho da cena, ação, NOME e fala, texto na tela.
 export function scriptAsText(title: string, blocks: ScriptBlock[], opts: { places?: (string | null)[]; speakers?: (string | null)[]; cast?: string[] } = {}): string {
-  const groups = sceneGroups(blocks.map((_, i) => opts.places?.[i] ?? null));
+  const groups = sceneGroups(blocks);
   let text = title.toUpperCase();
   blocks.forEach((b, i) => {
     const out = groups[i].show ? [sceneHeading(groups[i].number, opts.places?.[i])] : [];
@@ -123,17 +125,23 @@ export function scriptAsText(title: string, blocks: ScriptBlock[], opts: { place
   return text;
 }
 
-// Partes seguidas com o mesmo cabeçalho (mesmo lugar, mesmo momento) são uma cena só, como num roteiro de
-// filme: o cabeçalho aparece uma vez e o número conta só as cenas. Por dentro, cada parte continua separada
-// (planos, teleprompter e ajuste usam as partes). Parte sem cabeçalho nem lugar conta como cena própria.
-export function sceneGroups(headings: (string | null | undefined)[]): { show: boolean; number: number }[] {
-  const key = (h: string | null | undefined) => h?.trim().toLocaleUpperCase("pt-BR") || null;
+// Uma cena pode ter várias partes, como num roteiro de filme: o cabeçalho aparece uma vez e o número conta
+// só as cenas. Por dentro, cada parte continua separada (planos, teleprompter e ajuste usam as partes).
+// Quem diz se a parte continua a cena anterior é a própria parte (same_scene), nunca só o cabeçalho igual:
+// duas cenas que a pessoa marcou no mesmo lugar continuam duas.
+export function sceneGroups(parts: { same_scene?: boolean | null }[]): { show: boolean; number: number }[] {
   let n = 0;
-  return headings.map((h, i) => {
-    const show = i === 0 || !key(h) || key(h) !== key(headings[i - 1]);
+  return parts.map((p, i) => {
+    const show = i === 0 || !p.same_scene;
     if (show) n++;
     return { show, number: n };
   });
+}
+
+// No roteiro escrito pela IA, partes seguidas com o mesmo cabeçalho são a mesma cena.
+export function markSameScene<B extends { heading?: string | null; same_scene?: boolean }>(blocks: B[]): B[] {
+  const key = (h: string | null | undefined) => h?.trim().toLocaleUpperCase("pt-BR") || null;
+  return blocks.map((b, i) => ({ ...b, same_scene: i > 0 && key(b.heading) !== null && key(b.heading) === key(blocks[i - 1].heading) }));
 }
 
 // ── IA ──────────────────────────────────────────────────────────────────
@@ -200,7 +208,7 @@ export function normalizeDraft(raw: unknown): ScriptBlock[] {
     const hookAt = blocks.findIndex((b) => b.kind === "gancho");
     if (hookAt > 0) blocks.unshift(...blocks.splice(hookAt, 1));
   }
-  return blocks;
+  return markSameScene(blocks);
 }
 
 // ── Acabamento do que a IA escreveu ──────────────────────────────────────────
