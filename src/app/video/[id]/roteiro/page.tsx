@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/gravai/confirm";
 import { ReportAi } from "@/components/gravai/denunciar";
-import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Plus, Sparkles, Trash2, Type } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, CircleHelp, Copy, MoreHorizontal, Plus, Sparkles, Trash2, Type } from "lucide-react";
 import { StepHeader } from "@/components/gravai/step-header";
 import { useLeave } from "@/components/gravai/voltar";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
@@ -250,11 +250,17 @@ function BlockCard({
   onSave,
   onRewrite,
   onRemove,
+  onAddAfter,
+  onMove,
+  adjust,
   autoFocus,
   place,
   scene: sceneOf,
 }: {
   block: Block;
+  onAddAfter: () => void; // nova cena logo depois desta
+  onMove: { up?: () => void; down?: () => void }; // mover a cena inteira; ausente na primeira ou na última
+  adjust?: string; // o pedido de ajuste quando a sugestão é um ajuste que a pessoa pediu
   place: string | null; // onde a cena acontece, pelos planos dela
   scene: { show: boolean; number: number }; // a parte abre uma cena nova ou continua a anterior (mesmo cabeçalho)
   onRemove?: () => void; // ausente quando é a única cena: o roteiro não fica vazio
@@ -302,7 +308,7 @@ function BlockCard({
     <article className={cn("flex flex-col gap-3", !sceneOf.show && "-mt-5")} aria-label={`Cena ${scene}: ${block.label || kind.label}`}>
       {/* Cabeçalho da cena, como num roteiro: o número e o lugar, só quando a cena muda. Ajustar fica à vista; o resto, no menu. */}
       <div className={cn("flex items-center gap-2", sceneOf.show ? "-mb-1 justify-between" : "-mb-3 justify-end")}>
-        {sceneOf.show && <h2 className="min-w-0 truncate font-mono text-sm font-semibold uppercase tracking-wide">{sceneHeading(sceneOf.number, block.heading || place)}</h2>}
+        {sceneOf.show && <h2 className="min-w-0 break-words font-mono text-sm font-semibold uppercase leading-snug tracking-wide">{sceneHeading(sceneOf.number, block.heading || place)}</h2>}
         <div className="relative -mr-2.5 flex shrink-0 items-center">
           {!asking && (
             <button type="button" disabled={busy} onClick={() => setAsking(true)} aria-label={`Pedir ajuste na cena ${scene}`} className="flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-muted-foreground disabled:opacity-40">
@@ -341,6 +347,49 @@ function BlockCard({
                   >
                     <Type className="size-4" strokeWidth={1.75} aria-hidden="true" />
                     Texto na tela
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={busy}
+                  onClick={() => {
+                    setMenu(false);
+                    onAddAfter();
+                  }}
+                  className={menuItem}
+                >
+                  <Plus className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                  Nova cena depois desta
+                </button>
+                {onMove.up && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenu(false);
+                      onMove.up?.();
+                    }}
+                    className={menuItem}
+                  >
+                    <ArrowUp className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                    Mover para cima
+                  </button>
+                )}
+                {onMove.down && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenu(false);
+                      onMove.down?.();
+                    }}
+                    className={menuItem}
+                  >
+                    <ArrowDown className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                    Mover para baixo
                   </button>
                 )}
                 {onRemove && (
@@ -404,12 +453,12 @@ function BlockCard({
         <div className="flex flex-col gap-2.5 rounded-xl border-[1.5px] border-foreground p-3.5">
           <span className="label-set flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-rec" aria-hidden="true" />
-            Sugestão do Gravaí
+            {adjust ? `Ajuste · ${adjust}` : "Sugestão do Gravaí"}
           </span>
           {suggestion.speech && <p className="text-[15px] font-medium leading-relaxed">{suggestion.speech}</p>}
           {suggestion.on_screen && <p className="text-sm text-muted-foreground">Escrito na tela: {suggestion.on_screen}</p>}
           {suggestion.action && <p className="text-sm italic text-muted-foreground">{suggestion.action}</p>}
-          <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>
+          {suggestion.reason && <p className="text-sm leading-relaxed text-muted-foreground">{suggestion.reason}</p>}
           <ReportAi
             area="roteiro"
             content={[suggestion.speech, suggestion.on_screen && `Escrito na tela: ${suggestion.on_screen}`, suggestion.action && `O que acontece: ${suggestion.action}`].filter(Boolean).join("\n")}
@@ -418,7 +467,7 @@ function BlockCard({
           />
           <div className="flex gap-2">
             <button type="button" disabled={busy} onClick={() => onSuggestion(true)} className="min-h-11 flex-1 rounded-full bg-primary text-sm font-bold text-primary-foreground disabled:opacity-40">
-              Usar sugestão
+              {adjust ? "Usar ajuste" : "Usar sugestão"}
             </button>
             <button type="button" disabled={busy} onClick={() => onSuggestion(false)} className="min-h-11 flex-1 rounded-full border-[1.5px] border-foreground text-sm font-semibold disabled:opacity-40">
               Manter o meu
@@ -475,6 +524,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
   const [people, setPeople] = useState<Person[]>([]);
   const [creator, setCreator] = useState<string | null>(null);
   const [review, setReview] = useState<{ note: string; suggestions: BlockSuggestion[] } | null>(null);
+  const [adjusts, setAdjusts] = useState<Record<string, BlockSuggestion & { request: string }>>({}); // ajustes esperando a escolha da pessoa
   const [busy, setBusy] = useState<string | null>(null); // "rascunho", "historia", id de um bloco ou "seguir"
   const [error, setError] = useState<string | null>(null);
   const { confirm, sheet } = useConfirm();
@@ -721,16 +771,91 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
     setReview((r) => (r ? { ...r, suggestions: r.suggestions.filter((s) => s.blockId !== block.id) } : r));
   }
 
+  // O ajuste não troca o texto sozinho: ele aparece como sugestão, e a pessoa escolhe entre o ajuste e o dela.
   async function rewrite(block: Block, request: string) {
     setBusy(block.id);
     setError(null);
     try {
-      const data = await callApi({ videoId: id, mode: "bloco", blockId: block.id, request });
-      setBlocks((list) => list.map((b) => (b.id === block.id ? (data.block as Block) : b)));
+      const data = await callApi({ videoId: id, mode: "bloco", blockId: block.id, request, preview: true });
+      const p = data.preview as Pick<ScriptBlock, "speech" | "on_screen" | "action">;
+      setAdjusts((a) => ({ ...a, [block.id]: { block: 0, blockId: block.id, speech: p.speech, on_screen: p.on_screen, action: p.action, reason: "", request } }));
     } catch (err) {
       setError((err as Error).message);
     }
     setBusy(null);
+  }
+
+  async function decideAdjust(block: Block, accept: boolean) {
+    const adj = adjusts[block.id];
+    if (!adj) return;
+    if (accept) {
+      const patch = { speech: adj.speech, on_screen: adj.on_screen, action: adj.action };
+      const { error } = await createClient().from("script_blocks").update(patch).eq("id", block.id);
+      if (error) {
+        setError("Não deu para usar o ajuste. Tente de novo.");
+        return;
+      }
+      setBlocks((list) => list.map((b) => (b.id === block.id ? { ...b, ...patch } : b)));
+    }
+    setAdjusts((a) => {
+      const next = { ...a };
+      delete next[block.id];
+      return next;
+    });
+  }
+
+  // Grava a ordem nova: a posição de cada parte e se ela continua a cena anterior.
+  async function reorder(next: Block[]) {
+    const before = blocks;
+    const placed = next.map((b, i) => ({ ...b, position: i }));
+    setBlocks(placed);
+    const db = createClient();
+    const changed = placed.filter((b) => {
+      const o = before.find((x) => x.id === b.id);
+      return !o || o.position !== b.position || Boolean(o.same_scene) !== Boolean(b.same_scene);
+    });
+    const results = await Promise.all(changed.map((b) => db.from("script_blocks").update({ position: b.position, same_scene: Boolean(b.same_scene) }).eq("id", b.id)));
+    if (results.some((r) => r.error)) {
+      setBlocks(before);
+      setError("Não deu para mudar a ordem das cenas. Tente de novo.");
+    }
+  }
+
+  // As partes de cada cena, de onde começa até onde termina.
+  const scenes = (() => {
+    const out: { start: number; end: number }[] = [];
+    sceneGroups(blocks).forEach((g, i) => (g.show ? out.push({ start: i, end: i }) : (out[out.length - 1].end = i)));
+    return out;
+  })();
+  const sceneAt = (index: number) => scenes.findIndex((s) => index >= s.start && index <= s.end);
+
+  // Nova cena logo depois da cena inteira desta parte, para não partir uma cena ao meio.
+  async function addAfter(block: Block) {
+    const end = scenes[sceneAt(blocks.findIndex((b) => b.id === block.id))]?.end ?? blocks.length - 1;
+    setBusy("adicionar");
+    setError(null);
+    const { data, error } = await createClient()
+      .from("script_blocks")
+      .insert({ video_id: id, position: blocks[end].position + 1, kind: "conteudo", label: null, speech: "", on_screen: "", action: "" })
+      .select()
+      .single();
+    setBusy(null);
+    if (error || !data) {
+      setError("Não deu para adicionar a cena. Tente de novo.");
+      return;
+    }
+    await reorder([...blocks.slice(0, end + 1), { ...(data as Block), same_scene: false }, ...blocks.slice(end + 1)]);
+    setFresh((data as Block).id);
+  }
+
+  // Troca a cena inteira de lugar com a vizinha.
+  function moveScene(block: Block, dir: -1 | 1) {
+    const at = sceneAt(blocks.findIndex((b) => b.id === block.id));
+    const other = at + dir;
+    if (at < 0 || other < 0 || other >= scenes.length) return;
+    const [first, second] = dir === -1 ? [scenes[other], scenes[at]] : [scenes[at], scenes[other]];
+    const next = [...blocks.slice(0, first.start), ...blocks.slice(second.start, second.end + 1), ...blocks.slice(first.start, first.end + 1), ...blocks.slice(second.end + 1)];
+    reorder(next.map((b, i) => (i === first.start || i === first.start + (second.end - second.start + 1) ? { ...b, same_scene: false } : b)));
   }
 
   async function copy() {
@@ -791,10 +916,14 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
 
   // Quem pode falar, pelo primeiro nome. Quem criou o vídeo e ainda não está em Pessoas entra pelo nome do perfil.
   const me = creator?.trim() ? firstNameOf(creator) : null;
+  // Mais os nomes que a pessoa escreveu no roteiro colado ("Personagem 1", "Mãe"), mesmo sem estarem em Pessoas.
   const castNames = (() => {
     const names = castOf(people).map((c) => (c.label === "Você" ? me : c.label));
     if (!people.some((p) => p.role === "eu") && me && names.length > 0) names.unshift(me);
-    return names.filter((n): n is string => Boolean(n));
+    const known = names.filter((n): n is string => Boolean(n));
+    const written = ((video as (Video & { script_reading?: { people?: unknown } }) | null | undefined)?.script_reading?.people ?? []) as unknown[];
+    for (const w of written) if (typeof w === "string" && w.trim() && !known.some((k) => isMe(w, k))) known.push(w.trim());
+    return known;
   })();
   const alerts = video ? checkScript(blocks, video.duration_s, video.objective).filter((c) => c.level !== "ok") : [];
 
@@ -936,8 +1065,14 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
                 cast={castNames}
                 speaker={speakerOf(b, people, isSolo(video.resources ?? []), creator)}
                 quick={QUICK_BLOCK[(video.objective ?? "crescer") as Objective]}
-                suggestion={review?.suggestions.find((s) => s.blockId === b.id)}
-                onSuggestion={(accept) => decide(b, accept)}
+                suggestion={adjusts[b.id] ?? review?.suggestions.find((s) => s.blockId === b.id)}
+                adjust={adjusts[b.id]?.request}
+                onSuggestion={(accept) => (adjusts[b.id] ? decideAdjust(b, accept) : decide(b, accept))}
+                onAddAfter={() => addAfter(b)}
+                onMove={{
+                  up: sceneAt(i) > 0 ? () => moveScene(b, -1) : undefined,
+                  down: sceneAt(i) < scenes.length - 1 ? () => moveScene(b, 1) : undefined,
+                }}
                 onSave={(field, value) => saveField(b, field, value)}
                 onRewrite={(request) => rewrite(b, request)}
                 onRemove={blocks.length > 1 ? () => removeBlock(b) : undefined}

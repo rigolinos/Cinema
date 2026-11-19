@@ -195,6 +195,12 @@ export async function POST(request: NextRequest) {
   if (!rewrite) return fail("A IA não trouxe a cena desta vez. Tente de novo.", 502);
   rewrite = polishBlock(rewrite, polish);
 
+  // Ajuste para a pessoa escolher: volta o texto novo sem salvar. Ela decide entre o ajuste e o dela.
+  if (body?.preview === true) {
+    await supabase.from("creator_signals").insert({ kind: "pedido_bloco", video_id: videoId, detail: { pedido: ask.slice(0, 160), bloco: (blocks[index].label ?? "").slice(0, 60) } });
+    return NextResponse.json({ preview: rewrite });
+  }
+
   const { data: updated, error } = await supabase.from("script_blocks").update(rewrite).eq("id", blockId).select().single();
   if (error) return fail("Não foi possível guardar a cena.", 500);
   await supabase.from("creator_signals").insert({ kind: "pedido_bloco", video_id: videoId, detail: { pedido: ask.slice(0, 160), bloco: (blocks[index].label ?? "").slice(0, 60) } });

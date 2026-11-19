@@ -53,3 +53,15 @@ describe("tela do convidado", () => {
     expect(splitAction("Sem câmera.")).toEqual({ text: "Sem câmera.", camera: [] });
   });
 });
+
+describe("nomes com número, como nos roteiros escritos à mão", () => {
+  it("Personagem 1 e Personagem 2 são pessoas diferentes", () => {
+    expect(isMe("Personagem 1", "Personagem 1")).toBe(true);
+    expect(isMe("Personagem 2", "Personagem 1")).toBe(false);
+    expect(isMe("personagem 1", "Personagem 1")).toBe(true);
+    expect(isMe("Kira", "Kira Souza")).toBe(true);
+  });
+  it("a fala com Personagem 1: reconhece quem fala", () => {
+    expect(speechLines("Personagem 1: Por que tá todo mundo me olhando?")[0]).toMatchObject({ speaker: "Personagem 1", text: "Por que tá todo mundo me olhando?" });
+  });
+});
