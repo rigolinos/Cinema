@@ -63,6 +63,8 @@ describe("leitura do roteiro colado", () => {
         speech: "",
         on_screen: "Como as notícias correm na minha escola",
         action: "Manu e Lorenzo discutindo. (plano aberto) Natasha sai de trás de um banco com cara de susto.",
+        heading: "CENA 1",
+        same_scene: false,
       },
       {
         kind: "contexto",
@@ -70,8 +72,62 @@ describe("leitura do roteiro colado", () => {
         speech: "Natasha: Amiga, nem sabe o que eu vi agora.\nKira: O quê?\nNatasha: A Manu e o Lorenzo se pegando no pau lá na quadra de basquete.",
         on_screen: "",
         action: "",
+        heading: "CENA 2",
+        same_scene: false,
       },
     ]);
+  });
+
+  // O roteiro que a Natasha colou: cinco cenas marcadas, e na primeira a ação vem depois da fala.
+  const marcado = normalizeReading({
+    summary: "A protagonista depois do pior erro da vida dela.",
+    tone: "humor",
+    people: ["Personagem 1", "Personagem 2", "Mãe"],
+    // Fora de ordem e sem a cena 5: cada um vai para a cena dele, e a 5 fica sem lugar.
+    headings: [
+      { scene: 2, heading: "INT. REFEITÓRIO – DIA" },
+      { scene: 1, heading: "int corredor da escola - dia" },
+      { scene: 3, heading: "INT. BANHEIRO – DIA" },
+      { scene: 4, heading: "INT. CARRO – DIA" },
+    ],
+    items: [
+      { scene: 1, kind: "acao", speaker: "", text: "Ela andando no corredor sozinha. Todo mundo olha pra ela." },
+      { scene: 1, kind: "fala", speaker: "Personagem 1", text: "Por que que tá todo mundo me olhando?" },
+      { scene: 1, kind: "acao", speaker: "", text: "Personagem 2 ergue o celular e mostra pra Personagem 1." },
+      { scene: 2, kind: "acao", speaker: "", text: "Ela com a bandeja na mão e todo mundo olha pra ela." },
+      { scene: 3, kind: "acao", speaker: "", text: "Ela senta na privada com a bandeja no colo." },
+      { scene: 4, kind: "acao", speaker: "", text: "Entra no carro braba." },
+      { scene: 4, kind: "fala", speaker: "Mãe", text: "Tá tudo bem, filha?" },
+      { scene: 4, kind: "fala", speaker: "Personagem 1", text: "Só dirige, mãe." },
+      { scene: 5, kind: "acao", speaker: "", text: "Personagem 1 chorando na cama." },
+      { scene: 5, kind: "fala", speaker: "Personagem 1", text: "Não, mãe, eu não vou voltar pra escola." },
+    ],
+  }) as Reading;
+
+  it("cenas marcadas pela pessoa nunca se juntam, mesmo que a IA junte", () => {
+    // A IA juntou 2 com 3 e 4 com 5, como no teste da Natasha.
+    const blocks = assembleFromReading(marcado, { items: marcado.items.map((i) => ({ n: i.n, block: i.scene <= 1 ? 1 : i.scene <= 3 ? 2 : 3, kind: i.n === 1 ? "gancho" : "conteudo" })) });
+    expect(blocks?.map((b) => b.heading)).toEqual([
+      "INT. CORREDOR DA ESCOLA – DIA",
+      "INT. CORREDOR DA ESCOLA – DIA",
+      "INT. REFEITÓRIO – DIA",
+      "INT. BANHEIRO – DIA",
+      "INT. CARRO – DIA",
+      "CENA 5",
+    ]);
+  });
+
+  it("a ação que vem depois da fala fica depois, na mesma cena", () => {
+    const blocks = assembleFromReading(marcado, { items: marcado.items.map((i) => ({ n: i.n, block: i.scene, kind: "conteudo" })) })!;
+    expect(blocks[0]).toMatchObject({ action: "Ela andando no corredor sozinha. Todo mundo olha pra ela.", speech: "Personagem 1: Por que que tá todo mundo me olhando?" });
+    expect(blocks[1]).toMatchObject({ action: "Personagem 2 ergue o celular e mostra pra Personagem 1.", speech: "", label: null });
+    expect(blocks[1].heading).toBe(blocks[0].heading);
+    expect(blocks.map((b) => b.same_scene)).toEqual([false, true, false, false, false, false]);
+  });
+
+  it("cena marcada fora de ordem não vale: a montagem volta a ser da IA", () => {
+    const fora = normalizeReading({ items: [{ scene: 2, kind: "acao", text: "A" }, { scene: 1, kind: "acao", text: "B" }] }) as Reading;
+    expect(fora.items.map((i) => i.scene)).toEqual([0, 0]);
   });
 
   it("divisão que não fecha volta null (item faltando ou repetido)", () => {

@@ -6,7 +6,8 @@ import { APP, abrir, check, estado, reset } from "./base-mock.mjs";
 const out = process.argv[2];
 await reset();
 const e0 = await estado();
-const blocos = e0.blocks.map((x) => (x.id === "b2" ? { ...x, speech: "Rafa: Lava de novo?\nBia: Lavo, e daí?", action: "Ela olha a panela." } : x));
+// A parte b2 continua a cena da cozinha: aparece sem cabeçalho próprio.
+const blocos = e0.blocks.map((x) => (x.id === "b2" ? { ...x, speech: "Rafa: Lava de novo?\nBia: Lavo, e daí?", action: "Ela olha a panela.", same_scene: true } : x));
 const { b, c, p, erros } = await abrir();
 await c.grantPermissions(["clipboard-read", "clipboard-write"], { origin: APP });
 await reset({ blocks: blocos });

@@ -93,7 +93,7 @@ describe("normalizeDraft", () => {
       ],
     });
     expect(blocks.map((x) => x.kind)).toEqual(["gancho", "contexto", "conteudo", "chamada"]);
-    expect(blocks[0]).toEqual({ kind: "gancho", label: null, speech: "Gancho", on_screen: "3 ERROS", action: "", heading: null });
+    expect(blocks[0]).toEqual({ kind: "gancho", label: null, speech: "Gancho", on_screen: "3 ERROS", action: "", heading: null, same_scene: false });
     expect(normalizeDraft({ blocks: "não" })).toEqual([]);
     expect(normalizeDraft({ blocks: Array.from({ length: 20 }, () => ({ kind: "conteudo", speech: "x" })) })).toHaveLength(12);
   });
@@ -287,16 +287,15 @@ describe("cabeçalho da cena", () => {
     const blocks = normalizeDraft({ blocks: [{ kind: "gancho", heading: "ext estacionamento - dia", action: "Ela trava o carro. CORTE. Ela está na esquina." }] });
     expect(blocks.map((b) => b.heading)).toEqual(["EXT. ESTACIONAMENTO – DIA", null]);
   });
-  it("partes seguidas no mesmo lugar são uma cena só: o cabeçalho aparece uma vez", () => {
-    expect(sceneGroups(["INT. COZINHA – DIA", "int. cozinha – dia", "EXT. RUA – DIA", null, null, "EXT. RUA – DIA"])).toEqual([
+  it("a parte que continua a cena aparece sem cabeçalho; só a parte diz se continua", () => {
+    expect(sceneGroups([{}, { same_scene: true }, { same_scene: false }, {}, { same_scene: true }])).toEqual([
       { show: true, number: 1 },
       { show: false, number: 1 },
       { show: true, number: 2 },
       { show: true, number: 3 },
-      { show: true, number: 4 },
-      { show: true, number: 5 },
+      { show: false, number: 3 },
     ]);
-    const text = scriptAsText("x", [b("gancho", "", { action: "Abre a geladeira." }), b("conteudo", "", { action: "Pega a pizza." }), b("chamada", "", { action: "Sai." })], {
+    const text = scriptAsText("x", [b("gancho", "", { action: "Abre a geladeira." }), b("conteudo", "", { action: "Pega a pizza.", same_scene: true }), b("chamada", "", { action: "Sai." })], {
       places: ["INT. COZINHA – NOITE", "INT. COZINHA – NOITE", "INT. SALA – NOITE"],
     });
     expect(text).toBe("X\n\n\n1. INT. COZINHA – NOITE\n\nAbre a geladeira.\n\nPega a pizza.\n\n\n2. INT. SALA – NOITE\n\nSai.");
@@ -321,5 +320,17 @@ describe("CORTE dentro de uma cena", () => {
       ["gancho", "Natasha sai do carro e trava ele.", "Oi", "POV"],
       ["conteudo", "Natasha está na esquina e aperta o controle de novo.", "", ""],
     ]);
+  });
+});
+
+describe("cena que continua no roteiro da IA", () => {
+  it("partes seguidas com o mesmo cabeçalho continuam a cena; cabeçalho diferente ou vazio, não", () => {
+    const blocks = normalizeDraft({ blocks: [
+      { kind: "gancho", heading: "INT. COZINHA – DIA", action: "A" },
+      { kind: "conteudo", heading: "int cozinha - dia", action: "B" },
+      { kind: "conteudo", heading: "EXT. RUA – DIA", action: "C" },
+      { kind: "chamada", heading: "", action: "D" },
+    ] });
+    expect(blocks.map((x) => x.same_scene)).toEqual([false, true, false, false]);
   });
 });

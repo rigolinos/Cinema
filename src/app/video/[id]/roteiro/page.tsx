@@ -926,7 +926,7 @@ export default function RoteiroPage({ params }: { params: Promise<{ id: string }
             {blocks.length > 0 && (
               // Uma folha só, como um roteiro: as cenas se separam pelo cabeçalho, sem caixas nem linhas.
               <div className="flex flex-col gap-8 rounded-2xl bg-card px-4 pb-3 pt-5">
-            {sceneGroups(blocks.map((b) => b.heading || places[b.id] || null)).map((g, i) => ({ g, b: blocks[i], i })).map(({ g, b, i }) => (
+            {sceneGroups(blocks).map((g, i) => ({ g, b: blocks[i], i })).map(({ g, b, i }) => (
               <BlockCard
                 scene={g}
                 key={b.id}
