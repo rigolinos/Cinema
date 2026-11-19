@@ -16,7 +16,8 @@ export interface CueLine {
   text: string;
 }
 
-const SPEAKER = /^\s*([\p{L}][\p{L} ]{0,24}):\s*(.*)$/u;
+// O nome pode terminar com número ("Personagem 1"), como nos roteiros escritos à mão.
+const SPEAKER = /^\s*([\p{L}][\p{L} ]{0,24}(?: \d{1,2})?):\s*(.*)$/u;
 
 export function speechLines(speech: string): { speaker: string | null; text: string; raw: string }[] {
   return speech
@@ -31,8 +32,10 @@ export function speechLines(speech: string): { speaker: string | null; text: str
 
 const plain = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
-// "Kira" fala em "Kira:"; "Kira Souza" também (vale o primeiro nome).
+// "Kira" fala em "Kira:"; "Kira Souza" também (vale o primeiro nome). Nome que termina com número
+// ("Personagem 1") só vale inteiro: "Personagem 2" é outra pessoa.
 export function isMe(speaker: string, name: string): boolean {
+  if (/\d\s*$/.test(speaker) || /\d\s*$/.test(name)) return plain(speaker).replace(/\s+/g, " ") === plain(name).replace(/\s+/g, " ");
   return plain(speaker.split(/\s+/)[0]) === plain(name.split(/\s+/)[0] ?? "");
 }
 

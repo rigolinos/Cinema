@@ -12,6 +12,8 @@ await p.route("**/api/roteiro", async (route) => {
   if (body.mode === "bloco") {
     const e = await (await fetch(`${DB}/__state`)).json();
     const atual = e.blocks.find((x) => x.id === body.blockId);
+    // O ajuste volta como prévia: só muda se a pessoa tocar em Usar ajuste.
+    if (body.preview) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ preview: { speech: "Fala reescrita.", on_screen: atual.on_screen, action: atual.action } }) });
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ block: { ...atual, speech: "Fala reescrita." } }) });
   }
   if (body.mode === "rascunho") {
@@ -99,8 +101,9 @@ check("Para que serve explica só quando pedem", (await texto()).includes("O que
 await p.getByRole("article").nth(2).getByRole("button", { name: "Pedir ajuste" }).click();
 await p.getByLabel("O que mudar na cena 3").waitFor();
 await p.getByRole("button", { name: "Mais curto" }).click();
+await p.getByRole("button", { name: "Usar ajuste" }).click();
 await p.waitForTimeout(400);
-check("pedir ajuste reescreve a cena", (await p.getByLabel(/Fala de .* na cena 3/).first().inputValue()) === "Fala reescrita.");
+check("pedir ajuste e usar reescreve a cena", (await p.getByLabel(/Fala de .* na cena 3/).first().inputValue()) === "Fala reescrita.");
 
 await p.getByRole("button", { name: "Opções da cena 3" }).click();
 await p.getByRole("menuitem", { name: "Apagar cena" }).click();
