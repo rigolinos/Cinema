@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bookmark } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { findFormat } from "@/lib/formats";
+import { ownIdeaParts } from "@/lib/ideas";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils";
 // guardar num cartão da quinzena já aparece na seção "Guardadas" sem recarregar.
 export interface SavedIdea {
   id: string;
-  source: "video" | "quinzena";
+  source: "video" | "quinzena" | "pessoa"; // pessoa: a ideia que ela mesma escreveu
   source_id: string;
   title: string;
   format_slug: string | null;
@@ -20,6 +21,7 @@ export interface SavedIdea {
   situation: string;
   payoff: string;
   why: string | null;
+  brief?: string; // o texto inteiro da ideia da pessoa
   video_id: string | null;
   created_at: string;
 }
@@ -76,6 +78,33 @@ async function toggle(idea: IdeaToSave): Promise<boolean> {
   items = [data as SavedIdea, ...(items ?? []).filter((i) => i.source_id !== idea.source_id)];
   notify();
   logSignal("ideia_guardada", { title: idea.title, format: findFormat(idea.format_slug)?.name });
+  return true;
+}
+
+// Guarda a ideia que a própria pessoa escreveu. Ela não vem de outra lista: o banco dá o código.
+export async function saveOwnIdea(text: string): Promise<boolean> {
+  const parts = ownIdeaParts(text);
+  const { data, error } = await createClient()
+    .from("saved_ideas")
+    .insert({ source: "pessoa", title: parts.title, hook: parts.hook, situation: parts.situation, brief: parts.brief, format_slug: null, why: null })
+    .select("*")
+    .single();
+  if (error || !data) return false;
+  items = [data as SavedIdea, ...(items ?? [])];
+  notify();
+  logSignal("ideia_guardada", { title: parts.title, propria: true });
+  return true;
+}
+
+// Tira da lista a ideia que a pessoa escreveu (o texto some junto).
+export async function deleteOwnIdea(idea: SavedIdea): Promise<boolean> {
+  forgetSaved(idea.id);
+  const { error } = await createClient().from("saved_ideas").delete().eq("id", idea.id);
+  if (error) {
+    items = [idea, ...(items ?? [])];
+    notify();
+    return false;
+  }
   return true;
 }
 

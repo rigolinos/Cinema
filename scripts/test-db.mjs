@@ -667,6 +667,18 @@ ok(vidS, 'dono começa um vídeo a partir da ideia guardada' + (r.err ? ': ' + r
 const vs = await one('SELECT title, hook, stage, platform, platforms FROM public.videos WHERE id = $1', [vidS]);
 ok(vs?.title === 'Guardada' && vs.stage === 'roteiro' && vs.platform === 'tiktok' && vs.platforms.length === 2, 'nasce no roteiro, com a principal em pé e as duas plataformas');
 ok((await one('SELECT video_id FROM public.saved_ideas WHERE id = $1', [salva]))?.video_id === vidS, 'a ideia guardada fica marcada como usada');
+{
+  // A ideia que a própria pessoa escreveu: sem source_id, com o texto inteiro; vira vídeo pelo caminho "Já tenho a ideia".
+  const texto = 'Minha mãe ligando três vezes para saber se eu comi. Na última ela já está na porta.';
+  r = await as('authenticated', A, `INSERT INTO public.saved_ideas (source, title, hook, situation, brief) VALUES ('pessoa', 'Minha mãe ligando três vezes', 'Minha mãe ligando três vezes para saber se eu comi.', $1, $1) RETURNING id, source_id`, [texto]);
+  const minha = r.rows?.[0];
+  ok(!r.err && minha?.source_id, 'a pessoa guarda a própria ideia, sem vir de outra lista' + (r.err ? ': ' + r.err : ''));
+  r = await as('authenticated', A, 'SELECT public.start_video_from_saved($1, $2, $3, $4, $5) AS id', [minha?.id, 'divertir', ['reels'], 30, ['sozinho']]);
+  const vm = await one('SELECT start_door, brief, stage FROM public.videos WHERE id = $1', [r.rows?.[0]?.id]);
+  ok(vm?.start_door === 'ideia' && vm.brief === texto && vm.stage === 'roteiro', 'a ideia dela vira vídeo como "Já tenho a ideia", com o texto dela');
+  r = await as('authenticated', A, `INSERT INTO public.saved_ideas (source, title, hook) VALUES ('outra', 'x', 'x')`);
+  ok(r.err, 'origem desconhecida é recusada');
+}
 r = await as('authenticated', A, `INSERT INTO public.creator_signals (kind, detail) VALUES ('ideia_guardada', '{"title":"Guardada"}') RETURNING id`);
 ok(!r.err, 'guardar ideia vira sinal da memória' + (r.err ? ': ' + r.err : ''));
 r = await as('anon', null, 'SELECT public.start_video_from_saved($1, $2, $3, $4, $5)', [salva, 'crescer', ['reels'], 30, ['sozinho']]);
