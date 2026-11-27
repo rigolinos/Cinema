@@ -197,3 +197,20 @@ export function nicheInSentence(niche: string): string {
   const n = niche.trim();
   return NICHE_EXAMPLES.includes(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n;
 }
+
+// A ideia que a pessoa escreveu, do jeito dela: o título são as primeiras palavras, o começo é a primeira
+// frase e o texto inteiro fica guardado. Serve para "Já tenho a ideia" e para guardar a ideia para depois.
+// O título não termina em palavra solta ("…três vezes para"): as palavras pequenas do fim saem.
+const LOOSE_END = /^(a|o|as|os|e|ou|de|da|do|das|dos|em|na|no|nas|nos|um|uma|para|pra|pro|por|com|que|se|ao|à|mas|quando|sem|sobre|meu|minha|seu|sua)$/i;
+
+export function ownIdeaParts(text: string): { title: string; hook: string; situation: string; brief: string } {
+  const written = text.trim().replace(/\s+/g, " ");
+  const words = (written.split(/[.!?…,;:]/)[0] ?? written).trim().split(" ").slice(0, 6);
+  while (words.length > 2 && LOOSE_END.test(words[words.length - 1])) words.pop();
+  return {
+    title: words.join(" ").slice(0, 140),
+    hook: (written.split(/(?<=[.!?…])\s/)[0] ?? written).slice(0, 300),
+    situation: written.slice(0, 600),
+    brief: text.trim().slice(0, 1500),
+  };
+}

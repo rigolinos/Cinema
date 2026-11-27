@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { STEPS, Thinking } from "@/components/gravai/thinking";
 import { createClient } from "@/lib/supabase/client";
+import { saveOwnIdea } from "@/components/gravai/guardar";
+import { ownIdeaParts } from "@/lib/ideas";
 import { PASTE_MAX_CHARS } from "@/lib/organizar";
 import { logSignal } from "@/lib/sinais";
 import { cn } from "@/lib/utils";
@@ -77,11 +79,10 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
   async function go() {
     setBusy(true);
     setError(null);
-    const written = text.trim().replace(/\s+/g, " ");
-    const title = written.split(" ").slice(0, 6).join(" ").slice(0, 140);
+    const { title, hook, situation } = ownIdeaParts(text);
     const { error } = await createClient()
       .from("videos")
-      .update({ title, hook: (written.split(/(?<=[.!?…])\s/)[0] ?? written).slice(0, 300), situation: written.slice(0, 600), payoff: "", brief: text.trim().slice(0, 4000), stage: "roteiro" })
+      .update({ title, hook, situation, payoff: "", brief: text.trim().slice(0, 4000), stage: "roteiro" })
       .eq("id", videoId);
     if (error) {
       setError("Não deu para salvar. Tente de novo.");
@@ -90,6 +91,17 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
     }
     logSignal("ideia_escolhida", { title }, videoId);
     router.push(`/video/${videoId}/roteiro?historia=1`);
+  }
+
+  async function keep() {
+    setBusy(true);
+    setError(null);
+    if (await saveOwnIdea(text)) {
+      router.push("/ideias/guardadas");
+      return;
+    }
+    setError("Não deu para guardar. Tente de novo.");
+    setBusy(false);
   }
 
   return (
@@ -109,6 +121,10 @@ export function OwnIdeaBox({ videoId, initial }: { videoId: string; initial: str
       />
       <button type="button" onClick={go} disabled={busy || text.trim().length < 8} className={primary}>
         {busy ? "Salvando…" : "Contar a história"}
+      </button>
+      {/* Para quem teve a ideia mas não quer seguir agora: ela fica nas guardadas, do jeito que foi escrita. */}
+      <button type="button" onClick={keep} disabled={busy || text.trim().length < 8} className="min-h-11 self-center text-sm font-semibold underline disabled:opacity-40">
+        Guardar para depois
       </button>
       <Problem text={error} />
     </div>

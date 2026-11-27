@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "@/lib/formats";
-import { durationLabel, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, questionsFor, samePlaces, videoPlatforms, withPlaces, withWho, type Answers } from "@/lib/ideas";
+import { durationLabel, ownIdeaParts, mainPlatform, nicheInSentence, mixesOrientation, nextQuestion, normalizeIdeas, platformsLabel, questionsFor, samePlaces, videoPlatforms, withPlaces, withWho, type Answers } from "@/lib/ideas";
 import { parseJson } from "@/lib/ai";
 
 const full: Answers = { niche: "treino em casa", objective: "crescer", platforms: ["reels"], durationS: 30, resources: ["sozinho"] };
@@ -106,5 +106,16 @@ describe("nicho no meio da frase", () => {
     expect(nicheInSentence("Treino em casa")).toBe("treino em casa");
     expect(nicheInSentence("Minecraft")).toBe("Minecraft");
     expect(nicheInSentence("receitas baratas")).toBe("receitas baratas");
+  });
+});
+
+describe("a ideia da própria pessoa", () => {
+  it("título são as primeiras palavras, o começo é a primeira frase, e o texto inteiro fica", () => {
+    const p = ownIdeaParts("  minha mãe ligando três vezes para saber se eu comi. Na última ela já está na porta  ");
+    expect(p.title).toBe("minha mãe ligando três vezes");
+    expect(ownIdeaParts("gato, cachorro e eu no sofá").title).toBe("gato");
+    expect(ownIdeaParts("treino de perna sem academia em casa").title).toBe("treino de perna sem academia");
+    expect(p.hook).toBe("minha mãe ligando três vezes para saber se eu comi.");
+    expect(p.brief).toBe("minha mãe ligando três vezes para saber se eu comi. Na última ela já está na porta");
   });
 });
